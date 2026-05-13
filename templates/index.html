@@ -20,15 +20,36 @@
             <p>您的個人智慧管家</p>
         </div>
 
-        <!-- 快速功能按鈕區域 -->
-        <div class="quick-actions">
-            <button id="queryTodayBtn" class="action-btn schedule">🗓️ 今日行程</button>
-            <button id="queryExpenseBtn" class="action-btn expense">📊 本月合計</button>
-            <button id="queryWeekBtn" class="action-btn schedule">📅 這週行程</button>
-            <button id="openSheetBtn" class="action-btn expense">📝 開啟帳本</button>
-            <button id="manualScheduleBtn" class="action-btn schedule">➕ 手動行程</button>
-            <button id="manualExpenseBtn" class="action-btn expense">💰 手動記帳</button>
+        <!-- 功能選單區域 -->
+    <div class="quick-actions">
+        <!-- 第一排：最直覺的手動新增 -->
+        <div class="action-row main-actions">
+            <button class="action-btn schedule-add" id="manualScheduleBtn">
+                <span class="icon">➕</span> 新增行程
+            </button>
+            <button class="action-btn expense-add" id="manualExpenseBtn">
+                <span class="icon">💰</span> 我要記帳
+            </button>
         </div>
+        
+        <!-- 第二排：階層式查詢 -->
+        <div class="action-row query-actions">
+            <div class="menu-group">
+                <button class="menu-trigger" id="scheduleMenuBtn">行程查詢 ▾</button>
+                <div class="menu-dropdown" id="scheduleMenu">
+                    <button onclick="handleSend('今日行程')">今日行程</button>
+                    <button onclick="handleSend('這週行程')">這週行程</button>
+                </div>
+            </div>
+            <div class="menu-group">
+                <button class="menu-trigger" id="ledgerMenuBtn">財務帳本 ▾</button>
+                <div class="menu-dropdown" id="ledgerMenu">
+                    <button onclick="handleSend('本月合計')">本月合計</button>
+                    <button onclick="handleSend('開啟記帳表單')">開啟帳本</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
         <!-- 對話紀錄區 -->
         <div id="chat-history">

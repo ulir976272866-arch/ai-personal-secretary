@@ -19,137 +19,195 @@
 
 body {
     background: var(--bg-gradient);
-    height: 100vh;
+    min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     color: var(--text-dark);
+    overflow-x: hidden;
 }
 
 #app-container {
     width: 100%;
     max-width: 450px;
-    height: 95vh;
+    height: 100vh;
+    height: 100dvh;
     background: var(--card-bg);
-    border-radius: 30px;
-    box-shadow: 0 20px 60px rgba(0, 191, 175, 0.15);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     position: relative;
-    border: 1px solid rgba(255,255,255,0.3);
 }
 
-/* 頂部標題 */
+/* 頂部標題 - 縮小版 */
 .header {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     color: white;
-    padding: 25px 20px;
+    padding: 15px 20px;
     text-align: left;
-    border-radius: 0 0 30px 30px;
-    box-shadow: 0 4px 20px rgba(0, 191, 175, 0.2);
+    border-radius: 0 0 20px 20px;
+    box-shadow: 0 4px 15px rgba(0, 191, 175, 0.15);
 }
 
 .header h1 {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     font-weight: 800;
-    margin-bottom: 5px;
-    letter-spacing: 0.5px;
+    margin-bottom: 2px;
 }
 
 .header p {
-    font-size: 0.9rem;
-    opacity: 0.9;
+    font-size: 0.75rem;
+    opacity: 0.85;
 }
 
-/* 功能按鈕區域 */
+/* 功能選單區域 2.0 */
 .quick-actions {
-    padding: 20px;
+    padding: 15px;
+    background: white;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.action-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
-    background: white;
 }
 
-.action-btn {
+/* 手動新增按鈕 - 獨立直覺 */
+.action-btn.schedule-add {
+    background: #ff9f1c;
+    color: white;
     border: none;
-    border-radius: 16px;
     padding: 14px;
+    border-radius: 16px;
+    font-weight: 800;
     font-size: 0.95rem;
+    box-shadow: 0 4px 15px rgba(255, 159, 28, 0.25);
+}
+
+.action-btn.expense-add {
+    background: #00bfaf;
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 16px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 15px rgba(0, 191, 175, 0.25);
+}
+
+/* 階層式選單 */
+.menu-group {
+    position: relative;
+}
+
+.menu-trigger {
+    width: 100%;
+    background: #f8fafc;
+    color: #475569;
+    border: 1.5px solid #e2e8f0;
+    padding: 10px;
+    border-radius: 12px;
     font-weight: 700;
+    font-size: 0.9rem;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    transition: all 0.2s;
 }
 
-.action-btn:active {
-    transform: scale(0.95);
+.menu-trigger:active {
+    background: #f1f5f9;
 }
 
-/* 行程類按鈕 - 琥珀色實心 */
-.action-btn.schedule {
-    background: linear-gradient(135deg, #ffb347 0%, var(--accent-amber) 100%);
-    color: white;
+.menu-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    z-index: 200;
+    margin-top: 5px;
+    border: 1px solid #f1f5f9;
+    overflow: hidden;
+}
+
+.menu-dropdown.show {
+    display: block;
+    animation: slideDown 0.2s ease-out;
+}
+
+.menu-dropdown button {
+    width: 100%;
+    padding: 12px;
     border: none;
-    box-shadow: 0 6px 15px rgba(255, 159, 28, 0.25);
+    background: none;
+    text-align: center;
+    font-size: 0.9rem;
+    color: #1e293b;
+    border-bottom: 1px solid #f8fafc;
 }
 
-.action-btn.schedule:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(255, 159, 28, 0.4);
+.menu-dropdown button:last-child {
+    border-bottom: none;
 }
 
-/* 記帳類按鈕 - 蒂芬妮綠實心 */
-.action-btn.expense {
-    background: linear-gradient(135deg, #20e3b2 0%, var(--primary-color) 100%);
-    color: white;
-    border: none;
-    box-shadow: 0 6px 15px rgba(0, 191, 175, 0.25);
+.menu-dropdown button:active {
+    background: #f0fdfa;
 }
 
-.action-btn.expense:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(0, 191, 175, 0.4);
+@keyframes slideDown {
+    from { transform: translateY(-10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
 
-/* 聊天區域 */
+/* 聊天區域 - LINE 風格流暢滾動 */
 #chat-history {
     flex: 1;
+    min-height: 0;           /* 關鍵！讓 flex 子項可以正確縮小並滾動 */
     overflow-y: auto;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 15px;
     background: #f8fafc;
 }
 
+/* 隱藏捲動條（LINE 明顯的設計就沒有捲動條） */
+#chat-history::-webkit-scrollbar {
+    display: none;
+}
+
 .message {
-    max-width: 85%;
-    padding: 12px 18px;
+    max-width: 80%;
+    padding: 12px 16px;
     border-radius: 20px;
     font-size: 0.95rem;
     line-height: 1.5;
-    position: relative;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-bottom: 10px;
+    word-break: break-word;
 }
 
 .user-message {
-    align-self: flex-end;
     background: linear-gradient(135deg, #20e3b2 0%, var(--primary-color) 100%);
     color: white;
     border-bottom-right-radius: 4px;
+    margin-left: auto;   /* 靠右對齊，像 LINE 右邊訊息 */
+    display: block;
 }
 
 .ai-message {
-    align-self: flex-start;
     background: white;
     color: var(--text-dark);
     border-bottom-left-radius: 4px;
     border: 1px solid #edf2f7;
+    margin-right: auto;  /* 靠左對齊，像 LINE 左邊訊息 */
+    display: block;
 }
 
 /* 清空按鈕 - 參考元辰專案風格：柔和紅、圓角方 */
@@ -253,6 +311,8 @@ body {
     overflow: hidden;
     box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     border-left: 6px solid var(--accent-amber);
+    width: 100%;
+    margin-bottom: 10px;
 }
 
 .schedule-header {

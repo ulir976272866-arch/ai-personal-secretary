@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 啟動晨間簡報
     fetchMorningBriefing();
 
-    // 處理手機背景待機恢復：當使用者回到 App 時自動更新資料
+    // 處理手機背景待機恢復
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             console.log('App resumed, refreshing data...');
@@ -27,15 +27,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 快捷按鈕
-    const queryTodayBtn = document.getElementById('queryTodayBtn');
-    const queryWeekBtn = document.getElementById('queryWeekBtn');
-    const queryExpenseBtn = document.getElementById('queryExpenseBtn');
-    const openSheetBtn = document.getElementById('openSheetBtn');
+    // --- 介面控制與變數初始化 ---
     const voiceBtn = document.getElementById('voiceBtn');
     const clearBtn = document.getElementById('clearBtn');
+    const scheduleMenuBtn = document.getElementById('scheduleMenuBtn');
+    const ledgerMenuBtn = document.getElementById('ledgerMenuBtn');
+    const scheduleMenu = document.getElementById('scheduleMenu');
+    const ledgerMenu = document.getElementById('ledgerMenu');
+    const scheduleModal = document.getElementById('scheduleModal');
+    const expenseModal = document.getElementById('expenseModal');
+    const isAllDayCheckbox = document.getElementById('is_all_day');
+    const timeInputGroup = document.getElementById('timeInputGroup');
+
+    // 階層式選單切換
+    scheduleMenuBtn.onclick = (e) => {
+        e.stopPropagation();
+        scheduleMenu.classList.toggle('show');
+        ledgerMenu.classList.remove('show');
+    };
+
+    ledgerMenuBtn.onclick = (e) => {
+        e.stopPropagation();
+        ledgerMenu.classList.toggle('show');
+        scheduleMenu.classList.remove('show');
+    };
+
+    // 點擊外面關閉選單
+    document.addEventListener('click', () => {
+        scheduleMenu.classList.remove('show');
+        ledgerMenu.classList.remove('show');
+    });
+
+    // 綁定手動新增按鈕 (獨立直覺)
+    document.getElementById('manualScheduleBtn').onclick = () => {
+        isAllDayCheckbox.checked = false;
+        timeInputGroup.style.display = 'block';
+        showModal(scheduleModal);
+    };
+    document.getElementById('manualExpenseBtn').onclick = () => {
+        showModal(expenseModal);
+    };
+
+    function showModal(modal) { modal.classList.add('show'); }
+    function closeModal() { 
+        scheduleModal.classList.remove('show'); 
+        expenseModal.classList.remove('show'); 
+    }
+    
+    document.querySelectorAll('.close-modal').forEach(btn => btn.onclick = closeModal);
 
     // --- 輔助函式 ---
+    function scrollToBottom() {
+        requestAnimationFrame(() => {
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        });
+    }
+
     function appendMessage(text, isUser = false) {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
@@ -45,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
             msgDiv.innerHTML = text.replace(/\n/g, '<br>');
         }
         chatHistory.appendChild(msgDiv);
-        chatHistory.scrollTop = chatHistory.scrollHeight;
+        scrollToBottom();
         return msgDiv;
     }
 
@@ -55,8 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
             appendMessage('對話已清空。');
         }
     };
-
-
 
     function renderScheduleCard(events, dateStr) {
         const card = document.createElement('div');
@@ -71,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (events.length === 0) {
             card.innerHTML = headerHtml + '<p style="padding: 10px; color: #64748b;">今天沒有安排行程喔！</p>';
             chatHistory.appendChild(card);
-            chatHistory.scrollTop = chatHistory.scrollHeight;
+            scrollToBottom();
             return;
         }
 
@@ -124,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         });
         
-        chatHistory.scrollTop = chatHistory.scrollHeight;
+        scrollToBottom();
     }
 
     // --- 計算機邏輯 ---
@@ -171,7 +216,6 @@ document.addEventListener('DOMContentLoaded', () => {
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
             userInput.value = transcript;
-            // 語音輸入後自動發送
             handleSend();
         };
 
@@ -219,39 +263,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 事件監聽 ---
     sendBtn.onclick = () => handleSend();
     userInput.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
-    
-    queryTodayBtn.onclick = () => handleSend("今日行程");
-    queryWeekBtn.onclick = () => handleSend("這週行程");
-    queryExpenseBtn.onclick = () => handleSend("本月合計");
-    openSheetBtn.onclick = () => handleSend("開啟記帳表單");
+    window.handleSend = handleSend; // 暴露給 HTML 的 onclick 使用
 
-    // --- Modal 邏輯 ---
-    const scheduleModal = document.getElementById('scheduleModal');
-    const expenseModal = document.getElementById('expenseModal');
-    const manualScheduleBtn = document.getElementById('manualScheduleBtn');
-    const manualExpenseBtn = document.getElementById('manualExpenseBtn');
-    const closeButtons = document.querySelectorAll('.close-modal');
-    const isAllDayCheckbox = document.getElementById('is_all_day');
-    const timeInputGroup = document.getElementById('timeInputGroup');
 
     document.getElementById('manual_date').valueAsDate = new Date();
     isAllDayCheckbox.onchange = () => {
         timeInputGroup.style.display = isAllDayCheckbox.checked ? 'none' : 'block';
     };
-
-    function showModal(modal) { modal.classList.add('show'); }
-    function closeModal() { 
-        scheduleModal.classList.remove('show'); 
-        expenseModal.classList.remove('show'); 
-    }
-
-    manualScheduleBtn.onclick = () => {
-        isAllDayCheckbox.checked = false;
-        timeInputGroup.style.display = 'block';
-        showModal(scheduleModal);
-    };
-    manualExpenseBtn.onclick = () => showModal(expenseModal);
-    closeButtons.forEach(btn => btn.onclick = closeModal);
 
     scheduleModal.onclick = (e) => { if (e.target === scheduleModal) closeModal(); };
     expenseModal.onclick = (e) => { if (e.target === expenseModal) closeModal(); };
