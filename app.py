@@ -8,8 +8,8 @@ import google.generativeai as genai
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
-# 載入環境變數
-load_dotenv()
+# 載入環境變數 (確保能讀到腳本同目錄下的 .env)
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 app = Flask(__name__)
 
@@ -20,7 +20,8 @@ SCOPES = [
     'https://www.googleapis.com/auth/calendar',
     'https://www.googleapis.com/auth/spreadsheets'
 ]
-SERVICE_ACCOUNT_FILE = 'service_account.json'
+# 使用相對路徑確保搬家後也能讀到金鑰
+SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(__file__), 'service_account.json')
 
 creds = None
 if os.path.exists(SERVICE_ACCOUNT_FILE):
@@ -496,7 +497,7 @@ def chat():
                 "status": "success",
                 "type": "open_spreadsheet",
                 "url": link,
-                "message": "已為您準備好記帳本連結："
+                "message": f"已為您準備好記帳本連結：\n<a href='{link}' target='_blank' class='chat-link'>點此開啟記帳本</a>"
             })
 
         elif intent_type == "query_schedule":

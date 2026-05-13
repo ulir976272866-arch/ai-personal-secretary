@@ -39,7 +39,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function appendMessage(text, isUser = false) {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
-        msgDiv.innerText = text;
+        if (isUser) {
+            msgDiv.innerText = text;
+        } else {
+            msgDiv.innerHTML = text.replace(/\n/g, '<br>');
+        }
         chatHistory.appendChild(msgDiv);
         chatHistory.scrollTop = chatHistory.scrollHeight;
         return msgDiv;
