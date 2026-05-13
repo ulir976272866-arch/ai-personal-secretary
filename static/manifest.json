@@ -1,0 +1,16 @@
+{
+  "name": "AI 行事曆助理",
+  "short_name": "AI 秘書",
+  "description": "你的專屬智能行事曆秘書",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f1f5f9",
+  "icons": [
+    {
+      "src": "/static/icons/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ]
+}
