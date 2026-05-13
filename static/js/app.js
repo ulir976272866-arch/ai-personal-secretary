@@ -3,27 +3,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const userInput = document.getElementById('userInput');
     const sendBtn = document.getElementById('sendBtn');
 
-    // --- 核心功能：抓取晨間簡報 ---
-    async function fetchMorningBriefing() {
+    // --- 核心功能：每次打開自動載入今日行程卡片 ---
+    async function loadTodaySchedule() {
+        // 清空所有舊紀錄
+        chatHistory.innerHTML = '';
+
         try {
-            const res = await fetch('/api/morning_briefing', { method: 'POST' });
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: '今日行程' })
+            });
             const data = await res.json();
-            if (data.status === 'success') {
-                appendMessage(data.message);
+            if (data.status === 'success' && data.type === 'query_schedule') {
+                renderScheduleCard(data.data, data.date_str);
+            } else {
+                appendMessage(data.message || '您好！今天沒有行程安排。');
             }
         } catch (e) {
-            console.error('Briefing fetch failed:', e);
+            console.error('載入今日行程失敗:', e);
         }
     }
 
-    // 啟動晨間簡報
-    fetchMorningBriefing();
+    // 啟動時載入
+    loadTodaySchedule();
 
-    // 處理手機背景待機恢復
+    // 從背景恢復時重新載入
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
-            console.log('App resumed, refreshing data...');
-            fetchMorningBriefing();
+            loadTodaySchedule();
         }
     });
 
