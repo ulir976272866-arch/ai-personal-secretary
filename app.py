@@ -1,12 +1,13 @@
 import os
 import json
-import datetime
+from datetime import datetime, time, timedelta
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 
 import google.generativeai as genai
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 # 載入環境變數 (確保能讀到腳本同目錄下的 .env)
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
@@ -26,6 +27,32 @@ SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(__file__), 'service_account.
 creds = None
 if os.path.exists(SERVICE_ACCOUNT_FILE):
     creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+
+def get_sheets_service():
+    return build('sheets', 'v4', credentials=creds)
+
+# --- Sheets 輔助函數 ---
+def append_to_sheet(range_name, values, spreadsheet_id=None):
+    if not spreadsheet_id:
+        spreadsheet_id = os.getenv('GOOGLE_SHEET_ID')
+    service = get_sheets_service()
+    body = {'values': [values]}
+    service.spreadsheets().values().append(
+        spreadsheetId=spreadsheet_id,
+        range=range_name,
+        valueInputOption='USER_ENTERED',
+        body=body
+    ).execute()
+
+def get_sheet_values(range_name, spreadsheet_id=None):
+    if not spreadsheet_id:
+        spreadsheet_id = os.getenv('GOOGLE_SHEET_ID')
+    service = get_sheets_service()
+    result = service.spreadsheets().values().get(
+        spreadsheetId=spreadsheet_id,
+        range=range_name
+    ).execute()
+    return result.get('values', [])
 
 import requests
 
@@ -134,13 +161,13 @@ def check_conflicts(service, start_time, end_time):
 @app.route('/api/morning_briefing', methods=['POST'])
 def morning_briefing():
     """生成每日早晨簡報"""
-    now = datetime.datetime.now()
+    now = datetime.now()
     service_cal = build('calendar', 'v3', credentials=creds)
     service_sheets = build('sheets', 'v4', credentials=creds)
     
     # 1. 抓取今日行程
-    today_start = datetime.datetime.combine(now.date(), datetime.time.min).isoformat() + '+08:00'
-    today_end = datetime.datetime.combine(now.date(), datetime.time.max).isoformat() + '+08:00'
+    today_start = datetime.combine(now.date(), time.min).isoformat() + '+08:00'
+    today_end = datetime.combine(now.date(), time.max).isoformat() + '+08:00'
     events_result = service_cal.events().list(
         calendarId=CALENDAR_ID, timeMin=today_start, timeMax=today_end,
         singleEvents=True, orderBy='startTime'
@@ -193,7 +220,7 @@ def chat():
 
     data = request.get_json()
     user_text = data.get('text', '')
-    now = datetime.datetime.now()
+    now = datetime.now()
 
     bypass_data = None
     if user_text == "今日行程":
@@ -220,9 +247,9 @@ def chat():
                 
                 # 轉換為 ISO 格式 (假設輸入是 YYYY-MM-DD HH:MM)
                 try:
-                    dt = datetime.datetime.strptime(time_str.replace('/', '-'), '%Y-%m-%d %H:%M')
+                    dt = datetime.strptime(time_str.replace('/', '-'), '%Y-%m-%d %H:%M')
                     iso_start = dt.isoformat()
-                    iso_end = (dt + datetime.timedelta(hours=1)).isoformat()
+                    iso_end = (dt + timedelta(hours=1)).isoformat()
                     
                     bypass_data = {
                         "type": "calendar",
@@ -502,9 +529,9 @@ def chat():
             days = parsed_data.get("days", 1)
             
             # 取得範圍：今天凌晨到 X 天後的午夜
-            today_start = datetime.datetime.combine(now.date(), datetime.time.min).isoformat() + '+08:00'
-            end_date = now + datetime.timedelta(days=days-1)
-            today_end = datetime.datetime.combine(end_date.date(), datetime.time.max).isoformat() + '+08:00'
+            today_start = datetime.combine(now.date(), time.min).isoformat() + '+08:00'
+            end_date = now + timedelta(days=days-1)
+            today_end = datetime.combine(end_date.date(), time.max).isoformat() + '+08:00'
             
             try:
                 events_result = service.events().list(
@@ -528,7 +555,7 @@ def chat():
                 
                 # 處理日期與時間
                 try:
-                    dt_obj = datetime.datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                    dt_obj = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
                     date_val = dt_obj.strftime('%m/%d')
                     time_val = dt_obj.strftime('%H:%M') if 'T' in start_str else '全天'
                 except:
@@ -611,6 +638,107 @@ def toggle_completion():
         print(f"API 執行錯誤: {e}")
         return jsonify({"status": "error", "message": f"執行時發生錯誤：{str(e)}"})
 
+@app.route('/api/memo/list', methods=['GET'])
+def get_memos():
+    try:
+        rows = get_sheet_values('114記事')
+        if not rows: return jsonify({"status": "success", "data": []})
+        
+        memos = []
+        for row in rows[1:]: # Skip header
+            if len(row) > 3:
+                memos.append({
+                    'date': row[0],
+                    'mood': row[1],
+                    'weather': row[2],
+                    'content': row[3]
+                })
+        return jsonify({"status": "success", "data": memos})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/query_finance', methods=['POST'])
+def direct_query_finance():
+    now = datetime.now()
+    current_month = now.strftime('%m')
+    current_year = now.strftime('%Y')
+    
+    try:
+        rows = get_sheet_values('114記帳')
+        if not rows:
+            return jsonify({"status": "error", "message": "找不到帳簿資料"})
+            
+        total = 0
+        count = 0
+        for row in rows[1:]: # 跳過標題
+            if len(row) > 5 and row[0] == current_year and row[1].strip("'") == current_month:
+                try:
+                    total += int(row[5])
+                    count += 1
+                except:
+                    pass
+        
+        msg = f"📊 {current_year}年{current_month}月 記帳小結：\n\n"
+        msg += f"• 本月支出：${total:,} 元\n"
+        msg += f"• 記帳筆數：{count} 筆\n"
+        msg += f"• 平均每筆：${int(total/count) if count > 0 else 0} 元"
+        
+        return jsonify({"status": "success", "type": "chat", "message": msg})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/query_schedule', methods=['POST'])
+def direct_query_schedule():
+    data = request.json
+    days = data.get('days', 1)
+    now = datetime.now()
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        today_start = datetime.combine(now.date(), time.min).isoformat() + '+08:00'
+        end_date = now + timedelta(days=days-1)
+        today_end = datetime.combine(end_date.date(), time.max).isoformat() + '+08:00'
+        
+        events_result = service.events().list(
+            calendarId=CALENDAR_ID, timeMin=today_start, timeMax=today_end,
+            maxResults=50, singleEvents=True, orderBy='startTime'
+        ).execute()
+        events = events_result.get('items', [])
+        
+        schedule_list = []
+        for e in events:
+            start_str = e['start'].get('dateTime', e['start'].get('date'))
+            try:
+                dt_obj = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                date_val = dt_obj.strftime('%m/%d')
+                time_val = dt_obj.strftime('%H:%M') if 'T' in start_str else '全天'
+            except:
+                date_val = now.strftime('%m/%d')
+                time_val = '全天'
+            
+            full_title = e.get('summary', '無標題')
+            is_done = full_title.startswith("✅ ")
+            display_title = full_title.replace("✅ ", "", 1) if is_done else full_title
+            final_title = f"[{date_val}] {display_title}" if days > 1 else display_title
+
+            schedule_list.append({
+                'id': e['id'],
+                'time': time_val,
+                'title': final_title,
+                'completed': is_done,
+                'location': e.get('location', '')
+            })
+            
+        range_label = "今日" if days == 1 else ("本週" if days == 7 else f"未來 {days} 天")
+        return jsonify({
+            "status": "success",
+            "type": "query_schedule",
+            "data": schedule_list,
+            "date_str": range_label
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
 @app.route('/api/manual_action', methods=['POST'])
 def manual_action():
     """
@@ -618,7 +746,7 @@ def manual_action():
     """
     data = request.get_json()
     action_type = data.get('type')
-    now = datetime.datetime.now()
+    now = datetime.now()
 
     try:
         if action_type == 'calendar':
@@ -630,8 +758,8 @@ def manual_action():
                 # 全天行程使用 'date' 欄位
                 # end.date 必須是開始日期的隔天才能顯示為「一天」
                 start_date = data.get('start_time') # YYYY-MM-DD
-                dt = datetime.datetime.strptime(start_date, '%Y-%m-%d')
-                end_date = (dt + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+                dt = datetime.strptime(start_date, '%Y-%m-%d')
+                end_date = (dt + timedelta(days=1)).strftime('%Y-%m-%d')
                 
                 event = {
                     'summary': data.get('title'),
@@ -641,8 +769,13 @@ def manual_action():
                 }
             else:
                 # 一般行程使用 'dateTime'
-                start_dt = datetime.datetime.fromisoformat(data.get('start_time'))
-                end_dt = start_dt + datetime.timedelta(hours=1)
+                # 確保時間字串包含時區偏移量
+                start_str = data.get('start_time')
+                if 'T' in start_str and '+' not in start_str and 'Z' not in start_str:
+                    start_str += '+08:00'
+                
+                start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                end_dt = start_dt + timedelta(hours=1)
                 
                 event = {
                     'summary': data.get('title'),
@@ -656,6 +789,9 @@ def manual_action():
                         'timeZone': 'Asia/Taipei',
                     },
                 }
+            
+            print(f"DEBUG: Inserting event: {json.dumps(event, indent=2, ensure_ascii=False)}")
+
             # 檢查衝突
             conflict_msg = check_conflicts(service, event['start'].get('dateTime', event['start'].get('date')), 
                                           event['end'].get('dateTime', event['end'].get('date')))
@@ -708,6 +844,345 @@ def manual_action():
         return jsonify({"status": "error", "message": f"執行失敗：{str(e)}"}), 500
 
     return jsonify({"status": "error", "message": "未知的動作類型"}), 400
+
+# --- 備忘、願望、待辦 API ---
+@app.route('/api/memo', methods=['GET', 'POST'])
+def handle_memo():
+    now = datetime.now()
+    diary_id = os.getenv('DIARY_SHEET_ID')
+    if request.method == 'POST':
+        data = request.json
+        # 欄位順序：建立日期, 今天記事, 天氣, 心情, 儲存時間
+        row = [
+            now.strftime("%Y-%m-%d"),
+            data.get('content', ''),
+            data.get('weather', ''),
+            data.get('mood', ''),
+            now.strftime("%H:%M:%S")
+        ]
+        append_to_sheet('日記', row, spreadsheet_id=diary_id)
+        return jsonify({"status": "success", "message": "生活點滴已記錄"})
+    else:
+        rows = get_sheet_values('日記', spreadsheet_id=diary_id)
+        if not rows or len(rows) < 2: return jsonify([])
+        headers = rows[0]
+        memos = [dict(zip(headers, row)) for row in rows[1:]]
+        return jsonify(memos)
+
+@app.route('/api/wishlist', methods=['GET', 'POST'])
+def handle_wishlist():
+    wish_id = os.getenv('WISH_SHEET_ID')
+    if request.method == 'POST':
+        data = request.json
+        # 欄位：建立日期, 商品名稱, 預估價格, 備註/連結, 狀態, 分類, 實際價格, 唯一ID, 儲存時間
+        unique_id = str(int(datetime.now().timestamp() * 1000))
+        row = [
+            datetime.now().strftime("%Y-%m-%d"),
+            data.get('name', ''),
+            data.get('price', '0'),
+            data.get('note', ''),
+            '想買',
+            data.get('category', '靈感'),
+            '',
+            unique_id,
+            datetime.now().strftime("%H:%M:%S")
+        ]
+        append_to_sheet('願望清單', row, spreadsheet_id=wish_id)
+        return jsonify({"status": "success", "message": "願望已許下", "id": unique_id})
+    else:
+        rows = get_sheet_values('願望清單', spreadsheet_id=wish_id)
+        if not rows or len(rows) < 2: return jsonify([])
+        headers = rows[0]
+        wishes = [dict(zip(headers, row)) for row in rows[1:]]
+        return jsonify(wishes)
+
+@app.route('/api/wishlist/fulfill', methods=['POST'])
+def fulfill_wish():
+    data = request.json
+    item_id = str(data.get('id', ''))
+    title = data.get('title', '')
+    actual_price = data.get('actual_price', '0')
+    wish_id = os.getenv('WISH_SHEET_ID')
+    
+    rows = get_sheet_values('願望清單', spreadsheet_id=wish_id)
+    if not rows: return jsonify({"status": "error", "message": "找不到資料"})
+    
+    target_row_idx = -1
+    # 優先 ID 匹配 (第 8 欄, index 7)
+    if item_id:
+        for i, row in enumerate(rows):
+            if len(row) > 7 and str(row[7]) == item_id:
+                target_row_idx = i + 1
+                break
+    
+    # 備案：標題匹配 (第 2 欄, index 1)
+    if target_row_idx == -1 and title:
+        for i, row in enumerate(rows):
+            if len(row) > 1 and str(row[1]).strip() == str(title).strip():
+                target_row_idx = i + 1
+                item_id = str(int(datetime.now().timestamp() * 1000)) if not item_id else item_id
+                break
+                
+    if target_row_idx == -1:
+        return jsonify({"status": "error", "message": "找不到該願望"})
+        
+    service = get_sheets_service()
+    # 更新狀態 (E 欄, index 4), 實際價格 (G 欄, index 6), 唯一ID (H 欄, index 7)
+    service.spreadsheets().values().update(
+        spreadsheetId=wish_id,
+        range=f'願望清單!E{target_row_idx}:H{target_row_idx}',
+        valueInputOption='USER_ENTERED',
+        body={'values': [['已圓夢', rows[target_row_idx-1][5] if len(rows[target_row_idx-1]) > 5 else '', actual_price, item_id]]}
+    ).execute()
+    
+    return jsonify({"status": "success", "message": "恭喜圓夢！✨"})
+
+@app.route('/api/wishlist/delete', methods=['POST'])
+def delete_wish():
+    data = request.json
+    item_id = str(data.get('id', ''))
+    title = data.get('title', '')
+    wish_id = os.getenv('WISH_SHEET_ID')
+    
+    rows = get_sheet_values('願望清單', spreadsheet_id=wish_id)
+    if not rows: return jsonify({"status": "error", "message": "找不到資料"})
+    
+    target_row_idx = -1
+    print(f"DEBUG: Deleting wish - Target ID: [{item_id}], Title: [{title}]")
+    
+    # 優先用 ID 進行精確匹配
+    if item_id:
+        for i, row in enumerate(rows):
+            if len(row) > 7:
+                # 強制轉換為字串並去除科學記號影響 (簡單處理：去除點與加號)
+                current_id = str(row[7]).strip().split('.')[0] 
+                if current_id == item_id.strip():
+                    target_row_idx = i + 1
+                    print(f"DEBUG: Found match by ID at row {target_row_idx}")
+                    break
+    
+    # 如果 ID 沒對上，用名稱 + 狀態進行備案匹配 (優先找「想買」的)
+    if target_row_idx == -1 and title:
+        print("DEBUG: ID match failed, trying title + status match...")
+        for i, row in enumerate(rows):
+            if len(row) > 4 and str(row[1]).strip() == str(title).strip() and str(row[4]).strip() == '想買':
+                target_row_idx = i + 1
+                print(f"DEBUG: Found active match by title at row {target_row_idx}")
+                break
+
+    if target_row_idx == -1:
+        return jsonify({"status": "error", "message": f"找不到該願望 (ID: {item_id})"})
+
+    service = get_sheets_service()
+    # 更新狀態為「已取消」 (E 欄)
+    service.spreadsheets().values().update(
+        spreadsheetId=wish_id,
+        range=f'願望清單!E{target_row_idx}',
+        valueInputOption='USER_ENTERED',
+        body={'values': [['已取消']]}
+    ).execute()
+    
+    return jsonify({"status": "success", "message": f"已斷捨離該願望 (行號: {target_row_idx}) 🍂"})
+
+@app.route('/api/todo', methods=['GET', 'POST'])
+def handle_todo():
+    todo_id = os.getenv('TODO_SHEET_ID')
+    if request.method == 'POST':
+        data = request.json
+        # 欄位：建立日期, 事項/內容, 分類, 狀態, 唯一ID, 完成時間
+        unique_id = str(int(datetime.now().timestamp() * 1000))
+        row = [
+            datetime.now().strftime("%Y-%m-%d"),
+            data.get('title', ''),
+            data.get('category', '待辦'),
+            '未完成',
+            unique_id,
+            ''
+        ]
+        append_to_sheet('待辦', row, spreadsheet_id=todo_id)
+        return jsonify({"status": "success", "message": "待辦事項已加入", "id": unique_id})
+    else:
+        rows = get_sheet_values('待辦', spreadsheet_id=todo_id)
+        if not rows or len(rows) < 2: return jsonify([])
+        headers = rows[0]
+        todos = [dict(zip(headers, row)) for row in rows[1:]]
+        return jsonify(todos)
+
+@app.route('/api/todo/toggle', methods=['POST'])
+def toggle_todo():
+    data = request.json
+    item_id = str(data.get('id', ''))
+    is_completed = data.get('completed')
+    todo_id = os.getenv('TODO_SHEET_ID')
+    
+    rows = get_sheet_values('待辦', spreadsheet_id=todo_id)
+    if not rows: return jsonify({"status": "error", "message": "找不到資料"})
+    
+    target_row_idx = -1
+    # 優先嘗試 ID 匹配 (第 5 欄)
+    if item_id and item_id != 'undefined' and item_id != '':
+        for i, row in enumerate(rows):
+            if len(row) > 4 and str(row[4]) == item_id:
+                target_row_idx = i + 1
+                break
+    
+    # 如果 ID 匹配失敗，嘗試標題匹配 (第 2 欄) 作為備案 (處理舊資料)
+    if target_row_idx == -1:
+        search_title = data.get('title') # 如果前端有傳標題過來
+        if search_title:
+            for i, row in enumerate(rows):
+                if len(row) > 1 and str(row[1]).strip() == str(search_title).strip():
+                    target_row_idx = i + 1
+                    # 順便幫它補上一個 ID，以後就不會認錯了
+                    item_id = str(int(datetime.now().timestamp() * 1000)) if not item_id else item_id
+                    break
+    
+    if target_row_idx == -1:
+        return jsonify({"status": "error", "message": "找不到該項目，請嘗試重新整理或重新建立"})
+    
+    service = get_sheets_service()
+    status = '已完成' if is_completed else '未完成'
+    finish_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S") if is_completed else ''
+    
+    # 更新狀態 (D 欄), ID (E 欄), 完成時間 (F 欄)
+    service.spreadsheets().values().update(
+        spreadsheetId=todo_id,
+        range=f'待辦!D{target_row_idx}:F{target_row_idx}',
+        valueInputOption='USER_ENTERED',
+        body={'values': [[status, item_id, finish_time]]}
+    ).execute()
+    
+    return jsonify({"status": "success", "message": f"已標記為{status}"})
+
+@app.route('/api/todo/delete', methods=['POST'])
+def delete_todo():
+    data = request.json
+    item_id = str(data.get('id', ''))
+    title = data.get('title', '')
+    todo_id = os.getenv('TODO_SHEET_ID')
+    
+    rows = get_sheet_values('待辦', spreadsheet_id=todo_id)
+    if not rows: return jsonify({"status": "error", "message": "找不到資料"})
+    
+    target_row_idx = -1
+    if item_id and item_id != 'undefined' and item_id != '':
+        for i, row in enumerate(rows):
+            if len(row) > 4 and str(row[4]) == item_id:
+                target_row_idx = i + 1
+                break
+    
+    if target_row_idx == -1 and title:
+        for i, row in enumerate(rows):
+            if len(row) > 1 and str(row[1]).strip() == str(title).strip():
+                target_row_idx = i + 1
+                break
+
+    if target_row_idx == -1:
+        return jsonify({"status": "error", "message": "找不到該待辦"})
+
+    service = get_sheets_service()
+    service.spreadsheets().values().update(
+        spreadsheetId=todo_id,
+        range=f'待辦!D{target_row_idx}',
+        valueInputOption='USER_ENTERED',
+        body={'values': [['已取消']]}
+    ).execute()
+    
+    return jsonify({"status": "success", "message": "已刪除任務 ✕"})
+
+@app.route('/api/wishlist/update', methods=['POST'])
+def update_wish():
+    data = request.json
+    item_id = str(data.get('id', ''))
+    wish_id = os.getenv('WISH_SHEET_ID')
+    
+    rows = get_sheet_values('願望清單', spreadsheet_id=wish_id)
+    if not rows: return jsonify({"status": "error", "message": "找不到資料"})
+    
+    target_row_idx = -1
+    if item_id:
+        for i, row in enumerate(rows):
+            if len(row) > 7:
+                if str(row[7]).strip().split('.')[0] == item_id.strip():
+                    target_row_idx = i + 1
+                    break
+    
+    if target_row_idx == -1:
+        return jsonify({"status": "error", "message": "找不到該願望，無法更新"})
+
+    # 準備更新的資料
+    # 欄位：建立日期, 商品名稱, 預估價格, 備註/連結, 狀態, 分類, 實際價格, 唯一ID, 儲存時間
+    updated_row = [
+        rows[target_row_idx-1][0], # 保持原日期
+        data.get('name'),
+        data.get('price'),
+        data.get('note'),
+        rows[target_row_idx-1][4], # 保持原狀態
+        data.get('category'),
+        rows[target_row_idx-1][6] if len(rows[target_row_idx-1]) > 6 else '', # 保持原實際價格
+        item_id,
+        datetime.now().strftime("%H:%M:%S")
+    ]
+
+    service = get_sheets_service()
+    service.spreadsheets().values().update(
+        spreadsheetId=wish_id,
+        range=f'願望清單!A{target_row_idx}:I{target_row_idx}',
+        valueInputOption='USER_ENTERED',
+        body={'values': [updated_row]}
+    ).execute()
+    
+    return jsonify({"status": "success", "message": "願望已更新"})
+
+@app.route('/api/todo/update', methods=['POST'])
+def update_todo():
+    data = request.json
+    item_id = str(data.get('id', ''))
+    todo_id = os.getenv('TODO_SHEET_ID')
+    
+    rows = get_sheet_values('待辦', spreadsheet_id=todo_id)
+    if not rows: return jsonify({"status": "error", "message": "找不到資料"})
+    
+    target_row_idx = -1
+    for i, row in enumerate(rows):
+        if len(row) > 4 and str(row[4]) == item_id:
+            target_row_idx = i + 1
+            break
+            
+    if target_row_idx == -1:
+        return jsonify({"status": "error", "message": "找不到該待辦"})
+
+    service = get_sheets_service()
+    # 只更新標題 (B 欄) 和分類 (C 欄)
+    service.spreadsheets().values().update(
+        spreadsheetId=todo_id,
+        range=f'待辦!B{target_row_idx}:C{target_row_idx}',
+        valueInputOption='USER_ENTERED',
+        body={'values': [[data.get('title'), data.get('category', '任務')]]}
+    ).execute()
+    
+    return jsonify({"status": "success", "message": "待辦已更新"})
+
+@app.route('/api/delete_event', methods=['POST'])
+def delete_event():
+    data = request.json
+    event_id = data.get('event_id')
+    if not event_id:
+        return jsonify({"status": "error", "message": "遺失行程 ID"})
+
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        # 使用全域變數 CALENDAR_ID 確保刪除的是正確的日曆
+        service.events().delete(calendarId=CALENDAR_ID, eventId=event_id).execute()
+        return jsonify({"status": "success", "message": "行程已從日曆刪除 ✕"})
+    except HttpError as e:
+        if e.resp.status == 404:
+            return jsonify({"status": "success", "message": "行程已不存在，已從畫面移除"})
+        print(f"Calendar API error: {e}")
+        return jsonify({"status": "error", "message": f"日曆同步失敗: {str(e)}"})
+    except Exception as e:
+        print(f"Error deleting event: {e}")
+        return jsonify({"status": "error", "message": f"刪除失敗: {str(e)}"})
 
 if __name__ == '__main__':
     # 讀取環境變數中的 PORT，這是 Google Cloud Run 的要求

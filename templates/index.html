@@ -20,32 +20,72 @@
             <p>您的個人智慧管家</p>
         </div>
 
-        <!-- 功能選單區域 -->
-    <div class="quick-actions">
-        <!-- 第一排：最直覺的手動新增 -->
-        <div class="action-row main-actions">
-            <button class="action-btn schedule-add" id="manualScheduleBtn">
-                <span class="icon">➕</span> 新增行程
-            </button>
-            <button class="action-btn expense-add" id="manualExpenseBtn">
-                <span class="icon">💰</span> 我要記帳
-            </button>
+        <!-- 指揮中心：層級式樹狀導航 -->
+    <div class="action-card">
+        <!-- 第一層：母分頁 -->
+        <div class="parent-tabs">
+            <button class="tab-btn active" onclick="switchTab('schedule', event)">📅 行程</button>
+            <button class="tab-btn" onclick="switchTab('finance', event)">💰 記帳</button>
+            <button class="tab-btn" onclick="switchTab('memo', event)">📝 備忘</button>
         </div>
         
-        <!-- 第二排：階層式查詢 -->
-        <div class="action-row query-actions">
-            <div class="menu-group">
-                <button class="menu-trigger" id="scheduleMenuBtn">行程查詢 ▾</button>
-                <div class="menu-dropdown" id="scheduleMenu">
-                    <button onclick="handleSend('今日行程')">今日行程</button>
-                    <button onclick="handleSend('這週行程')">這週行程</button>
-                </div>
+        <!-- 第二層：子功能選單 -->
+        <div class="sub-menu-area">
+            <!-- 行程子選單 -->
+            <div id="sub_schedule" class="sub-menu active">
+                <button class="sub-btn" onclick="openModal('scheduleModal')">➕ 新增</button>
+                <button class="sub-btn" onclick="querySchedule(1)">📅 今日</button>
+                <button class="sub-btn" onclick="querySchedule(7)">🗓️ 本週</button>
+                <button class="sub-btn" onclick="querySchedule(30)">📊 本月</button>
             </div>
-            <div class="menu-group">
-                <button class="menu-trigger" id="ledgerMenuBtn">財務帳本 ▾</button>
-                <div class="menu-dropdown" id="ledgerMenu">
-                    <button onclick="handleSend('本月合計')">本月合計</button>
-                    <button onclick="handleSend('開啟記帳表單')">開啟帳本</button>
+            <!-- 記帳子選單 -->
+            <div id="sub_finance" class="sub-menu">
+                <button class="sub-btn" onclick="queryFinanceSummary()">📊 本月合計</button>
+                <button class="sub-btn" onclick="openModal('expenseModal')">💰 我要記帳</button>
+                <button class="sub-btn" onclick="window.open('https://docs.google.com/spreadsheets/d/1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg', '_blank')">☁️ 雲端帳簿</button>
+            </div>
+            <!-- 備忘子選單 -->
+            <div id="sub_memo" class="sub-menu">
+                <button class="sub-btn" onclick="openModal('memoModal')">📝 記錄生活</button>
+                <button class="sub-btn" onclick="openModal('todoModal')">✅ 待辦</button>
+                <button class="sub-btn" onclick="openModal('wishlistModal')">🎁 願望</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 待辦事項彈窗 -->
+    <div id="todoModal" class="modal-backdrop">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('todoModal')">✕</button>
+            <h2 class="modal-title">✅ 待辦清單</h2>
+            <div class="modal-body">
+                <!-- Keep 風格新增區 -->
+                <div style="background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="text" id="todo_title" class="form-input" placeholder="輸入新的任務或名單..." 
+                               style="border:none; background:transparent; font-size: 1.1rem; padding: 5px 0; flex: 1;"
+                               onkeypress="if(event.key==='Enter') saveTodo()">
+                        <button onclick="saveTodo()" style="background: #3b82f6; color: white; border: none; width: 40px; height: 40px; border-radius: 10px; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                            ＋
+                        </button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+                        <button class="tag-btn" onclick="addTodoTag('🎬 影視')">🎬 影視</button>
+                        <button class="tag-btn" onclick="addTodoTag('🍕 美食')">🍕 美食</button>
+                        <button class="tag-btn" onclick="addTodoTag('📖 學習')">📖 學習</button>
+                        <button class="tag-btn" onclick="addTodoTag('✅ 任務')">✅ 任務</button>
+                        <button class="tag-btn" onclick="addTodoTag('🏠 生活')">🏠 生活</button>
+                        <button class="tag-btn" onclick="addTodoTag('✨ 還願')">✨ 還願</button>
+                    </div>
+                </div>
+
+                <div id="todo_list" style="max-height: 300px; overflow-y: auto;">
+                    <!-- 動態勾選清單 -->
+                </div>
+
+                <div style="text-align: center; margin-top: 20px; border-top: 1px solid #f1f5f9; padding-top: 15px;">
+                    <a href="https://docs.google.com/spreadsheets/d/1U0qqrOl9sA4ipBteS9WSmLE-w0W3BkIn-t2ATVcT_sM/edit" target="_blank" style="color: #64748b; font-size: 0.8rem; text-decoration: none; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px;">🔗 打開雲端待辦清單</a>
                 </div>
             </div>
         </div>
@@ -79,32 +119,137 @@
     <!-- 手動行程彈窗 -->
     <div id="scheduleModal" class="modal-backdrop">
         <div class="modal-content">
-            <button class="close-modal">✕</button>
-            <h2 class="modal-title">➕ 新增行程</h2>
+            <button class="close-modal" onclick="closeModal('scheduleModal')">✕</button>
+            <h2 class="modal-title">📅 新增行程</h2>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>行程名稱</label>
-                    <input type="text" id="manual_title" class="form-input" placeholder="例如：開會、回家...">
-                </div>
-                <div style="display: flex; gap: 12px; align-items: flex-end; margin-bottom: 20px;">
-                    <div style="flex: 1;">
-                        <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">日期</label>
-                        <input type="date" id="manual_date" class="form-input">
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px; padding-bottom: 12px;">
-                        <input type="checkbox" id="is_all_day" style="width: 20px; height: 20px; cursor: pointer;">
-                        <label for="is_all_day" style="margin-bottom: 0; cursor: pointer; font-size: 0.9rem; font-weight: 600;">全天</label>
-                    </div>
-                </div>
-                <div id="timeInputGroup" class="form-group">
-                    <label>時間</label>
-                    <input type="time" id="manual_time" class="form-input">
+                    <label>行程內容</label>
+                    <input type="text" id="manual_summary" class="form-input" placeholder="要做什麼？">
                 </div>
                 <div class="form-group">
-                    <label>地點 / 視訊網址</label>
-                    <input type="text" id="manual_location" class="form-input" placeholder="地址或 Google Meet 連結">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <label style="margin-bottom: 0;">日期</label>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <input type="checkbox" id="manual_all_day" style="width: 16px; height: 16px; cursor: pointer;" onchange="document.getElementById('time_input_wrapper').style.display = this.checked ? 'none' : 'flex'">
+                            <label for="manual_all_day" style="margin-bottom: 0; cursor: pointer; font-size: 0.9rem; color: #64748b;">全天行程</label>
+                        </div>
+                    </div>
+                    <input type="date" id="manual_date" class="form-input">
+                </div>
+
+                <div id="time_input_wrapper" class="form-group" style="display: flex; flex-direction: column;">
+                    <label>時間</label>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <select id="manual_ampm" class="form-input" style="width: 70px; text-align: center; cursor: pointer;">
+                            <option value="AM">上午</option>
+                            <option value="PM" selected>下午</option>
+                        </select>
+                        <select id="manual_hour" class="form-input" style="width: 70px; text-align: center; cursor: pointer;">
+                            <option value="1">01</option><option value="2">02</option><option value="3">03</option>
+                            <option value="4">04</option><option value="5">05</option><option value="6">06</option>
+                            <option value="7">07</option><option value="8">08</option><option value="9">09</option>
+                            <option value="10">10</option><option value="11">11</option><option value="12" selected>12</option>
+                        </select>
+                        <span style="font-weight: bold;">:</span>
+                        <select id="manual_minute" class="form-input" style="width: 70px; text-align: center; cursor: pointer;">
+                            <option value="00">00</option>
+                            <option value="15">15</option>
+                            <option value="30">30</option>
+                            <option value="45">45</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>地點 / 線上視訊</label>
+                    <input type="text" id="manual_location" class="form-input" placeholder="在哪裡？或是視訊連結">
                 </div>
                 <button id="submitSchedule" class="submit-btn btn-schedule">確認加入日曆</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="memoModal" class="modal-backdrop">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('memoModal')">✕</button>
+            <h2 class="modal-title">📝 記錄生活</h2>
+            <div class="modal-body">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>心情</label>
+                        <select id="memo_mood" class="form-input" onchange="checkMemoFields()">
+                            <option value="">請選擇...</option>
+                            <option value="喜">😊 喜</option>
+                            <option value="怒">😡 怒</option>
+                            <option value="哀">😢 哀</option>
+                            <option value="樂">😄 樂</option>
+                            <option value="平靜">😌 平靜</option>
+                            <option value="感恩">🙏 感恩</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>天氣</label>
+                        <select id="memo_weather" class="form-input" onchange="checkMemoFields()">
+                            <option value="">請選擇...</option>
+                            <option value="晴">☀️ 晴</option>
+                            <option value="陰">☁️ 陰</option>
+                            <option value="下雨">🌧️ 下雨</option>
+                            <option value="颱風">🌀 颱風</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>今天做了什麼重要的事情？</label>
+                    <textarea id="memo_content" class="form-input" rows="4" placeholder="寫下您的重要紀事..." oninput="checkMemoFields()"></textarea>
+                </div>
+                <button id="submitMemoBtn" onclick="saveMemo()" class="submit-btn btn-memo disabled" disabled style="margin-bottom: 15px;">記錄生活</button>
+                
+                <div id="memo_list" style="max-height: 250px; overflow-y: auto; border-top: 1px solid #f1f5f9; padding-top: 15px; margin-bottom: 15px;">
+                    <!-- 過往記事清單 -->
+                </div>
+
+                <div style="text-align: center;">
+                    <a href="https://docs.google.com/spreadsheets/d/1qFjXISdGcWaJ_7sTiFiw9OG8Hwxi9xF05IB6JIGO9Og/edit" target="_blank" style="color: #64748b; font-size: 0.9rem; text-decoration: none; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px;">🔗 打開雲端日記本</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 願望清單彈窗 -->
+    <div id="wishlistModal" class="modal-backdrop">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('wishlistModal')">✕</button>
+            <h2 class="modal-title">🎁 願望清單</h2>
+            <div class="modal-body">
+                <!-- 許願新增區 -->
+                <div style="background: #fff5f5; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <input type="text" id="wish_name" class="form-input" placeholder="您想要什麼？" style="flex: 2; margin-bottom: 0;">
+                        <input type="number" id="wish_price" class="form-input" placeholder="預估價格" style="flex: 1; margin-bottom: 0;">
+                        <button onclick="saveWish()" style="background: #f97316; color: white; border: none; width: 45px; height: 45px; border-radius: 12px; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0;">
+                            ＋
+                        </button>
+                    </div>
+                    <input type="text" id="wish_note" class="form-input" placeholder="備註或商品連結..." style="margin-bottom: 10px;">
+                    
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="tag-btn" onclick="addWishTag('💎 必買')">💎 必買</button>
+                        <button class="tag-btn" onclick="addWishTag('🎁 送禮')">🎁 送禮</button>
+                        <button class="tag-btn" onclick="addWishTag('🏠 家用')">🏠 家用</button>
+                        <button class="tag-btn" onclick="addWishTag('💡 靈感')">💡 靈感</button>
+                    </div>
+                </div>
+
+                <div id="wish_list" style="max-height: 250px; overflow-y: auto; border-top: 1px solid #f1f5f9; padding-top: 15px;">
+                    <!-- 願望清單 -->
+                </div>
+                
+                <div id="wish_summary" style="margin-top: 15px; text-align: right; font-size: 0.9rem; color: #f97316; font-weight: bold;">
+                    <!-- 預算總計 -->
+                </div>
+
+                <div style="text-align: center; margin-top: 10px;">
+                    <a href="https://docs.google.com/spreadsheets/d/1jPd8NKi3Lv9CID7KEP9u5kD9W8zG9Q4o-0vq3OyFeuE/edit" target="_blank" style="color: #64748b; font-size: 0.8rem; text-decoration: none; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px;">🔗 打開雲端願望清單</a>
+                </div>
             </div>
         </div>
     </div>
@@ -112,7 +257,7 @@
     <!-- 手動記帳彈窗 -->
     <div id="expenseModal" class="modal-backdrop">
         <div class="modal-content">
-            <button class="close-modal">✕</button>
+            <button class="close-modal" onclick="closeModal('expenseModal')">✕</button>
             <h2 class="modal-title">💰 手動記帳</h2>
             <div class="modal-body">
                 <div class="form-group">
