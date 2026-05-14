@@ -78,6 +78,18 @@
                         <button class="tag-btn" onclick="addTodoTag('🏠 生活')">🏠 生活</button>
                         <button class="tag-btn" onclick="addTodoTag('✨ 還願')">✨ 還願</button>
                     </div>
+
+                    <!-- 優先級選擇區 -->
+                    <div class="priority-container">
+                        <div class="priority-label">🎯 優先級 (艾森豪矩陣)</div>
+                        <div class="priority-grid">
+                            <div class="priority-opt red" data-value="重要且緊急" onclick="selectPriority(this, '重要且緊急')">🔴 重要且緊急</div>
+                            <div class="priority-opt yellow" data-value="重要但不緊急" onclick="selectPriority(this, '重要但不緊急')">🟡 重要但不緊急</div>
+                            <div class="priority-opt orange" data-value="不重要但緊急" onclick="selectPriority(this, '不重要但緊急')">🟠 不重要但緊急</div>
+                            <div class="priority-opt green active" data-value="不重要且不緊急" onclick="selectPriority(this, '不重要且不緊急')">🟢 不重要且不緊急</div>
+                        </div>
+                        <input type="hidden" id="todo_priority" value="不重要且不緊急">
+                    </div>
                 </div>
 
                 <div id="todo_list">
@@ -229,27 +241,27 @@
                             ＋
                         </button>
                     </div>
-                    <input type="text" id="wish_note" class="form-input" placeholder="備註或商品連結..." style="margin-bottom: 12px;">
-                    
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button class="tag-btn" onclick="addWishTag('💎 必買')">💎 必買</button>
-                        <button class="tag-btn" onclick="addWishTag('🎁 送禮')">🎁 送禮</button>
-                        <button class="tag-btn" onclick="addWishTag('🏠 家用')">🏠 家用</button>
-                        <button class="tag-btn" onclick="addWishTag('💡 靈感')">💡 靈感</button>
+                    <div class="wish-tags" style="display: flex; gap: 8px; align-items: center; margin-bottom: 15px; flex-wrap: nowrap;">
+                        <span class="wish-tag active purple" onclick="selectWishTag(this, '必買')" style="white-space: nowrap;">💎 必買</span>
+                        <span class="wish-tag green" onclick="selectWishTag(this, '可買')" style="white-space: nowrap;">✅ 可買</span>
+                        <span class="wish-tag yellow" onclick="selectWishTag(this, '可不買')" style="white-space: nowrap;">🤔 可不買</span>
+                        <div id="wish_summary" style="font-size: 0.85rem; color: #f97316; font-weight: 800; line-height: 1.1; padding-left: 5px;">
+                            <!-- 預算總計 -->
+                        </div>
                     </div>
-                </div>
+                    <input type="hidden" id="wish_category" value="必買">
+                    <input type="hidden" id="wish_note" value=""> <!-- 保持欄位存在但隱藏 -->
 
-                <div id="wish_list">
                     <!-- 願望清單 -->
-                    <div style="text-align: center; padding: 30px; color: #94a3b8;">
-                        <div class="loading-spinner" style="margin-bottom: 10px;">⌛</div>
-                        正在讀取願望清單...
+                    <div id="wish_list">
+                        <div style="text-align: center; padding: 30px; color: #94a3b8;">
+                            <div class="loading-spinner" style="margin-bottom: 10px;">⌛</div>
+                            正在讀取願望清單...
+                        </div>
                     </div>
                 </div>
                 
-                <div id="wish_summary" style="margin-top: 15px; text-align: right; font-size: 1rem; color: #f97316; font-weight: 800; padding: 10px 0;">
-                    <!-- 預算總計 -->
-                </div>
+
 
                 <div style="text-align: center; margin-top: 10px; padding: 10px 0;">
                     <a href="https://docs.google.com/spreadsheets/d/1jPd8NKi3Lv9CID7KEP9u5kD9W8zG9Q4o-0vq3OyFeuE/edit" target="_blank" style="color: #64748b; font-size: 0.85rem; text-decoration: none; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px;">🔗 打開雲端願望清單</a>

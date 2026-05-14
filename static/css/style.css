@@ -451,12 +451,47 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 1.1rem;
-    font-weight: bold;
-    box-shadow: 0 4px 10px rgba(0, 191, 175, 0.2);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 1rem;
     z-index: 10;
+    transition: all 0.2s;
 }
+
+/* 按鈕樣式優化 */
+.submit-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: 16px;
+    border: none;
+    color: white !important;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.submit-btn:active {
+    transform: scale(0.97);
+}
+
+.submit-btn.disabled {
+    background: #e2e8f0 !important;
+    color: #94a3b8 !important;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.btn-schedule {
+    background: linear-gradient(135deg, #0d9488, #0f766e) !important;
+}
+
+.btn-memo {
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+}
+
 
 .close-modal:hover {
     background: #1db89b;
@@ -748,3 +783,103 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
         max-height: 95vh;
     }
 }
+
+/* Priority Badge Styles */
+.priority-badge {
+    padding: 3px 10px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: white;
+}
+
+.p-urgent-important { background: linear-gradient(135deg, #ef4444, #b91c1c); box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); }
+.p-important-not-urgent { background: linear-gradient(135deg, #eab308, #a16207); box-shadow: 0 4px 10px rgba(234, 179, 8, 0.3); }
+.p-not-important-urgent { background: linear-gradient(135deg, #f97316, #c2410c); box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3); }
+.p-not-important-not-urgent { background: linear-gradient(135deg, #10b981, #047857); box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
+
+/* Priority Selector UI */
+.priority-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.priority-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.priority-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.priority-opt {
+    padding: 12px 8px;
+    border-radius: 14px;
+    border: 2px solid #f1f5f9;
+    background: #f8fafc;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--text-muted);
+}
+
+.priority-opt.active {
+    color: white;
+    transform: translateY(-2px);
+}
+
+.priority-opt.active.red { background: linear-gradient(135deg, #ef4444, #dc2626); border-color: #fca5a5; }
+.priority-opt.active.yellow { background: linear-gradient(135deg, #eab308, #ca8a04); border-color: #fde047; }
+.priority-opt.active.orange { background: linear-gradient(135deg, #f97316, #ea580c); border-color: #fdba74; }
+.priority-opt.active.green { background: linear-gradient(135deg, #10b981, #059669); border-color: #6ee7b7; }
+
+/* Todo Item Left Border Accent */
+.todo-accent {
+    width: 6px;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    border-radius: 12px 0 0 12px;
+}
+
+.accent-red { background: #ef4444; }
+.accent-yellow { background: #eab308; }
+.accent-orange { background: #f97316; }
+.accent-green { background: #10b981; }
+
+/* Wish Tag Styles */
+.wish-tag {
+    padding: 8px 15px;
+    border-radius: 12px;
+    border: 1.5px solid transparent;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+/* Purple - 必買 */
+.wish-tag.purple { background: #f3e8ff; color: #7e22ce; border-color: #d8b4fe; }
+.wish-tag.purple.active { background: #7e22ce; color: white; border-color: #7e22ce; box-shadow: 0 4px 10px rgba(126, 34, 206, 0.3); }
+
+/* Green - 可買 */
+.wish-tag.green { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+.wish-tag.green.active { background: #15803d; color: white; border-color: #15803d; box-shadow: 0 4px 10px rgba(21, 128, 61, 0.3); }
+
+/* Yellow - 可不買 */
+.wish-tag.yellow { background: #fefce8; color: #a16207; border-color: #fef08a; }
+.wish-tag.yellow.active { background: #a16207; color: white; border-color: #a16207; box-shadow: 0 4px 10px rgba(161, 98, 7, 0.3); }
+
+

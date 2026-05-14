@@ -25,10 +25,24 @@ SCOPES = [
 SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(__file__), 'service_account.json')
 
 creds = None
-if os.path.exists(SERVICE_ACCOUNT_FILE):
+# 1. 優先嘗試從環境變數讀取 JSON 字串 (正式環境常用)
+sa_json = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
+if sa_json:
+    try:
+        creds = Credentials.from_service_account_info(json.loads(sa_json), scopes=SCOPES)
+        print("Success: Loaded credentials from GOOGLE_SERVICE_ACCOUNT_JSON")
+    except Exception as e:
+        print(f"Error loading credentials from env: {e}")
+
+# 2. 如果環境變數沒有，嘗試讀取實體檔案 (本地環境常用)
+if not creds and os.path.exists(SERVICE_ACCOUNT_FILE):
     creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    print("Success: Loaded credentials from service_account.json")
 
 def get_sheets_service():
+    if not creds:
+        # 如果都沒有憑證，嘗試使用 ADC (Cloud Run 預設身份)
+        return build('sheets', 'v4')
     return build('sheets', 'v4', credentials=creds)
 
 # --- Sheets 輔助函數 ---
@@ -53,6 +67,22 @@ def get_sheet_values(range_name, spreadsheet_id=None):
         range=range_name
     ).execute()
     return result.get('values', [])
+
+def find_row_by_id(rows, target_id, id_col_idx):
+    """
+    穩健地在試算表中尋找對應 ID 的列索引 (1-indexed)
+    """
+    target_id = str(target_id).strip()
+    for i, row in enumerate(rows):
+        if len(row) > id_col_idx:
+            sheet_id = str(row[id_col_idx]).strip()
+            # 處理可能出現的 .0
+            if sheet_id.endswith('.0'):
+                sheet_id = sheet_id[:-2]
+            
+            if sheet_id == target_id or ('.' in sheet_id and sheet_id.split('.')[0] == target_id):
+                return i + 1
+    return -1
 
 import requests
 
@@ -898,9 +928,15 @@ def handle_memo():
 @app.route('/api/wishlist', methods=['GET', 'POST'])
 def handle_wishlist():
     wish_id = os.getenv('WISH_SHEET_ID')
+    if not wish_id:
+        wish_id = os.getenv('GOOGLE_SHEET_ID') # 回退到主表 ID
+        
     if request.method == 'POST':
         data = request.json
-        # 欄位：建立日期, 商品名稱, 預估價格, 備註/連結, 狀態, 分類, 實際價格, 唯一ID, 儲存時間
+        if not wish_id:
+            return jsonify({"status": "error", "message": "環境變數未設定 WISH_SHEET_ID"}), 500
+            
+        # 欄位：建立日期, 商品名稱, 預估價格, 備註/連結, 狀態, 分類, 實際價格, 唯一 ID, 儲存時間
         unique_id = str(int(datetime.now().timestamp() * 1000))
         row = [
             datetime.now().strftime("%Y-%m-%d"),
@@ -913,14 +949,27 @@ def handle_wishlist():
             unique_id,
             datetime.now().strftime("%H:%M:%S")
         ]
-        append_to_sheet('願望清單', row, spreadsheet_id=wish_id)
-        return jsonify({"status": "success", "message": "願望已許下", "id": unique_id})
+        try:
+            append_to_sheet('願望清單', row, spreadsheet_id=wish_id)
+            return jsonify({"status": "success", "message": "願望已許下", "id": unique_id})
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"寫入失敗：{str(e)}"}), 500
     else:
-        rows = get_sheet_values('願望清單', spreadsheet_id=wish_id)
-        if not rows or len(rows) < 2: return jsonify([])
-        headers = rows[0]
-        wishes = [dict(zip(headers, row)) for row in rows[1:]]
-        return jsonify(wishes)
+        try:
+            rows = get_sheet_values('願望清單', spreadsheet_id=wish_id)
+            if not rows or len(rows) < 1: return jsonify([])
+            
+            headers = [h.strip() for h in rows[0]] # 去除表頭空格
+            wishes = []
+            for row in rows[1:]:
+                if not any(row): continue # 跳過空行
+                # 補齊缺失欄位
+                while len(row) < len(headers): row.append('')
+                wishes.append(dict(zip(headers, row)))
+            return jsonify(wishes)
+        except Exception as e:
+            print(f"Wishlist API Error: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/wishlist/fulfill', methods=['POST'])
 def fulfill_wish():
@@ -1013,26 +1062,62 @@ def delete_wish():
 @app.route('/api/todo', methods=['GET', 'POST'])
 def handle_todo():
     todo_id = os.getenv('TODO_SHEET_ID')
+    if not todo_id:
+        todo_id = os.getenv('GOOGLE_SHEET_ID')
+        
     if request.method == 'POST':
         data = request.json
-        # 欄位：建立日期, 事項/內容, 分類, 狀態, 唯一ID, 完成時間
+        if not todo_id:
+            return jsonify({"status": "error", "message": "環境變數未設定 TODO_SHEET_ID"}), 500
+        # 欄位：建立日期, 事項/內容, 分類, 狀態, 唯一 ID, 完成時間
         unique_id = str(int(datetime.now().timestamp() * 1000))
+        priority = data.get('priority', '不重要且不緊急')
         row = [
             datetime.now().strftime("%Y-%m-%d"),
             data.get('title', ''),
             data.get('category', '待辦'),
             '未完成',
             unique_id,
-            ''
+            '',
+            priority
         ]
-        append_to_sheet('待辦', row, spreadsheet_id=todo_id)
-        return jsonify({"status": "success", "message": "待辦事項已加入", "id": unique_id})
+        try:
+            # 檢查並補足表頭 (如果尚未有 "優先級")
+            try:
+                rows_all = get_sheet_values('待辦', spreadsheet_id=todo_id)
+                if rows_all and len(rows_all) > 0:
+                    headers = rows_all[0]
+                    if len(headers) < 7:
+                        # 補足表頭
+                        service = get_sheets_service()
+                        service.spreadsheets().values().update(
+                            spreadsheetId=todo_id,
+                            range='待辦!G1',
+                            valueInputOption='USER_ENTERED',
+                            body={'values': [['優先級']]}
+                        ).execute()
+            except Exception as e:
+                print(f"Warning: Failed to auto-update header: {e}")
+
+            append_to_sheet('待辦', row, spreadsheet_id=todo_id)
+            return jsonify({"status": "success", "message": "待辦事項已加入", "id": unique_id})
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"寫入失敗：{str(e)}", "id": unique_id})
     else:
-        rows = get_sheet_values('待辦', spreadsheet_id=todo_id)
-        if not rows or len(rows) < 2: return jsonify([])
-        headers = rows[0]
-        todos = [dict(zip(headers, row)) for row in rows[1:]]
-        return jsonify(todos)
+        try:
+            rows = get_sheet_values('待辦', spreadsheet_id=todo_id)
+            if not rows or len(rows) < 1: return jsonify([])
+            
+            headers = [h.strip() for h in rows[0]] # 去除表頭空格
+            todos = []
+            for row in rows[1:]:
+                if not any(row): continue
+                while len(row) < len(headers): row.append('')
+                todos.append(dict(zip(headers, row)))
+            return jsonify(todos)
+        except Exception as e:
+            print(f"Todo API Error: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/todo/toggle', methods=['POST'])
 def toggle_todo():
@@ -1119,43 +1204,48 @@ def delete_todo():
 @app.route('/api/wishlist/update', methods=['POST'])
 def update_wish():
     data = request.json
-    item_id = str(data.get('id', ''))
+    item_id = str(data.get('id', '')).strip()
+    name = data.get('name', '')
+    price = data.get('price', '')
+    note = data.get('note', '')
+    category = data.get('category', '')
     wish_id = os.getenv('WISH_SHEET_ID')
     
     rows = get_sheet_values('願望清單', spreadsheet_id=wish_id)
     if not rows: return jsonify({"status": "error", "message": "找不到資料"})
     
-    target_row_idx = -1
-    if item_id:
-        for i, row in enumerate(rows):
-            if len(row) > 7:
-                if str(row[7]).strip().split('.')[0] == item_id.strip():
-                    target_row_idx = i + 1
-                    break
+    # 使用 helper 尋找 ID (第 8 欄, index 7)
+    target_row_idx = find_row_by_id(rows, item_id, 7)
     
     if target_row_idx == -1:
-        return jsonify({"status": "error", "message": "找不到該願望，無法更新"})
+        return jsonify({"status": "error", "message": f"找不到 ID 為 {item_id} 的願望"})
 
-    # 準備更新的資料
-    # 欄位：建立日期, 商品名稱, 預估價格, 備註/連結, 狀態, 分類, 實際價格, 唯一ID, 儲存時間
-    updated_row = [
-        rows[target_row_idx-1][0], # 保持原日期
-        data.get('name'),
-        data.get('price'),
-        data.get('note'),
-        rows[target_row_idx-1][4], # 保持原狀態
-        data.get('category'),
-        rows[target_row_idx-1][6] if len(rows[target_row_idx-1]) > 6 else '', # 保持原實際價格
-        item_id,
-        datetime.now().strftime("%H:%M:%S")
-    ]
-
+    # 分次更新以確保準確
     service = get_sheets_service()
+    
+    # 1. 更新名稱、價格、備註 (B-D 欄)
     service.spreadsheets().values().update(
         spreadsheetId=wish_id,
-        range=f'願望清單!A{target_row_idx}:I{target_row_idx}',
+        range=f'願望清單!B{target_row_idx}:D{target_row_idx}',
         valueInputOption='USER_ENTERED',
-        body={'values': [updated_row]}
+        body={'values': [[name, price, note]]}
+    ).execute()
+
+    # 2. 更新分類 (F 欄)
+    if category:
+        service.spreadsheets().values().update(
+            spreadsheetId=wish_id,
+            range=f'願望清單!F{target_row_idx}',
+            valueInputOption='USER_ENTERED',
+            body={'values': [[category]]}
+        ).execute()
+
+    # 3. 更新最後儲存時間 (I 欄)
+    service.spreadsheets().values().update(
+        spreadsheetId=wish_id,
+        range=f'願望清單!I{target_row_idx}',
+        valueInputOption='USER_ENTERED',
+        body={'values': [[datetime.now().strftime("%H:%M:%S")]]}
     ).execute()
     
     return jsonify({"status": "success", "message": "願望已更新"})
@@ -1179,12 +1269,23 @@ def update_todo():
         return jsonify({"status": "error", "message": "找不到該待辦"})
 
     service = get_sheets_service()
-    # 只更新標題 (B 欄) 和分類 (C 欄)
+    orig_row = rows[target_row_idx-1]
+    while len(orig_row) < 7: orig_row.append('')
+    
+    updated_values = [
+        data.get('title', orig_row[1]),
+        data.get('category', orig_row[2]),
+        orig_row[3], # 狀態
+        orig_row[4], # 唯一 ID
+        orig_row[5], # 完成時間
+        data.get('priority', orig_row[6] if len(orig_row) > 6 else '不重要且不緊急')
+    ]
+
     service.spreadsheets().values().update(
         spreadsheetId=todo_id,
-        range=f'待辦!B{target_row_idx}:C{target_row_idx}',
+        range=f'待辦!B{target_row_idx}:G{target_row_idx}',
         valueInputOption='USER_ENTERED',
-        body={'values': [[data.get('title'), data.get('category', '任務')]]}
+        body={'values': [updated_values]}
     ).execute()
     
     return jsonify({"status": "success", "message": "待辦已更新"})

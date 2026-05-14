@@ -83,44 +83,99 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.loadTodos = async () => {
-        const res = await fetch('/api/todo');
-        const data = await res.json();
         const list = document.getElementById('todo_list');
         if (!list) return;
 
-        // 僅顯示未完成的
-        list.innerHTML = data.filter(i => i.狀態 === '未完成').reverse().map((item, idx) => {
-            const safeID = item.唯一ID || `legacy_${idx}`;
-            return `
-                <div id="todo_item_${safeID}" style="display: flex; align-items: center; gap: 10px; padding: 12px; border-bottom: 1px solid #f8fafc; transition: all 0.3s;">
-                    <input type="checkbox" 
-                           style="width: 18px; height: 18px; cursor: pointer;"
-                           onchange="window.prepareTodo('${safeID}', this.checked)">
-                    
-                    <span id="todo_text_${safeID}" style="flex: 1; color: #1e293b; font-weight: 500;">
-                        ${item['事項/內容']}
-                    </span>
-                    
-                    <div id="todo_action_${safeID}" style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 0.7rem; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 6px;">
-                            ${item.分類}
-                        </span>
-                        <button onclick="window.editTodo('${safeID}', '${item['事項/內容'].replace(/'/g, "\\'")}', '${item.分類}')" 
-                                style="background: none; border: none; color: #cbd5e1; cursor: pointer; font-size: 0.8rem; padding: 0 4px; transition: all 0.2s;"
-                                onmouseover="this.style.color='#3b82f6'"
-                                onmouseout="this.style.color='#cbd5e1'">
-                            編輯
-                        </button>
-                        <button onclick="window.deleteTodo('${safeID}', '${item['事項/內容'].replace(/'/g, "\\'")}')" 
-                                style="background: none; border: none; color: #cbd5e1; cursor: pointer; font-size: 0.9rem; padding: 0 4px; transition: all 0.2s;"
-                                onmouseover="this.style.color='#ef4444'"
-                                onmouseout="this.style.color='#cbd5e1'">
-                            ✕
-                        </button>
+        // 顯示載入中
+        list.innerHTML = `
+            <div style="text-align: center; padding: 30px; color: #94a3b8;">
+                <div class="loading-spinner" style="margin-bottom: 10px;">⌛</div>
+                正在讀取待辦清單...
+            </div>
+        `;
+
+        try {
+            const res = await fetch('/api/todo');
+            const data = await res.json();
+            
+            if (!Array.isArray(data)) {
+                throw new Error(data.message || '資料格式錯誤');
+            }
+
+            // 僅顯示未完成的
+            const activeTodos = data.filter(i => i.狀態 === '未完成');
+            
+            if (activeTodos.length === 0) {
+                list.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 40px 20px;">任務全數達成！✨<br><small style="opacity: 0.7;">今天又是充實的一天呢</small></div>';
+                return;
+            }
+
+            // 排序邏輯：1. 重要且緊急優先 2. 建立時間早優先 (原始順序)
+            const priorityMap = {
+                '重要且緊急': 0,
+                '重要但不緊急': 1,
+                '不重要但緊急': 2,
+                '不重要且不緊急': 3
+            };
+
+            const sortedTodos = activeTodos.sort((a, b) => {
+                const pA = priorityMap[a['優先級']] !== undefined ? priorityMap[a['優先級']] : 4;
+                const pB = priorityMap[b['優先級']] !== undefined ? priorityMap[b['優先級']] : 4;
+                if (pA !== pB) return pA - pB;
+                return 0; // 維持原始順序 (最早在上方)
+            });
+
+            list.innerHTML = sortedTodos.map((item, idx) => {
+                const safeID = item['唯一 ID'] || `legacy_${idx}`;
+                const priority = item['優先級'] || '不重要且不緊急';
+                
+                // 優先級顏色映射
+                let accentClass = 'accent-green';
+                if (priority.includes('重要且緊急')) accentClass = 'accent-red';
+                else if (priority.includes('重要但不緊急')) accentClass = 'accent-yellow';
+                else if (priority.includes('不重要但緊急')) accentClass = 'accent-orange';
+
+                return `
+                    <div id="todo_item_${safeID}" style="display: flex; align-items: center; gap: 12px; padding: 15px 15px 15px 22px; border-bottom: 1px solid #f8fafc; transition: all 0.3s; background: white; margin-bottom: 10px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); position: relative; overflow: hidden;">
+                        <div class="todo-accent ${accentClass}"></div>
+                        
+                        <div style="position: relative; width: 24px; height: 24px; flex-shrink: 0;">
+                            <input type="checkbox" 
+                                   style="width: 24px; height: 24px; cursor: pointer; opacity: 0; position: absolute; z-index: 2;"
+                                   onchange="window.prepareTodo('${safeID}', this.checked)">
+                            <div class="custom-checkbox" style="width: 24px; height: 24px; border: 2.5px solid #cbd5e1; border-radius: 8px; position: absolute; top: 0; left: 0; transition: all 0.2s;"></div>
+                        </div>
+                        
+                        <div style="flex: 1;">
+                            <div id="todo_text_${safeID}" style="color: #1e293b; font-weight: 700; font-size: 1.05rem; line-height: 1.4; margin-bottom: 4px;">
+                                ${item['事項/內容']}
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <span style="font-size: 0.65rem; color: #94a3b8; background: #f8fafc; padding: 2px 6px; border-radius: 4px; font-weight: 600;">
+                                    ${item.分類}
+                                </span>
+                                <span style="font-size: 0.65rem; font-weight: 800; color: #64748b;">
+                                    • ${priority}
+                                </span>
+                            </div>
+                        </div>
+                        <div id="todo_action_${safeID}" style="display: flex; gap: 10px; align-items: center;">
+                            <button onclick="window.deleteTodo('${safeID}', '${item['事項/內容'].replace(/'/g, "\\'")}')" 
+                                    style="background: none; border: none; color: #cbd5e1; cursor: pointer; font-size: 1.1rem; padding: 4px; transition: all 0.2s;">
+                                ✕
+                            </button>
+                            <button onclick="window.editTodo('${safeID}', '${item['事項/內容'].replace(/'/g, "\\'")}', '${item.分類}')" 
+                                    style="background: none; color: #3b82f6; border: none; padding: 4px; font-size: 0.85rem; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+                                編輯
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `;
-        }).join('') || '<div style="color: #94a3b8; text-align: center; padding: 20px;">任務全數達成！✨</div>';
+                `;
+            }).join('');
+        } catch (e) {
+            console.error('載入待辦清單失敗:', e);
+            list.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 20px;">載入失敗：${e.message} 🔌</div>`;
+        }
     };
 
     window.deleteTodo = async (id, title) => {
@@ -193,10 +248,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- 願望功能 ---
-    window.addWishTag = (tag) => {
-        const input = document.getElementById('wish_name');
-        input.value = tag + ' ' + input.value;
-        input.focus();
+    window.selectWishTag = (el, val) => {
+        document.querySelectorAll('.wish-tag').forEach(tag => tag.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById('wish_category').value = val;
     };
 
     window.loadWishes = async () => {
@@ -216,6 +271,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('/api/wishlist');
             const data = await res.json();
             
+            if (!Array.isArray(data)) {
+                throw new Error(data.message || '資料格式錯誤');
+            }
+
             let totalBudget = 0;
             const activeWishes = data.filter(i => i.狀態 === '想買');
 
@@ -225,27 +284,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            list.innerHTML = activeWishes.reverse().map(item => {
+            list.innerHTML = activeWishes.map(item => {
                 const price = parseInt(item.預估價格) || 0;
                 totalBudget += price;
+                const itemID = item['唯一 ID'] || item.id;
+                
+                // 根據分類決定顏色 (加強匹配與相容舊標籤)
+                const cat = (item.分類 || '').trim();
+                let cardStyle = 'background: white; border: 1px solid #f1f5f9; color: #1e293b;';
+                
+                if (cat.includes('必買')) {
+                    cardStyle = 'background: #f3e8ff; border: 1px solid #d8b4fe; color: #7e22ce;';
+                } else if (cat.includes('可買') || cat.includes('家用') || cat.includes('送禮')) {
+                    cardStyle = 'background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d;';
+                } else if (cat.includes('可不買') || cat.includes('靈感')) {
+                    cardStyle = 'background: #fefce8; border: 1px solid #fef08a; color: #a16207;';
+                } else {
+                    // 預設為必買顏色 (若為空值)
+                    cardStyle = 'background: #f3e8ff; border: 1px solid #d8b4fe; color: #7e22ce;';
+                }
+
                 return `
-                    <div style="background: #fff; border: 1px solid #f1f5f9; padding: 18px; border-radius: 18px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); transition: transform 0.2s;" onactive="this.style.transform='scale(0.98)'">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                            <div style="font-weight: 800; color: #1e293b; font-size: 1.1rem; flex: 1;">${item.商品名稱}</div>
-                            <div style="color: #f97316; font-weight: 900; font-size: 1.2rem; margin-left: 10px;">$${price.toLocaleString()}</div>
+                    <div style="${cardStyle} padding: 18px; border-radius: 18px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); transition: transform 0.2s;" onactive="this.style.transform='scale(0.98)'">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="font-weight: 800; font-size: 1.1rem; flex: 1;">${item.商品名稱}</div>
+                            <div style="font-weight: 900; font-size: 1.2rem; margin-left: 10px;">$${price.toLocaleString()}</div>
                         </div>
-                        <div style="font-size: 0.9rem; color: #64748b; line-height: 1.5; margin-bottom: 15px; background: #f8fafc; padding: 10px; border-radius: 10px;">${item['備註/連結'] || '無備註'}</div>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 0.75rem; color: #cbd5e1; font-weight: 500;">
-                                <span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; margin-right: 5px;">${item.分類}</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                            <span style="font-size: 0.75rem; opacity: 0.6; font-weight: 500;">
                                 ${item.建立日期}
                             </span>
-                            <div style="display: flex; gap: 15px; align-items: center;">
-                                <button onclick="window.editWish('${item['唯一 ID']}', '${item.商品名稱.replace(/'/g, "\\'")}', '${item.預估價格}', '${(item['備註/連結'] || '').replace(/'/g, "\\'")}', '${item.分類}')" 
-                                        style="background: none; color: #3b82f6; border: none; padding: 0; font-size: 0.85rem; cursor: pointer; font-weight: 600;">
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <button onclick="window.deleteWish('${itemID}', '${item.商品名稱.replace(/'/g, "\\'")}')" 
+                                        style="background: none; border: none; color: inherit; cursor: pointer; font-size: 1.1rem; padding: 4px; transition: all 0.2s; opacity: 0.4;">
+                                    ✕
+                                </button>
+                                <button onclick="window.editWish('${itemID}', '${item.商品名稱.replace(/'/g, "\\'")}', '${item.預估價格}', '', '${item.分類}')" 
+                                        style="background: none; color: inherit; border: none; padding: 0; font-size: 0.85rem; cursor: pointer; font-weight: 600; opacity: 0.8;">
                                     編輯
                                 </button>
-                                <button onclick="window.fulfillWish('${item['唯一 ID']}', '${item.商品名稱}', '${item.預估價格}')" 
+                                <button onclick="window.fulfillWish('${itemID}', '${item.商品名稱}', '${item.預估價格}')" 
                                         style="background: linear-gradient(135deg, #f97316, #ea580c); color: white; border: none; padding: 7px 16px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; font-weight: 800; box-shadow: 0 4px 10px rgba(249, 115, 22, 0.25);">
                                     圓夢 ✨
                                 </button>
@@ -256,11 +334,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('');
             
             if (summary) {
-                summary.innerHTML = `預算總計：$${totalBudget.toLocaleString()}`;
+                summary.innerHTML = `預算總計：<br>$${totalBudget.toLocaleString()}`;
             }
         } catch (e) {
             console.error('載入願望清單失敗:', e);
-            list.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 20px;">載入失敗，請稍後再試 🔌</div>';
+            list.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 20px;">載入失敗：${e.message} 🔌</div>`;
         }
     };
 
@@ -335,9 +413,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    window.selectPriority = (el, val) => {
+        document.querySelectorAll('.priority-opt').forEach(opt => opt.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById('todo_priority').value = val;
+    };
+
     window.saveTodo = async () => {
         const input = document.getElementById('todo_title');
         const title = input.value.trim();
+        const priority = document.getElementById('todo_priority').value || '不重要且不緊急';
         if (!title) return;
 
         // 簡單判斷分類
@@ -348,28 +433,62 @@ document.addEventListener('DOMContentLoaded', () => {
         if (title.includes('🏠')) category = '生活';
         if (title.includes('✨')) category = '還願';
 
-        const res = await fetch('/api/todo', {
+        const endpoint = window.editingTodoId ? '/api/todo/update' : '/api/todo';
+        const payload = { title, category, priority };
+        if (window.editingTodoId) payload.id = window.editingTodoId;
+
+        const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, category })
+            body: JSON.stringify(payload)
         });
+        
         if ((await res.json()).status === 'success') {
             input.value = '';
+            window.editingTodoId = null;
+            
+            // 恢復按鈕 UI
+            const submitBtn = document.querySelector('#todoModal .modal-content button[onclick="saveTodo()"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '＋';
+                submitBtn.style.background = '#3b82f6';
+                submitBtn.style.width = '40px';
+            }
+            
             window.loadTodos();
+            
+            // 重置優先級選擇到預設
+            const defaultOpt = document.querySelector('.priority-opt.green');
+            if (defaultOpt) window.selectPriority(defaultOpt, '不重要且不緊急');
         }
     };
 
     window.editWish = (id, name, price, note, category) => {
         document.getElementById('wish_name').value = name;
         document.getElementById('wish_price').value = price;
-        document.getElementById('wish_note').value = note;
         window.editingWishId = id;
         
+        // 映射舊標籤到新標籤
+        let displayCategory = category;
+        if (category === '送禮' || category === '家用') displayCategory = '可買';
+        if (category === '靈感') displayCategory = '可不買';
+
+        // 切換分類標籤
+        document.querySelectorAll('.wish-tag').forEach(tag => {
+            if (tag.innerText.includes(displayCategory)) {
+                tag.classList.add('active');
+                document.getElementById('wish_category').value = displayCategory;
+            } else {
+                tag.classList.remove('active');
+            }
+        });
+
         // 修改按鈕 UI
-        const submitBtn = document.querySelector('.modal-content button[onclick="saveWish()"]');
+        const submitBtn = document.querySelector('#wishlistModal .modal-content button[onclick="saveWish()"]');
         if (submitBtn) {
-            submitBtn.innerHTML = '💾 儲存修改';
+            submitBtn.innerHTML = '💾 儲存';
             submitBtn.style.background = '#10b981';
+            submitBtn.style.width = '80px';
         }
     };
 
@@ -382,11 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const note = noteInput.value.trim();
         if (!name) return;
 
-        let category = '靈感';
-        if (name.includes('💎')) category = '必買';
-        if (name.includes('🎁')) category = '送禮';
-        if (name.includes('🏠')) category = '家用';
-        if (name.includes('💡')) category = '靈感';
+        const category = document.getElementById('wish_category').value || '必買';
 
         const endpoint = window.editingWishId ? '/api/wishlist/update' : '/api/wishlist';
         const payload = { name, price, note, category };
@@ -405,10 +520,11 @@ document.addEventListener('DOMContentLoaded', () => {
             window.editingWishId = null;
             
             // 恢復按鈕 UI
-            const submitBtn = document.querySelector('.modal-content button[onclick="saveWish()"]');
+            const submitBtn = document.querySelector('#wishlistModal .modal-content button[onclick="saveWish()"]');
             if (submitBtn) {
                 submitBtn.innerHTML = '＋';
                 submitBtn.style.background = '#f97316';
+                submitBtn.style.width = '45px';
             }
             
             window.loadWishes();
@@ -421,49 +537,19 @@ document.addEventListener('DOMContentLoaded', () => {
         window.editingTodoId = id;
         input.focus();
         
+        // 修改按鈕 UI
+        const submitBtn = document.querySelector('#todoModal .modal-content button[onclick="saveTodo()"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '💾 儲存';
+            submitBtn.style.background = '#10b981';
+            submitBtn.style.width = '80px'; // 稍微加寬以容納文字
+        }
+
         // 視覺提醒正在編輯
         input.style.borderBottom = '2px solid #3b82f6';
         setTimeout(() => input.style.borderBottom = 'none', 1500);
     };
 
-    window.saveTodo = async () => {
-        const input = document.getElementById('todo_title');
-        const title = input.value.trim();
-        if (!title) return;
-
-        let category = '任務';
-        if (title.includes('🎬')) category = '影視';
-        if (title.includes('🍕')) category = '美食';
-        if (title.includes('📖')) category = '學習';
-        if (title.includes('🏠')) category = '生活';
-        if (title.includes('✨')) category = '還願';
-
-        const endpoint = window.editingTodoId ? '/api/todo/update' : '/api/todo';
-        const payload = { title, category };
-        if (window.editingTodoId) payload.id = window.editingTodoId;
-
-        const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        
-        if ((await res.json()).status === 'success') {
-            input.value = '';
-            window.editingTodoId = null;
-            window.loadTodos();
-        }
-    };
-
-    const scheduleModal = document.getElementById('scheduleModal');
-    const expenseModal = document.getElementById('expenseModal');
-
-
-
-
-
-
-    
     document.querySelectorAll('.close-modal').forEach(btn => btn.onclick = () => window.closeModal());
 
     // --- 輔助函式 ---
