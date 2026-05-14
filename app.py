@@ -641,7 +641,7 @@ def toggle_completion():
 @app.route('/api/memo/list', methods=['GET'])
 def get_memos():
     try:
-        rows = get_sheet_values('114記事')
+        rows = get_sheet_values('日記')
         if not rows: return jsonify({"status": "success", "data": []})
         
         memos = []
@@ -664,28 +664,54 @@ def direct_query_finance():
     current_year = now.strftime('%Y')
     
     try:
-        rows = get_sheet_values('114記帳')
+        rows = get_sheet_values('記帳')
         if not rows:
             return jsonify({"status": "error", "message": "找不到帳簿資料"})
             
-        total = 0
-        count = 0
+        monthly_income = 0
+        monthly_expense = 0
+        category_totals = {}
+        
         for row in rows[1:]: # 跳過標題
-            if len(row) > 5 and row[0] == current_year and row[1].strip("'") == current_month:
+            # 檢查年份與月份 (假設 A 欄是年, B 欄是月)
+            if len(row) >= 6 and str(row[0]) == current_year and str(row[1]).strip("'").zfill(2) == current_month:
                 try:
-                    total += int(row[5])
-                    count += 1
+                    amt = float(str(row[5]).replace(',', ''))
+                    
+                    # 判斷是收入還是支出 (看 D 欄 [index 3] 是否有內容)
+                    is_income = len(row) > 3 and row[3].strip() != ""
+                    
+                    if is_income:
+                        monthly_income += amt
+                    else:
+                        monthly_expense += amt
+                        cat = row[6] if len(row) > 6 else "未分類"
+                        category_totals[cat] = category_totals.get(cat, 0) + amt
                 except:
                     pass
         
         msg = f"📊 {current_year}年{current_month}月 記帳小結：\n\n"
-        msg += f"• 本月支出：${total:,} 元\n"
-        msg += f"• 記帳筆數：{count} 筆\n"
-        msg += f"• 平均每筆：${int(total/count) if count > 0 else 0} 元"
+        msg += f"💰 本月收入：${monthly_income:,.0f} 元\n"
+        msg += "------------------\n"
+        
+        if category_totals:
+            msg += "📝 支出分類明細：\n"
+            # 按金額排序
+            sorted_cats = sorted(category_totals.items(), key=lambda x: x[1], reverse=True)
+            for cat, amt in sorted_cats:
+                msg += f" • {cat}：${amt:,.0f}\n"
+        else:
+            msg += "📝 本月暫無支出明細\n"
+            
+        msg += "------------------\n"
+        msg += f"💸 本月總支出：${monthly_expense:,.0f} 元\n"
+        balance = monthly_income - monthly_expense
+        msg += f"⚖️ 本月結餘：${balance:,.0f} 元"
         
         return jsonify({"status": "success", "type": "chat", "message": msg})
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+        print(f"Finance Query Error: {e}")
+        return jsonify({"status": "error", "message": f"計算失敗：{str(e)}"})
 
 @app.route('/api/query_schedule', methods=['POST'])
 def direct_query_schedule():
