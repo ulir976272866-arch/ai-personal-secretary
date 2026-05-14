@@ -883,3 +883,22 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
 .wish-tag.yellow.active { background: #a16207; color: white; border-color: #a16207; box-shadow: 0 4px 10px rgba(161, 98, 7, 0.3); }
 
 
+
+.tag-btn {
+    background: white;
+    border: 2px solid #f1f5f9;
+    padding: 8px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tag-btn:active {
+    transform: scale(0.9);
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}

@@ -432,6 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (title.includes('📖')) category = '學習';
         if (title.includes('🏠')) category = '生活';
         if (title.includes('✨')) category = '還願';
+        if (title.includes('📍')) category = '旅遊';
 
         const endpoint = window.editingTodoId ? '/api/todo/update' : '/api/todo';
         const payload = { title, category, priority };

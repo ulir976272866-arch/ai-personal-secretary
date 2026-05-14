@@ -71,12 +71,13 @@
                     </div>
                     
                     <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
-                        <button class="tag-btn" onclick="addTodoTag('🎬 影視')">🎬 影視</button>
-                        <button class="tag-btn" onclick="addTodoTag('🍕 美食')">🍕 美食</button>
-                        <button class="tag-btn" onclick="addTodoTag('📖 學習')">📖 學習</button>
-                        <button class="tag-btn" onclick="addTodoTag('✅ 任務')">✅ 任務</button>
-                        <button class="tag-btn" onclick="addTodoTag('🏠 生活')">🏠 生活</button>
-                        <button class="tag-btn" onclick="addTodoTag('✨ 還願')">✨ 還願</button>
+                        <button class="tag-btn" onclick="addTodoTag('🎬')">🎬</button>
+                        <button class="tag-btn" onclick="addTodoTag('🍕')">🍕</button>
+                        <button class="tag-btn" onclick="addTodoTag('📖')">📖</button>
+                        <button class="tag-btn" onclick="addTodoTag('✅')">✅</button>
+                        <button class="tag-btn" onclick="addTodoTag('🏠')">🏠</button>
+                        <button class="tag-btn" onclick="addTodoTag('✨')">✨</button>
+                        <button class="tag-btn" onclick="addTodoTag('📍')">📍</button>
                     </div>
 
                     <!-- 優先級選擇區 -->
@@ -241,11 +242,13 @@
                             ＋
                         </button>
                     </div>
-                    <div class="wish-tags" style="display: flex; gap: 8px; align-items: center; margin-bottom: 15px; flex-wrap: nowrap;">
-                        <span class="wish-tag active purple" onclick="selectWishTag(this, '必買')" style="white-space: nowrap;">💎 必買</span>
-                        <span class="wish-tag green" onclick="selectWishTag(this, '可買')" style="white-space: nowrap;">✅ 可買</span>
-                        <span class="wish-tag yellow" onclick="selectWishTag(this, '可不買')" style="white-space: nowrap;">🤔 可不買</span>
-                        <div id="wish_summary" style="font-size: 0.85rem; color: #f97316; font-weight: 800; line-height: 1.1; padding-left: 5px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; gap: 10px;">
+                        <div class="wish-tags" style="display: flex; gap: 6px; flex-wrap: wrap; flex: 1;">
+                            <span class="wish-tag active purple" onclick="selectWishTag(this, '必買')" style="white-space: nowrap; font-size: 0.85rem; padding: 6px 10px;">💎 必買</span>
+                            <span class="wish-tag green" onclick="selectWishTag(this, '可買')" style="white-space: nowrap; font-size: 0.85rem; padding: 6px 10px;">✅ 可買</span>
+                            <span class="wish-tag yellow" onclick="selectWishTag(this, '可不買')" style="white-space: nowrap; font-size: 0.85rem; padding: 6px 10px;">🤔 可不買</span>
+                        </div>
+                        <div id="wish_summary" style="font-size: 0.78rem; color: #f97316; font-weight: 800; line-height: 1.2; text-align: right; flex-shrink: 0; min-width: 75px;">
                             <!-- 預算總計 -->
                         </div>
                     </div>
