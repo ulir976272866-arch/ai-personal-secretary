@@ -388,10 +388,13 @@ body {
 .calc-btn.equal {
     background: var(--primary-color);
     color: white;
-    grid-column: span 2;
 }
 
-/* 彈窗樣式 */
+button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
+    touch-action: manipulation; /* 停用連點放大的延遲與縮放行為 */
+}
+
+/* 彈窗樣式 - 優化手機捲動 */
 .modal-backdrop {
     display: none;
     position: fixed;
@@ -401,18 +404,24 @@ body {
     z-index: 1000;
     align-items: center;
     justify-content: center;
+    overflow-y: auto; /* 允許垂直捲動 */
+    padding: 20px 0;
+    overscroll-behavior: contain;
 }
 
 .modal-backdrop.show { display: flex; }
 
 .modal-content {
     background: white;
-    width: 90%;
+    width: 92%;
     max-width: 400px;
-    padding: 30px;
-    border-radius: 30px;
+    padding: 25px;
+    border-radius: 25px;
     animation: slideUp 0.3s ease-out;
-    position: relative; /* 關鍵：讓關閉按鈕可以絕對定位 */
+    position: relative;
+    max-height: calc(100vh - 40px); /* 確保高度不超過螢幕 */
+    overflow-y: auto; /* 內容過長時可捲動 */
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
 }
 
 .close-modal {

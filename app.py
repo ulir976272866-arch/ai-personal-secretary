@@ -161,22 +161,15 @@ def morning_briefing():
     請寫一段大約 60 字的親切早晨簡報，語氣要專業且鼓勵老闆。
     """
     
-    try:
-        response = requests.post(
-            f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={GEMINI_API_KEY}",
-            json={"contents": [{"parts": [{"text": prompt}]}]},
-            timeout=10
-        )
-        res_data = response.json()
-        reply = res_data['candidates'][0]['content']['parts'][0]['text']
-        return jsonify({"status": "success", "message": reply})
-    except:
-        return jsonify({"status": "success", "message": f"老闆早安！您今天有 {len(events)} 個行程，本月已支出 ${int(monthly_total)}。祝您有美好的一天！"})
+    # 為了省錢與節省額度，取消自動 AI 招呼語，改為固定親切招呼
+    reply = f"老闆早安！您今天有 {len(events)} 個行程，本月已支出 ${int(monthly_total)}。祝您有美好的一天！"
+    return jsonify({"status": "success", "message": reply})
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
+@app.route('/chat', methods=['POST'])
 @app.route('/api/chat', methods=['POST'])
 def chat():
     """處理前端送來的對話訊息"""
@@ -328,8 +321,8 @@ def chat():
         """
 
         try:
-            # 切換為最穩定的 v1/gemini-pro 模型
-            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
+            # 使用帳號清單中確認存在的 gemini-flash-latest
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={GEMINI_API_KEY}"
             
             payload = {
                 "contents": [{
@@ -337,17 +330,19 @@ def chat():
                 }]
             }
             
-            resp = requests.post(url, headers={'Content-Type': 'application/json'}, json=payload)
-            resp_data = resp.json()
+            response = requests.post(url, json=payload, timeout=15)
+            res_data = response.json()
             
-            if 'candidates' not in resp_data:
-                print("Gemini API Error:", resp_data)
-                # 如果是 Quota 錯誤，至少讓使用者知道
-                if resp_data.get('error', {}).get('code') == 429:
-                    return jsonify({"status": "error", "message": "API 額度已達上限，請稍等一分鐘再試，或者使用下方的快捷按鈕。"})
-                return jsonify({"status": "error", "message": "API 回應錯誤，請稍後再試。"})
+            if response.status_code != 200:
+                error_info = res_data.get('error', {}).get('message', '未知錯誤')
+                print(f"Gemini API Error (HTTP {response.status_code}): {res_data}")
+                return jsonify({"status": "error", "message": f"Gemini API 報錯 ({response.status_code}): {error_info}"})
+            
+            if 'candidates' not in res_data:
+                print("Gemini API missing candidates:", res_data)
+                return jsonify({"status": "error", "message": f"Gemini API 未回傳有效內容: {json.dumps(res_data)}"})
                 
-            response_text = resp_data['candidates'][0]['content']['parts'][0]['text'].strip()
+            response_text = res_data['candidates'][0]['content']['parts'][0]['text'].strip()
             
             # 移除可能存在的 markdown json 標記
             if response_text.startswith("```json"):

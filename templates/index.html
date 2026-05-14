@@ -121,29 +121,43 @@
                 </div>
                 <div class="form-group">
                     <label>金額 (支援加減乘除)</label>
-                    <input type="text" id="expense_amount" class="form-input" placeholder="0" readonly style="text-align: right; font-size: 1.5rem; font-weight: 700; color: #10b981; background: #f8fafc;">
+                    <div id="calc_history" class="calc-history" style="text-align: right; font-size: 0.9rem; color: #94a3b8; height: 1.2rem; margin-bottom: 5px;"></div>
+                    <div style="display: flex; gap: 10px; align-items: stretch;">
+                        <input type="text" id="expense_amount" class="form-input" placeholder="0" readonly style="flex: 1; text-align: right; font-size: 1.5rem; font-weight: 700; color: #10b981; background: #f8fafc; margin-bottom: 0;">
+                        <button class="calc-btn op" style="width: 50px; margin-bottom: 0;" onclick="backspaceCalc()">←</button>
+                    </div>
                     
                     <!-- 簡易計算機按鈕 -->
                     <div class="calc-grid">
+                        <!-- 第一排：功能按鍵 -->
+                        <button class="calc-btn danger" onclick="clearCalc()">AC</button>
+                        <button class="calc-btn op" onclick="clearEntry()">C</button>
+                        <button class="calc-btn op" onclick="appendCalc('%')">%</button>
+                        <button class="calc-btn op" onclick="appendCalc('/')">÷</button>
+                        
+                        <!-- 第二排：7 8 9 * -->
                         <button class="calc-btn" onclick="appendCalc('7')">7</button>
                         <button class="calc-btn" onclick="appendCalc('8')">8</button>
                         <button class="calc-btn" onclick="appendCalc('9')">9</button>
-                        <button class="calc-btn op" onclick="appendCalc('+')">+</button>
+                        <button class="calc-btn op" onclick="appendCalc('*')">×</button>
                         
+                        <!-- 第三排：4 5 6 - -->
                         <button class="calc-btn" onclick="appendCalc('4')">4</button>
                         <button class="calc-btn" onclick="appendCalc('5')">5</button>
                         <button class="calc-btn" onclick="appendCalc('6')">6</button>
                         <button class="calc-btn op" onclick="appendCalc('-')">-</button>
                         
+                        <!-- 第四排：1 2 3 + -->
                         <button class="calc-btn" onclick="appendCalc('1')">1</button>
                         <button class="calc-btn" onclick="appendCalc('2')">2</button>
                         <button class="calc-btn" onclick="appendCalc('3')">3</button>
-                        <button class="calc-btn op" onclick="appendCalc('*')">×</button>
+                        <button class="calc-btn op" onclick="appendCalc('+')">+</button>
                         
-                        <button class="calc-btn danger" onclick="clearCalc()">C</button>
+                        <!-- 第五排：0 00 . = -->
                         <button class="calc-btn" onclick="appendCalc('0')">0</button>
-                        <button class="calc-btn" onclick="calculateResult()">=</button>
-                        <button class="calc-btn op" onclick="appendCalc('/')">÷</button>
+                        <button class="calc-btn" onclick="appendCalc('00')">00</button>
+                        <button class="calc-btn" onclick="appendCalc('.')">.</button>
+                        <button class="calc-btn equal" onclick="calculateResult()">=</button>
                     </div>
                 </div>
                 <div class="form-group">

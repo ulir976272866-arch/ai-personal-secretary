@@ -182,24 +182,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 計算機邏輯 ---
     const expenseAmountInput = document.getElementById('expense_amount');
-    window.appendCalc = (val) => {
-        if (expenseAmountInput.value === '0' && !isNaN(val)) {
-            expenseAmountInput.value = val;
+    window.appendCalc = function(val) {
+        const amountInput = document.getElementById('expense_amount');
+        if (amountInput.value === '0' && val !== '.') {
+            amountInput.value = val;
         } else {
-            expenseAmountInput.value += val;
+            amountInput.value += val;
         }
     };
-    window.clearCalc = () => {
-        expenseAmountInput.value = '0';
+
+    window.clearEntry = function() {
+        document.getElementById('expense_amount').value = '0';
+    };
+
+    window.clearCalc = function() {
+        document.getElementById('expense_amount').value = '0';
+        document.getElementById('calc_history').innerText = '';
+    };
+    window.backspaceCalc = () => {
+        if (expenseAmountInput.value.length > 1) {
+            expenseAmountInput.value = expenseAmountInput.value.slice(0, -1);
+        } else {
+            expenseAmountInput.value = '0';
+        }
     };
     window.calculateResult = () => {
         try {
-            // 安全地評估數學運算式
-            const result = eval(expenseAmountInput.value.replace('×', '*').replace('÷', '/'));
-            expenseAmountInput.value = Math.round(result);
+            const amountInput = document.getElementById('expense_amount');
+            const historyDiv = document.getElementById('calc_history');
+            const expression = amountInput.value.replace(/×/g, '*').replace(/÷/g, '/');
+            
+            // 存入上方懸浮歷史區
+            historyDiv.innerText = amountInput.value;
+            
+            // 安全計算
+            const result = eval(expression);
+            amountInput.value = Math.round(result).toString();
         } catch (e) {
-            alert('計算錯誤');
-            expenseAmountInput.value = '0';
+            console.error("Calculation Error:", e);
+            alert('計算格式錯誤');
+            document.getElementById('expense_amount').value = '0';
         }
     };
 
@@ -261,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     appendMessage(data.message || data.reply);
                 }
             } else {
-                appendMessage("❌ 錯誤：" + data.message);
+                appendMessage("❌ 錯誤：" + (data.message || "發生未知錯誤"));
             }
         } catch (error) {
             appendMessage("❌ 伺服器連線失敗");
