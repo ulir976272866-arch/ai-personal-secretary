@@ -200,52 +200,67 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.loadWishes = async () => {
-        const res = await fetch('/api/wishlist');
-        const data = await res.json();
         const list = document.getElementById('wish_list');
         const summary = document.getElementById('wish_summary');
         if (!list) return;
 
-        let totalBudget = 0;
-        const activeWishes = data.filter(i => i.狀態 === '想買');
+        // 顯示載入中
+        list.innerHTML = `
+            <div style="text-align: center; padding: 30px; color: #94a3b8;">
+                <div class="loading-spinner" style="margin-bottom: 10px;">⌛</div>
+                正在讀取願望清單...
+            </div>
+        `;
 
-        list.innerHTML = activeWishes.reverse().map(item => {
-            const price = parseInt(item.預估價格) || 0;
-            totalBudget += price;
-            return `
-                <div style="background: #fff; border: 1px solid #f1f5f9; padding: 15px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                        <div style="font-weight: 700; color: #1e293b; font-size: 1rem;">${item.商品名稱}</div>
-                        <div style="color: #f97316; font-weight: 800; font-size: 1.1rem;">$${item.預估價格}</div>
-                    </div>
-                    <div style="font-size: 0.85rem; color: #64748b; line-height: 1.4; margin-bottom: 10px;">${item['備註/連結'] || ''}</div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 0.7rem; color: #cbd5e1;">${item.建立日期} (${item.分類})</span>
-                        <div style="display: flex; gap: 12px; align-items: center;">
-                            <button onclick="window.editWish('${item['唯一 ID']}', '${item.商品名稱.replace(/'/g, "\\'")}', '${item.預估價格}', '${(item['備註/連結'] || '').replace(/'/g, "\\'")}', '${item.分類}')" 
-                                    style="background: none; color: #94a3b8; border: none; padding: 0; font-size: 0.8rem; cursor: pointer; text-decoration: underline; transition: all 0.2s;"
-                                    onmouseover="this.style.color='#3b82f6'"
-                                    onmouseout="this.style.color='#94a3b8'">
-                                編輯
-                            </button>
-                            <button onclick="window.deleteWish('${item['唯一 ID']}', '${item.商品名稱.replace(/'/g, "\\'")}')" 
-                                    style="background: none; color: #94a3b8; border: none; padding: 0; font-size: 0.8rem; cursor: pointer; text-decoration: underline; transition: all 0.2s;"
-                                    onmouseover="this.style.color='#ef4444'"
-                                    onmouseout="this.style.color='#94a3b8'">
-                                刪除
-                            </button>
-                            <button onclick="window.fulfillWish('${item['唯一 ID']}', '${item.商品名稱}', '${item.預估價格}')" 
-                                    style="background: #f97316; color: white; border: none; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; font-weight: bold; transition: all 0.2s;">
-                                圓夢 ✨
-                            </button>
+        try {
+            const res = await fetch('/api/wishlist');
+            const data = await res.json();
+            
+            let totalBudget = 0;
+            const activeWishes = data.filter(i => i.狀態 === '想買');
+
+            if (activeWishes.length === 0) {
+                list.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 40px 20px;">目前沒有正在進行的願望 ✨<br><small style="opacity: 0.7;">點擊上方 + 按鈕開始許願吧！</small></div>';
+                if (summary) summary.innerHTML = '';
+                return;
+            }
+
+            list.innerHTML = activeWishes.reverse().map(item => {
+                const price = parseInt(item.預估價格) || 0;
+                totalBudget += price;
+                return `
+                    <div style="background: #fff; border: 1px solid #f1f5f9; padding: 18px; border-radius: 18px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); transition: transform 0.2s;" onactive="this.style.transform='scale(0.98)'">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                            <div style="font-weight: 800; color: #1e293b; font-size: 1.1rem; flex: 1;">${item.商品名稱}</div>
+                            <div style="color: #f97316; font-weight: 900; font-size: 1.2rem; margin-left: 10px;">$${price.toLocaleString()}</div>
+                        </div>
+                        <div style="font-size: 0.9rem; color: #64748b; line-height: 1.5; margin-bottom: 15px; background: #f8fafc; padding: 10px; border-radius: 10px;">${item['備註/連結'] || '無備註'}</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.75rem; color: #cbd5e1; font-weight: 500;">
+                                <span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; margin-right: 5px;">${item.分類}</span>
+                                ${item.建立日期}
+                            </span>
+                            <div style="display: flex; gap: 15px; align-items: center;">
+                                <button onclick="window.editWish('${item['唯一 ID']}', '${item.商品名稱.replace(/'/g, "\\'")}', '${item.預估價格}', '${(item['備註/連結'] || '').replace(/'/g, "\\'")}', '${item.分類}')" 
+                                        style="background: none; color: #3b82f6; border: none; padding: 0; font-size: 0.85rem; cursor: pointer; font-weight: 600;">
+                                    編輯
+                                </button>
+                                <button onclick="window.fulfillWish('${item['唯一 ID']}', '${item.商品名稱}', '${item.預估價格}')" 
+                                        style="background: linear-gradient(135deg, #f97316, #ea580c); color: white; border: none; padding: 7px 16px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; font-weight: 800; box-shadow: 0 4px 10px rgba(249, 115, 22, 0.25);">
+                                    圓夢 ✨
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-        }).join('') || '<div style="color: #94a3b8; text-align: center; padding: 20px;">目前沒有正在進行的願望 ✨</div>';
-        
-        if (summary) {
-            summary.innerHTML = activeWishes.length > 0 ? `預算總計：$${totalBudget.toLocaleString()}` : '';
+                `;
+            }).join('');
+            
+            if (summary) {
+                summary.innerHTML = `預算總計：$${totalBudget.toLocaleString()}`;
+            }
+        } catch (e) {
+            console.error('載入願望清單失敗:', e);
+            list.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 20px;">載入失敗，請稍後再試 🔌</div>';
         }
     };
 
