@@ -191,7 +191,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (id === 'scheduleModal' && !window.editingEventId) {
             document.getElementById('manual_summary').value = '';
             document.getElementById('manual_location').value = '';
-            document.getElementById('manual_date').valueAsDate = new Date();
+            const now = new Date();
+            const offset = now.getTimezoneOffset();
+            const localDate = new Date(now.getTime() - (offset * 60 * 1000));
+            document.getElementById('manual_date').value = localDate.toISOString().split('T')[0];
             document.getElementById('manual_all_day').checked = false;
             document.getElementById('time_input_wrapper').style.display = 'flex';
             const submitBtn = document.getElementById('submitSchedule');
@@ -265,7 +268,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 待辦功能 (V10.8 精簡版) ---
     window.todoCategories = JSON.parse(localStorage.getItem('todoCategories')) || [
-        { name: '任務', icon: '📝' },
         { name: '美食', icon: '🍕' },
         { name: '影視', icon: '🎬' },
         { name: '學習', icon: '📖' },
@@ -328,10 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     window.removeTodoCategory = async (catName) => {
         const catObj = window.todoCategories.find(c => c.name === catName) || { name: catName, icon: '📝' };
-        if (catName === '任務') {
-            alert('「任務」為預設類別，無法刪除唷！');
-            return;
-        }
+        
         
         const confirmed = await window.customConfirm(
             '確定刪除類別？',
@@ -483,10 +482,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         <div id="todo_action_${safeID}" style="display: flex; gap: 10px; align-items: center;">
                             <button onclick="window.deleteTodo('${safeID}', '${item['事項/內容'].replace(/'/g, "\\'")}')" 
-                                    style="background: none; border: none; color: #cbd5e1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; transition: all 0.2s;">
+                                    style="background: none; border: none; color: #ef4444; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; transition: all 0.2s;">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                             </button>
-                            <button onclick="window.editTodo('${safeID}', '${item['事項/內容'].replace(/'/g, "\\'")}', '${category}')" style="background: none; color: #3b82f6; border: none; padding: 4px; font-size: 0.85rem; cursor: pointer; font-weight: 600;">編輯</button>
+                            <button onclick="window.editTodo('${safeID}', '${item['事項/內容'].replace(/'/g, "\\'")}', '${category}')" style="background: none; color: #3b82f6; border: none; padding: 4px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            </button>
                         </div>
                     </div>
                 `;
@@ -635,14 +636,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span style="font-size: 0.75rem; opacity: 0.6; font-weight: 500;">
                                 ${item.建立日期}
                             </span>
-                            <div style="display: flex; gap: 12px; align-items: center;">
+                             <div style="display: flex; gap: 15px; align-items: center;">
                                 <button onclick="window.deleteWish('${itemID}', '${item.商品名稱.replace(/'/g, "\\'")}')" 
-                                        style="background: none; border: none; color: inherit; cursor: pointer; font-size: 1.1rem; padding: 4px; transition: all 0.2s; opacity: 0.4;">
-                                    ✕
+                                        style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                                 </button>
                                 <button onclick="window.editWish('${itemID}', '${item.商品名稱.replace(/'/g, "\\'")}', '${item.預估價格}', '', '${item.分類}')" 
-                                        style="background: none; color: inherit; border: none; padding: 0; font-size: 0.85rem; cursor: pointer; font-weight: 600; opacity: 0.8;">
-                                    編輯
+                                        style="background: none; color: #3b82f6; border: none; padding: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                                 </button>
                                 <button onclick="window.fulfillWish('${itemID}', '${item.商品名稱}', '${item.預估價格}')" 
                                         style="background: linear-gradient(135deg, #f97316, #ea580c); color: white; border: none; padding: 7px 16px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; font-weight: 800; box-shadow: 0 4px 10px rgba(249, 115, 22, 0.25);">
@@ -980,8 +981,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="event-actions">
                         <div class="action-links">
-                            <span class="action-link edit" onclick="window.editEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}', '${(event.location || "").replace(/'/g, "\\'")}', '${event.start_time}', ${event.is_all_day})">編輯</span>
-                            <span class="action-link delete" onclick="window.deleteEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')">刪除</span>
+                            <span class="action-link delete" onclick="window.deleteEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                            </span>
+                            <span class="action-link edit" onclick="window.editEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}', '${(event.location || "").replace(/'/g, "\\'")}', '${event.start_time}', ${event.is_all_day})">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            </span>
                         </div>
                         <button class="done-btn" onclick="window.toggleEventDone('${event.id}')">✓</button>
                     </div>
@@ -1068,7 +1073,8 @@ document.addEventListener('DOMContentLoaded', () => {
      };
 
     window.deleteEvent = async (eventId, title) => {
-        if (!confirm(`確定要從 Google 日曆刪除「${title}」嗎？`)) return;
+        const confirmed = await window.customConfirm("確定刪除？", `您確定要從日曆移除「${title}」嗎？`);
+        if (!confirmed) return;
 
         const res = await fetch('/api/delete_event', {
             method: 'POST',
@@ -1078,15 +1084,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const data = await res.json();
         if (data.status === 'success') {
-            const allItems = document.querySelectorAll(`[data-id="${eventId}"]`);
-            allItems.forEach(li => {
+            const li = document.getElementById(`event_li_${eventId}`);
+            if (li) {
                 li.style.opacity = '0';
                 li.style.transform = 'translateX(20px)';
                 setTimeout(() => li.remove(), 300);
-            });
-            appendMessage(`已刪除行程：${title}`);
-        } else {
-            alert("刪除失敗：" + data.message);
+            }
         }
     };
 
@@ -1247,8 +1250,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('manual_date').valueAsDate = new Date();
 
-    scheduleModal.onclick = (e) => { if (e.target === scheduleModal) window.closeModal('scheduleModal'); };
-    expenseModal.onclick = (e) => { if (e.target === expenseModal) window.closeModal('expenseModal'); };
+    const sModal = document.getElementById('scheduleModal');
+    if (sModal) sModal.onclick = (e) => { if (e.target === sModal) window.closeModal('scheduleModal'); };
+    const eModal = document.getElementById('expenseModal');
+    if (eModal) eModal.onclick = (e) => { if (e.target === eModal) window.closeModal('expenseModal'); };
     document.querySelectorAll('.modal-content').forEach(c => c.onclick = (e) => e.stopPropagation());
 
     // 手動送出行程
@@ -1403,7 +1408,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.toggleCatDropdown = () => {
         const options = document.getElementById('cat_options');
-        options.style.display = options.style.display === 'none' ? 'block' : 'none';
+        if (options) options.classList.toggle('show');
     };
 
     window.selectCategory = (name, icon) => {
@@ -1416,7 +1421,8 @@ document.addEventListener('DOMContentLoaded', () => {
             labelSpan.innerHTML = displayLabel;
         }
         
-        document.getElementById('cat_options').style.display = 'none';
+        const options = document.getElementById('cat_options');
+        if (options) options.classList.remove('show');
         updateSubmitButtonState();
     };
 
@@ -1432,7 +1438,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addCustomCategory = async () => {
         // 先關掉下拉選單
         const optionsDiv = document.getElementById('cat_options');
-        if (optionsDiv) optionsDiv.style.display = 'none';
+        if (optionsDiv) optionsDiv.classList.remove('show');
         
         const result = await window.customCatInput();
         if (result && result.name) {
@@ -1457,7 +1463,8 @@ document.addEventListener('DOMContentLoaded', () => {
             renderCatOptions(dbCategories);
             
             window.selectCategory(result.name, result.icon || '📍');
-            document.getElementById('cat_options').style.display = 'none';
+            const opts = document.getElementById('cat_options');
+            if (opts) opts.classList.remove('show');
         }
     };
 
@@ -1660,7 +1667,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     ${item.name}
                                 </a>
                                 <button onclick="window.deletePocketItem('${item.id}', '${item.name.replace(/'/g, "\\'")}')" 
-                                        style="background: none; border: none; color: #cbd5e1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 5px; transition: all 0.2s;">
+                                        style="background: none; border: none; color: #ef4444; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 5px; transition: all 0.2s;">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                                 </button>
                             </div>

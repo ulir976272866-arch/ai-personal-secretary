@@ -398,7 +398,7 @@ body {
 }
 
 .action-link.edit { color: #3b82f6; }
-.action-link.delete { color: #cbd5e1; }
+.action-link.delete { color: #ef4444; }
 
 .done-btn {
     width: 50px; /* 固定寬度，兼容 ✓ 與 完成 */
@@ -483,22 +483,75 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
 .modal-content {
     background: white;
     width: 92%;
-    max-width: 450px;
-    padding: 30px;
-    border-radius: 28px;
+    max-width: 480px;
+    padding: 0;
+    border-radius: 32px;
     animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
     max-height: 85vh;
-    display: flex;
+    display: flex; /* 強制 Flex 佈局 */
     flex-direction: column;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+}
+
+.modal-header {
+    padding: 25px 30px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.modal-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin: 0;
+    text-align: left;
 }
 
 .modal-body {
     flex: 1;
     overflow-y: auto;
-    padding-right: 5px;
-    margin-right: -5px;
+    padding: 0 30px 25px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.modal-footer {
+    padding: 18px 30px;
+    background: #f8fafc; /* 柔和背景色 */
+    border-top: 1.5px solid #f1f5f9; /* 細微頂部邊框 */
+    text-align: center;
+    flex-shrink: 0; /* 固定高度 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.sheet-link-btn {
+    background: #eff6ff; /* 極淺藍背景 */
+    color: #2563eb; /* 飽和度適中的深藍 */
+    border: 1px solid #dbeafe;
+    padding: 10px 24px;
+    border-radius: 20px; /* 統一圓角 20px */
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.05);
+}
+
+.sheet-link-btn:hover {
+    background: #dbeafe;
+    transform: translateY(-1px);
+}
+
+.sheet-link-btn:active {
+    transform: scale(0.96);
 }
 
 @keyframes modalPop {
@@ -576,13 +629,6 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
     transform: scale(0.9);
 }
 
-.modal-title {
-    font-size: 1.4rem;
-    font-weight: 800;
-    color: var(--text-dark);
-    margin-bottom: 25px;
-    text-align: left;
-}
 
 .form-group {
     margin-bottom: 20px;
@@ -610,21 +656,44 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
     background: white;
     box-sizing: border-box; /* 雙重保險 */
     -webkit-appearance: none; /* 移除 iOS 內建陰影/圓角 */
+    appearance: none;
+}
+
+select.form-input {
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 40px;
+    cursor: pointer;
 }
 
 /* H5 手機版專屬優化 (Bottom Sheet 效果) */
 @media screen and (max-width: 480px) {
     .modal-backdrop {
-        align-items: flex-end;
+        align-items: flex-end; /* 從底部彈出 */
     }
     
     .modal-content {
         width: 100%;
         max-width: 100%;
-        border-radius: 30px 30px 0 0;
-        padding: 20px 15px env(safe-area-inset-bottom, 15px) 15px;
+        border-radius: 28px 28px 0 0; /* 僅保留上方圓角 */
+        padding: 0; /* 由 Header/Body/Footer 分配 */
         animation: sheetUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        max-height: 92vh;
+        max-height: 100vh; /* 手機版極限延伸 */
+        height: auto;
+    }
+
+    .modal-header {
+        padding: 20px 25px 15px;
+    }
+
+    .modal-body {
+        padding: 0 25px 25px;
+    }
+
+    .modal-footer {
+        padding: 15px 25px calc(15px + env(safe-area-inset-bottom, 0px));
     }
 
     .modal-title {
@@ -943,81 +1012,6 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
 
 
 
-/* --- 動態標籤系統 (V10.6) --- */
-.tag-btn {
-    position: relative;
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    border: 2px solid #f1f5f9;
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.4rem;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.02);
-}
-
-.tag-btn.active {
-    border-color: #3b82f6;
-    background: #eff6ff;
-    transform: scale(1.05);
-    box-shadow: 0 5px 15px rgba(59, 130, 246, 0.15);
-}
-
-.tag-btn .remove-badge {
-    position: absolute;
-    top: -6px;
-    right: -6px;
-    width: 18px;
-    height: 18px;
-    background: #fecaca;
-    color: #ef4444;
-    border-radius: 50%;
-    font-size: 10px;
-    font-weight: 900;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid white;
-    opacity: 0;
-    transition: all 0.2s;
-    pointer-events: none;
-}
-
-.tag-btn:active .remove-badge,
-.tag-btn.editing .remove-badge {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-@keyframes slideIn {
-    from { opacity: 0; transform: translateX(-10px); }
-    to { opacity: 1; transform: translateX(0); }
-}
-
-.todo-tags-display {
-    display: none; /* V10.6: 移除上方顯示區 */
-}
-
-.category-select-btn {
-    width: 44px;
-    height: 44px;
-    background: #f1f5f9;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.category-select-btn:hover {
-    background: #e2e8f0;
-}
 
 .todo-dropdown-content {
     display: none;
@@ -1057,22 +1051,25 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
 }
 
 .cat-delete-btn {
-    width: 20px;
-    height: 20px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    font-size: 0.7rem;
-    color: #cbd5e1;
+    font-size: 0.8rem;
+    color: #ef4444;
     transition: all 0.2s;
-    opacity: 0.5;
+    opacity: 0.8;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
 }
 
 .cat-delete-btn:hover {
     background: #fee2e2;
     color: #ef4444;
     opacity: 1;
+    border-color: #fca5a5;
 }
 
 .todo-dropdown-item span {
@@ -1095,49 +1092,6 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
     to { opacity: 1; transform: translateY(0); }
 }
 
-.tag-remove {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.05);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    cursor: pointer;
-    transition: all 0.2s;
-    color: #94a3b8;
-}
-
-.tag-remove:hover {
-    background: #ef4444;
-    color: white;
-}
-
-@keyframes tagPop {
-    from { transform: scale(0.8); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
-}
-
-.custom-tag-input-wrapper {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-    background: #fff;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 2px 10px;
-    align-items: center;
-}
-
-.custom-tag-input {
-    flex: 1;
-    border: none;
-    outline: none;
-    padding: 8px 0;
-    font-size: 0.9rem;
-    background: transparent;
-}
 
 .pocket-filter-btn {
     padding: 6px 16px;
