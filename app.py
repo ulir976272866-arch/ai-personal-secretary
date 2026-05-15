@@ -802,12 +802,6 @@ def handle_memo():
         ]
         append_to_sheet('日記', row, spreadsheet_id=diary_id)
         return jsonify({"status": "success", "message": "生活點滴已記錄"})
-    else:
-        rows = get_sheet_values('日記', spreadsheet_id=diary_id)
-        if not rows or len(rows) < 2: return jsonify([])
-        headers = rows[0]
-        memos = [dict(zip(headers, row)) for row in rows[1:]]
-        return jsonify(memos)
 
 @app.route('/api/wishlist', methods=['GET', 'POST'])
 def handle_wishlist():
@@ -1248,7 +1242,6 @@ def update_event():
         print(f"Error updating event: {e}")
         return jsonify({"status": "error", "message": f"更新失敗: {str(e)}"})
 
-import uuid
 
 def handle_pocket(action, data=None):
     """
