@@ -520,6 +520,43 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    window.saveWish = async () => {
+        const nameInput = document.getElementById('wish_name');
+        const priceInput = document.getElementById('wish_price');
+        const noteInput = document.getElementById('wish_note');
+        const name = nameInput.value.trim();
+        const price = priceInput.value || '0';
+        const note = noteInput.value.trim();
+        if (!name) return;
+
+        const category = document.getElementById('wish_category').value || '必買';
+
+        const endpoint = window.editingWishId ? '/api/wishlist/update' : '/api/wishlist';
+        const payload = { name, price, note, category };
+        if (window.editingWishId) payload.id = window.editingWishId;
+
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if ((await res.json()).status === 'success') {
+            nameInput.value = '';
+            priceInput.value = '';
+            noteInput.value = '';
+            window.editingWishId = null;
+            
+            const submitBtn = document.querySelector('#wishlistModal .modal-content button[onclick="saveWish()"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '＋';
+                submitBtn.style.background = '#f97316';
+                submitBtn.style.width = '45px';
+            }
+            window.loadWishes();
+        }
+    };
+
     window.editWish = (id, name, price, note, category) => {
         document.getElementById('wish_name').value = name;
         document.getElementById('wish_price').value = price;
@@ -549,67 +586,123 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.saveWish = async () => {
-        const nameInput = document.getElementById('wish_name');
-        const priceInput = document.getElementById('wish_price');
-        const noteInput = document.getElementById('wish_note');
-        const name = nameInput.value.trim();
-        const price = priceInput.value || '0';
-        const note = noteInput.value.trim();
-        if (!name) return;
-
-        const category = document.getElementById('wish_category').value || '必買';
-
-        const endpoint = window.editingWishId ? '/api/wishlist/update' : '/api/wishlist';
-        const payload = { name, price, note, category };
-        if (window.editingWishId) payload.id = window.editingWishId;
-
-        const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        
-        if ((await res.json()).status === 'success') {
-            nameInput.value = '';
-            priceInput.value = '';
-            noteInput.value = '';
-            window.editingWishId = null;
-            
-            // 恢復按鈕 UI
-            const submitBtn = document.querySelector('#wishlistModal .modal-content button[onclick="saveWish()"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = '＋';
-                submitBtn.style.background = '#f97316';
-                submitBtn.style.width = '45px';
-            }
-            
-            window.loadWishes();
-        }
-    };
-
     window.editTodo = (id, title, category) => {
         const input = document.getElementById('todo_title');
         input.value = title;
         window.editingTodoId = id;
         input.focus();
         
-        // 修改按鈕 UI
         const submitBtn = document.querySelector('#todoModal .modal-content button[onclick="saveTodo()"]');
         if (submitBtn) {
             submitBtn.innerHTML = '💾 儲存';
             submitBtn.style.background = '#10b981';
-            submitBtn.style.width = '80px'; // 稍微加寬以容納文字
+            submitBtn.style.width = '80px';
         }
 
-        // 視覺提醒正在編輯
         input.style.borderBottom = '2px solid #3b82f6';
         setTimeout(() => input.style.borderBottom = 'none', 1500);
     };
 
+    window.lastQueryDays = 7; // 預設為本週
+
+    window.restoreEvents = () => {
+        localStorage.removeItem('hiddenPocketEvents');
+        appendMessage('✨ 隱藏項目已全數復原，重新載入中...', false);
+        window.querySchedule(window.lastQueryDays || 7);
+    };
+
+    window.toggleEventDone = (id) => {
+        const li = document.getElementById(`event_li_${id}`);
+        const btn = li.querySelector('.done-btn');
+        
+        if (!btn.classList.contains('completed')) {
+            btn.classList.add('completed');
+            btn.innerText = '完成';
+            btn.style.width = '60px'; 
+            btn.style.fontSize = '0.75rem';
+            btn.style.fontWeight = '800';
+        } else {
+            li.classList.add('fade-out');
+            let hidden = JSON.parse(localStorage.getItem('hiddenPocketEvents') || '[]');
+            if (!hidden.includes(id)) hidden.push(id);
+            localStorage.setItem('hiddenPocketEvents', JSON.stringify(hidden));
+            // 延遲一下讓動畫跑完，然後重新渲染整個卡片以更新 Header 的計數
+            setTimeout(() => {
+                window.querySchedule(window.lastQueryDays || 7);
+            }, 400);
+        }
+    };
+
+    function renderScheduleCard(events, dateStr) {
+        const card = document.createElement('div');
+        card.className = 'schedule-card';
+        
+        const hiddenEvents = JSON.parse(localStorage.getItem('hiddenPocketEvents') || '[]');
+        const hiddenCount = hiddenEvents.length;
+        
+        let headerHtml = `
+            <div class="schedule-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px;">
+                <h3 style="margin:0; font-size: 1rem; color: var(--accent-amber);">🗓️ ${dateStr} 行程</h3>
+                <span onclick="window.restoreEvents()" class="restore-btn-ui" style="font-size: 0.7rem; color: #94a3b8; cursor: pointer; background: #f8fafc; padding: 4px 10px; border-radius: 8px; border: 1px solid #e2e8f0; transition: all 0.2s;">
+                    🔄 恢復隱藏${hiddenCount > 0 ? `(${hiddenCount})` : ''}
+                </span>
+            </div>
+        `;
+        
+        const activeEvents = events.filter(e => !hiddenEvents.includes(e.id));
+
+        if (activeEvents.length === 0) {
+            const isTrulyEmpty = events.length === 0;
+            const emptyMsg = isTrulyEmpty ? '今天沒有安排行程喔！' : '🎉 已完成所有行程！';
+            
+            card.innerHTML = headerHtml + `
+                <div style="padding: 30px 15px; text-align: center;">
+                    <p style="color: #64748b; margin:0;">${emptyMsg}</p>
+                </div>
+            `;
+            chatHistory.appendChild(card);
+            scrollToBottom();
+            return;
+        }
+
+        let listHtml = '<div class="schedule-list">';
+        activeEvents.forEach(event => {
+            let locationHtml = '';
+            if (event.location) {
+                const encodedLoc = encodeURIComponent(event.location);
+                const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodedLoc}`;
+                locationHtml = `
+                    <div class="event-address-row">
+                        <div class="event-address-icon">📍</div>
+                        <a href="${mapUrl}" target="_blank" class="location-link" style="color: #94a3b8; text-decoration: none;">${event.location}</a>
+                    </div>`;
+            }
+
+            listHtml += `
+                <div id="event_li_${event.id}" class="schedule-item">
+                    <div class="event-info">
+                        <div class="event-time-row">${event.time}</div>
+                        <div class="event-title-row">${event.display_title || event.title}</div>
+                        ${locationHtml}
+                    </div>
+                    <div class="event-actions">
+                        <div class="action-links">
+                            <span class="action-link edit" onclick="window.editEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}', '${(event.location || "").replace(/'/g, "\\'")}', '${event.start_time}', ${event.is_all_day})">編輯</span>
+                            <span class="action-link delete" onclick="window.deleteEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')">刪除</span>
+                        </div>
+                        <button class="done-btn" onclick="window.toggleEventDone('${event.id}')">✓</button>
+                    </div>
+                </div>
+            `;
+        });
+        listHtml += '</div>';
+        card.innerHTML = headerHtml + listHtml;
+        chatHistory.appendChild(card);
+        scrollToBottom();
+    }
+
     document.querySelectorAll('.close-modal').forEach(btn => btn.onclick = () => window.closeModal());
 
-    // --- 輔助函式 ---
     function scrollToBottom() {
         requestAnimationFrame(() => {
             chatHistory.scrollTop = chatHistory.scrollHeight;
@@ -628,7 +721,6 @@ document.addEventListener('DOMContentLoaded', () => {
         scrollToBottom();
         return msgDiv;
     }
-
     clearBtn.onclick = () => {
         if (confirm('確定要清空所有對話內容嗎？')) {
             chatHistory.innerHTML = '';
@@ -636,66 +728,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    function renderScheduleCard(events, dateStr) {
-        const card = document.createElement('div');
-        card.className = 'schedule-card';
-        
-        let headerHtml = `
-            <div class="schedule-header">
-                <h3>🗓️ ${dateStr} 行程</h3>
-            </div>
-        `;
-        
-        if (events.length === 0) {
-            card.innerHTML = headerHtml + '<p style="padding: 10px; color: #64748b;">今天沒有安排行程喔！</p>';
-            chatHistory.appendChild(card);
-            scrollToBottom();
-            return;
-        }
-
-        let listHtml = '<ul class="schedule-list">';
-        events.forEach(event => {
-            let locationHtml = '';
-            if (event.location) {
-                const isUrl = event.location.startsWith('http');
-                let mapUrl = event.location;
-                
-                if (!isUrl) {
-                    const encodedLoc = encodeURIComponent(event.location);
-                    const ua = navigator.userAgent;
-                    
-                    if (/iPhone|iPad|iPod/i.test(ua)) {
-                        // iOS 直接喚起 App
-                        mapUrl = `comgooglemaps://?q=${encodedLoc}`;
-                    } else if (/Android/i.test(ua)) {
-                        // Android 直接喚起 App
-                        mapUrl = `geo:0,0?q=${encodedLoc}`;
-                    } else {
-                        // 電腦端維持網頁版
-                        mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodedLoc}`;
-                    }
-                }
-                locationHtml = `<a href="${mapUrl}" class="location-link">📍 ${event.location}</a>`;
-            }
-
-            listHtml += `
-                <li id="event_li_${event.id}" class="schedule-item ${event.completed ? 'completed' : ''}" data-id="${event.id}">
-                        <span class="event-title">${event.display_title}</span>
-                        <div class="event-meta">
-                            <span class="event-time">${event.time}</span>
-                            ${locationHtml}
-                            <span class="edit-event-link" onclick="window.editEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}', '${event.location.replace(/'/g, "\\'")}', '${event.start_time}', ${event.is_all_day})" style="margin-left: 10px; text-decoration: underline; cursor: pointer; color: #3b82f6; font-size: 0.75rem;">編輯</span>
-                            <span class="delete-event-link" onclick="window.deleteEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')" style="margin-left: 10px; text-decoration: underline; cursor: pointer; color: #94a3b8; font-size: 0.75rem;">刪除</span>
-                        </div>
-                    </div>
-                     <div class="done-toggle ${event.completed ? 'completed' : ''}">
-                         ${event.completed ? '✓' : ''}
-                     </div>
-                 </li>
-             `;
-         });
- 
-     window.editEvent = (id, title, location, startTime, isAllDay) => {
+    window.editEvent = (id, title, location, startTime, isAllDay) => {
          window.editingEventId = id;
          document.getElementById('manual_summary').value = title;
          document.getElementById('manual_location').value = location;
@@ -763,33 +796,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("刪除失敗：" + data.message);
         }
     };
-        listHtml += '</ul>';
-        
-        card.innerHTML = headerHtml + listHtml;
-        chatHistory.appendChild(card);
-        
-        // 綁定完成切換事件
-        card.querySelectorAll('.schedule-item').forEach(item => {
-            const toggle = item.querySelector('.done-toggle');
-            toggle.onclick = async (e) => {
-                e.stopPropagation();
-                const eventId = item.getAttribute('data-id');
-                const response = await fetch('/api/toggle_completion', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ event_id: eventId })
-                });
-                const result = await response.json();
-                if (result.status === 'success') {
-                    item.classList.toggle('completed');
-                    toggle.classList.toggle('completed');
-                    toggle.innerText = result.is_completed ? '✓' : '';
-                }
-            };
-        });
-        
-        scrollToBottom();
-    }
 
     // --- 計算機邏輯 ---
     const expenseAmountInput = document.getElementById('expense_amount');
@@ -887,6 +893,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.querySchedule = async (days) => {
+        window.lastQueryDays = days;
         const rangeLabel = days === 1 ? '今日' : (days === 7 ? '本週' : '本月');
         appendMessage(`查詢${rangeLabel}行程...`, true);
         
