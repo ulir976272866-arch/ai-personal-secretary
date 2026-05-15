@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.editingWishId = null;
     window.editingTodoId = null;
     window.editingMemoId = null;
+    window.editingEventId = null;
 
     const chatHistory = document.getElementById('chat-history');
     const userInput = document.getElementById('userInput');
@@ -60,6 +61,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 彈窗控制 ---
     window.openModal = (id) => {
+        if (id === 'scheduleModal' && !window.editingEventId) {
+            document.getElementById('manual_summary').value = '';
+            document.getElementById('manual_location').value = '';
+            document.getElementById('manual_date').valueAsDate = new Date();
+            document.getElementById('manual_all_day').checked = false;
+            document.getElementById('time_input_wrapper').style.display = 'flex';
+            const submitBtn = document.getElementById('submitSchedule');
+            if (submitBtn) {
+                submitBtn.innerText = '確認加入日曆';
+                submitBtn.style.background = '';
+            }
+        }
         document.getElementById(id).classList.add('show');
         if (id === 'wishlistModal') window.loadWishes();
         if (id === 'todoModal') window.loadTodos();
@@ -69,8 +82,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.closeModal = (id) => {
         if (id) {
             document.getElementById(id).classList.remove('show');
+            if (id === 'scheduleModal') window.editingEventId = null;
         } else {
             document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('show'));
+            window.editingEventId = null;
         }
     };
 
@@ -602,26 +617,72 @@ document.addEventListener('DOMContentLoaded', () => {
             let locationHtml = '';
             if (event.location) {
                 const isUrl = event.location.startsWith('http');
-                const mapUrl = isUrl ? event.location : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`;
+                const mapUrl = isUrl ? event.location : `https://maps.google.com/maps?q=${encodeURIComponent(event.location)}`;
                 locationHtml = `<a href="${mapUrl}" target="_blank" class="location-link">📍 ${event.location}</a>`;
             }
 
             listHtml += `
                 <li id="event_li_${event.id}" class="schedule-item ${event.completed ? 'completed' : ''}" data-id="${event.id}">
-                    <div class="event-info">
-                        <span class="event-title">${event.title}</span>
+                        <span class="event-title">${event.display_title}</span>
                         <div class="event-meta">
                             <span class="event-time">${event.time}</span>
                             ${locationHtml}
-                            <span class="delete-event-link" onclick="window.deleteEvent('${event.id}', '${event.title}')" style="margin-left: 10px; text-decoration: underline; cursor: pointer; color: #94a3b8; font-size: 0.75rem;">刪除</span>
+                            <span class="edit-event-link" onclick="window.editEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}', '${event.location.replace(/'/g, "\\'")}', '${event.start_time}', ${event.is_all_day})" style="margin-left: 10px; text-decoration: underline; cursor: pointer; color: #3b82f6; font-size: 0.75rem;">編輯</span>
+                            <span class="delete-event-link" onclick="window.deleteEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')" style="margin-left: 10px; text-decoration: underline; cursor: pointer; color: #94a3b8; font-size: 0.75rem;">刪除</span>
                         </div>
                     </div>
-                    <div class="done-toggle ${event.completed ? 'completed' : ''}">
-                        ${event.completed ? '✓' : ''}
-                    </div>
-                </li>
-            `;
-        });
+                     <div class="done-toggle ${event.completed ? 'completed' : ''}">
+                         ${event.completed ? '✓' : ''}
+                     </div>
+                 </li>
+             `;
+         });
+ 
+     window.editEvent = (id, title, location, startTime, isAllDay) => {
+         window.editingEventId = id;
+         document.getElementById('manual_summary').value = title;
+         document.getElementById('manual_location').value = location;
+         
+         const dateInput = document.getElementById('manual_date');
+         const allDayCheckbox = document.getElementById('manual_all_day');
+         const timeWrapper = document.getElementById('time_input_wrapper');
+ 
+         if (isAllDay) {
+             dateInput.value = startTime;
+             allDayCheckbox.checked = true;
+             timeWrapper.style.display = 'none';
+         } else {
+             // startTime format: YYYY-MM-DDTHH:MM:SS+08:00 or YYYY-MM-DDTHH:MM:SSZ
+             const dt = new Date(startTime);
+             const yyyy = dt.getFullYear();
+             const mm = String(dt.getMonth() + 1).padStart(2, '0');
+             const dd = String(dt.getDate()).padStart(2, '0');
+             dateInput.value = `${yyyy}-${mm}-${dd}`;
+             
+             allDayCheckbox.checked = false;
+             timeWrapper.style.display = 'flex';
+             
+             let hours = dt.getHours();
+             const minutes = dt.getMinutes();
+             const ampm = hours >= 12 ? 'PM' : 'AM';
+             
+             if (hours > 12) hours -= 12;
+             if (hours === 0) hours = 12;
+             
+             document.getElementById('manual_ampm').value = ampm;
+             document.getElementById('manual_hour').value = hours;
+             document.getElementById('manual_minute').value = String(minutes).padStart(2, '0');
+         }
+ 
+         // 修改按鈕 UI
+         const submitBtn = document.getElementById('submitSchedule');
+         if (submitBtn) {
+             submitBtn.innerText = '💾 儲存修改';
+             submitBtn.style.background = '#10b981';
+         }
+         
+         window.openModal('scheduleModal');
+     };
 
     window.deleteEvent = async (eventId, title) => {
         if (!confirm(`確定要從 Google 日曆刪除「${title}」嗎？`)) return;
@@ -852,32 +913,53 @@ document.addEventListener('DOMContentLoaded', () => {
         let startTime = date;
         let finalIsAllDay = isAllDay;
 
-        // 如果不是全天行程，則根據 AM/PM 轉換時間
         if (!isAllDay) {
             let hour24 = parseInt(h);
             if (ampm === 'PM' && hour24 < 12) hour24 += 12;
             if (ampm === 'AM' && hour24 === 12) hour24 = 0;
-            
             const hourStr = String(hour24).padStart(2, '0');
             const minuteStr = String(m).padStart(2, '0');
-            
             startTime = `${date}T${hourStr}:${minuteStr}:00`;
             finalIsAllDay = false;
         }
         
-        window.closeModal('scheduleModal');
-        appendMessage(`新增行程：${title}`, true);
-        
-        const res = await fetch('/api/manual_action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'calendar', title, start_time: startTime, location, is_all_day: finalIsAllDay
-            })
-        });
-
-        const result = await res.json();
-        appendMessage(result.message);
+        if (window.editingEventId) {
+            appendMessage(`正在更新行程：${title}...`, true);
+            const res = await fetch('/api/update_event', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    event_id: window.editingEventId,
+                    title,
+                    start_time: startTime,
+                    location,
+                    is_all_day: finalIsAllDay
+                })
+            });
+            const result = await res.json();
+            appendMessage(result.message);
+            window.closeModal('scheduleModal'); // 移動到這裡
+            // 恢復按鈕 UI
+            const submitBtn = document.getElementById('submitSchedule');
+            if (submitBtn) {
+                submitBtn.innerText = '確認加入日曆';
+                submitBtn.style.background = '';
+            }
+        } else {
+            appendMessage(`新增行程：${title}`, true);
+            const res = await fetch('/api/manual_action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'calendar', title, start_time: startTime, location, is_all_day: finalIsAllDay
+                })
+            });
+            const result = await res.json();
+            appendMessage(result.message);
+            if (result.status === 'success') {
+                window.closeModal('scheduleModal');
+            }
+        }
     };
 
     document.getElementById('submitExpense').onclick = async () => {

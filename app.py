@@ -152,21 +152,17 @@ def get_monthly_report(service, now):
         print(f"Error generating monthly report: {e}")
         return 0, "", {}, 0
 
-def check_conflicts(service, start_time, end_time):
+def check_conflicts(service, start_time, end_time, exclude_id=None):
     """
     檢查指定時間範圍內是否有衝突的行程。
-    start_time/end_time 可以是 ISO 格式字串或 date 字串。
     """
     try:
-        # 確保時間字串包含時區 (RFC3339)
         def ensure_tz(ts):
             if 'T' in ts:
-                # 如果已經有 T 但沒有時區符號 (Z 或 +)，補上 +08:00
                 if '+' not in ts and ts.count(':') >= 1 and not ts.endswith('Z'):
                     return ts + "+08:00"
                 return ts
             else:
-                # 只有日期，轉為當天凌晨
                 return f"{ts}T00:00:00+08:00"
 
         t_min = ensure_tz(start_time)
@@ -179,7 +175,13 @@ def check_conflicts(service, start_time, end_time):
             singleEvents=True,
             orderBy='startTime'
         ).execute()
+        
         conflicts = events_result.get('items', [])
+        
+        # 排除指定的 ID (用於更新行程時)
+        if exclude_id:
+            conflicts = [e for e in conflicts if e.get('id') != exclude_id]
+            
         if conflicts:
             titles = [e.get('summary', '無標題') for e in conflicts]
             return f"⚠️ 注意：這段時間您已經有其他行程了喔！\n包含：{', '.join(titles)}"
@@ -599,12 +601,17 @@ def chat():
                 # 如果是多天查詢，在標題前面加上日期
                 final_title = f"[{date_val}] {display_title}" if days > 1 else display_title
 
+                is_all_day = 'date' in e['start']
+
                 schedule_list.append({
                     'id': e['id'],
                     'time': time_val,
-                    'title': final_title,
+                    'title': display_title,
+                    'display_title': final_title,
                     'completed': is_done,
-                    'location': e.get('location', '')
+                    'location': e.get('location', ''),
+                    'start_time': start_str,
+                    'is_all_day': is_all_day
                 })
                 
             range_label = "今日" if days == 1 else f"未來 {days} 天"
@@ -777,12 +784,17 @@ def direct_query_schedule():
             display_title = full_title.replace("✅ ", "", 1) if is_done else full_title
             final_title = f"[{date_val}] {display_title}" if days > 1 else display_title
 
+            is_all_day = 'date' in e['start']
+            
             schedule_list.append({
                 'id': e['id'],
                 'time': time_val,
-                'title': final_title,
+                'title': display_title, # 不要包含日期標籤，編輯時用原始標題
+                'display_title': final_title, # 顯示用的標題
                 'completed': is_done,
-                'location': e.get('location', '')
+                'location': e.get('location', ''),
+                'start_time': start_str,
+                'is_all_day': is_all_day
             })
             
         range_label = "今日" if days == 1 else ("本週" if days == 7 else f"未來 {days} 天")
@@ -1307,9 +1319,66 @@ def delete_event():
             return jsonify({"status": "success", "message": "行程已不存在，已從畫面移除"})
         print(f"Calendar API error: {e}")
         return jsonify({"status": "error", "message": f"日曆同步失敗: {str(e)}"})
+@app.route('/api/update_event', methods=['POST'])
+def update_event():
+    data = request.json
+    event_id = data.get('event_id')
+    if not event_id:
+        return jsonify({"status": "error", "message": "遺失行程 ID"})
+
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        
+        is_all_day = data.get('is_all_day', False)
+        summary = data.get('title')
+        location = data.get('location', '')
+        start_str = data.get('start_time')
+        
+        # 取得現有活動以保留某些欄位（如描述或狀態）
+        event = service.events().get(calendarId=CALENDAR_ID, eventId=event_id).execute()
+        
+        # 處理完成狀態前綴
+        current_summary = event.get('summary', '')
+        if current_summary.startswith("✅ ") and not summary.startswith("✅ "):
+            summary = "✅ " + summary
+        elif not current_summary.startswith("✅ ") and summary.startswith("✅ "):
+            pass # Keep it as is if user manually added it? Or maybe just use provided summary.
+        
+        event['summary'] = summary
+        event['location'] = location
+        
+        if is_all_day:
+            dt = datetime.strptime(start_str, '%Y-%m-%d')
+            end_date = (dt + timedelta(days=1)).strftime('%Y-%m-%d')
+            event['start'] = { 'date': start_str, 'timeZone': 'Asia/Taipei' }
+            event['end'] = { 'date': end_date, 'timeZone': 'Asia/Taipei' }
+        else:
+            if 'T' in start_str and '+' not in start_str and 'Z' not in start_str:
+                start_str += '+08:00'
+            
+            start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+            end_dt = start_dt + timedelta(hours=1)
+            
+            event['start'] = { 'dateTime': start_dt.isoformat(), 'timeZone': 'Asia/Taipei' }
+            event['end'] = { 'dateTime': end_dt.isoformat(), 'timeZone': 'Asia/Taipei' }
+
+        # 檢查衝突 (排除自己)
+        conflict_msg = check_conflicts(service, 
+                                      event['start'].get('dateTime', event['start'].get('date')), 
+                                      event['end'].get('dateTime', event['end'].get('date')),
+                                      exclude_id=event_id)
+        
+        if conflict_msg:
+             return jsonify({
+                 "status": "error",
+                 "message": conflict_msg + "\n\n❌ 偵測到與其他行程衝突，已取消更新。"
+             })
+        
+        service.events().update(calendarId=CALENDAR_ID, eventId=event_id, body=event).execute()
+        return jsonify({"status": "success", "message": "行程更新成功 ✅"})
     except Exception as e:
-        print(f"Error deleting event: {e}")
-        return jsonify({"status": "error", "message": f"刪除失敗: {str(e)}"})
+        print(f"Error updating event: {e}")
+        return jsonify({"status": "error", "message": f"更新失敗: {str(e)}"})
 
 if __name__ == '__main__':
     # 讀取環境變數中的 PORT，這是 Google Cloud Run 的要求
