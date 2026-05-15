@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (id === 'wishlistModal') window.loadWishes();
         if (id === 'todoModal') window.loadTodos();
         if (id === 'memoModal') window.loadMemos();
+        if (id === 'pocketModal') window.loadPocket();
     };
 
     window.closeModal = (id) => {
@@ -105,6 +106,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.value = place.formatted_address;
             }
         });
+
+        // 綁定口袋名單的地點輸入框
+        const pocketInput = document.getElementById('pocket_location');
+        if (pocketInput) {
+            const pocketAutocomplete = new google.maps.places.Autocomplete(pocketInput, {
+                types: ['geocode', 'establishment'],
+                componentRestrictions: { country: 'tw' }
+            });
+            pocketAutocomplete.addListener('place_changed', () => {
+                const place = pocketAutocomplete.getPlace();
+                if (place.formatted_address) {
+                    pocketInput.value = place.formatted_address;
+                }
+            });
+        }
     }
 
     // 確保 Google Maps 載入後執行
@@ -1054,5 +1070,255 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div style="font-size: 0.95rem; color: #334155; line-height: 1.5;">${item.content}</div>
             </div>
         `).join('') || '<div style="color: #94a3b8; text-align: center; padding: 20px;">尚無生活記錄 📝</div>';
+    };
+
+    // --- 口袋名單功能 (V7.1 完善版) ---
+    window.currentPocketFilter = '全部';
+    window.selectedPocketCategory = ''; // 預設空白
+
+    const pocketIconMap = {
+        '美食': '🍜', '旅遊': '🚗', '住宿': '🏨', '咖啡': '☕', '購物': '🛍️', '其他': '✨'
+    };
+
+    function getPocketIcon(cat) {
+        if (pocketIconMap[cat]) return pocketIconMap[cat];
+        for (const [key, icon] of Object.entries(pocketIconMap)) {
+            if (cat && cat.includes(key)) return icon;
+        }
+        return '✨';
+    }
+
+    window.resetPocketForm = () => {
+        const nameInput = document.getElementById('pocket_name');
+        const locInput = document.getElementById('pocket_location');
+        const noteInput = document.getElementById('pocket_note');
+        if (nameInput) nameInput.value = '';
+        if (locInput) locInput.value = '';
+        if (noteInput) noteInput.value = '';
+        window.selectCategory(''); // 重置類別
+        updateSubmitButtonState();
+    };
+
+    window.toggleCatDropdown = () => {
+        const options = document.getElementById('cat_options');
+        options.style.display = options.style.display === 'none' ? 'block' : 'none';
+    };
+
+    window.selectCategory = (cat) => {
+        window.selectedPocketCategory = cat;
+        const icon = cat ? getPocketIcon(cat) : '✨';
+        const label = cat ? `${cat}${icon}` : '請選擇類別 ✨';
+        
+        const labelSpan = document.getElementById('selected_cat').querySelector('span');
+        if (labelSpan) labelSpan.innerText = label;
+        
+        document.getElementById('cat_options').style.display = 'none';
+        
+        const clearBtn = document.getElementById('clear_cat');
+        if (clearBtn) clearBtn.style.display = cat ? 'inline-block' : 'none';
+        
+        updateSubmitButtonState();
+    };
+
+    function updateSubmitButtonState() {
+        const btn = document.getElementById('submitPocket');
+        if (!btn) return;
+        const hasCat = window.selectedPocketCategory !== '';
+        const hasName = document.getElementById('pocket_name').value.trim() !== '';
+        btn.style.opacity = (hasCat && hasName) ? '1' : '0.3';
+        btn.style.pointerEvents = (hasCat && hasName) ? 'auto' : 'none';
+    }
+
+    window.addCustomCategory = () => {
+        const newCat = prompt('請輸入新的類別名稱：');
+        if (newCat && newCat.trim()) {
+            window.selectCategory(newCat.trim());
+        }
+        document.getElementById('cat_options').style.display = 'none';
+    };
+
+    function renderCatOptions(categories) {
+        const optionsDiv = document.getElementById('cat_options');
+        if (!optionsDiv) return;
+        
+        const deletedCats = JSON.parse(localStorage.getItem('deletedPocketCats') || '[]');
+        const baseCats = ['美食', '旅遊', '住宿', '咖啡', '購物', '其他'].filter(c => !deletedCats.includes(c));
+        const allCats = [...new Set([...baseCats, ...categories])];
+        
+        optionsDiv.innerHTML = allCats.map(cat => `
+            <div style="padding: 12px; font-size: 0.9rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9;" 
+                 onclick="window.selectCategory('${cat}')">
+                <span>${cat}${getPocketIcon(cat)}</span>
+                <span onclick="event.stopPropagation(); window.deleteCategory('${cat}')" style="color: #cbd5e1; font-size: 0.8rem; padding: 5px;">✕</span>
+            </div>
+        `).join('') + `
+            <div style="padding: 12px; font-size: 0.9rem; color: #3b82f6; font-weight: 700; cursor: pointer; text-align: center; background: #eff6ff;" 
+                 onclick="window.addCustomCategory()">＋新增類別</div>
+        `;
+    }
+
+    window.deleteCategory = async (cat) => {
+        if (!confirm(`確定要刪除「${cat}」類別以及該類別下的所有項目嗎？`)) return;
+        
+        // 1. 如果是內建類別，記錄到 localStorage 隱藏
+        if (['美食', '旅遊', '住宿', '咖啡', '購物', '其他'].includes(cat)) {
+            let deleted = JSON.parse(localStorage.getItem('deletedPocketCats') || '[]');
+            if (!deleted.includes(cat)) deleted.push(cat);
+            localStorage.setItem('deletedPocketCats', JSON.stringify(deleted));
+        }
+
+        // 2. 刪除該類別的所有項目
+        const res = await fetch('/api/pocket/list');
+        const data = await res.json();
+        const items = data.data || [];
+        const itemsToDelete = items.filter(i => i.category === cat);
+        
+        for (const item of itemsToDelete) {
+            await fetch('/api/pocket/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: item.id })
+            });
+        }
+
+        // 3. 重置選中的類別
+        if (window.selectedPocketCategory === cat) {
+            window.selectCategory('');
+        }
+        
+        window.loadPocket();
+    };
+
+    window.initPocketAutocomplete = () => {
+        const nameInput = document.getElementById('pocket_name');
+        const locInput = document.getElementById('pocket_location');
+        if (!nameInput || typeof google === 'undefined') return;
+
+        const autocomplete = new google.maps.places.Autocomplete(nameInput, {
+            types: ['establishment', 'geocode'],
+            componentRestrictions: { country: 'tw' }
+        });
+
+        autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            if (place.name) nameInput.value = place.name;
+            if (place.formatted_address) locInput.value = place.formatted_address;
+            updateSubmitButtonState();
+        });
+        
+        nameInput.oninput = updateSubmitButtonState;
+    };
+
+    const originalOpenModal = window.openModal;
+    window.openModal = (id) => {
+        originalOpenModal(id);
+        if (id === 'pocketModal') {
+            window.selectCategory(''); // 開啟時預設空白
+            setTimeout(window.initPocketAutocomplete, 300);
+            window.loadPocket();
+        }
+    };
+
+    function renderFilterBar(categories) {
+        const bar = document.getElementById('pocket_filter_bar');
+        if (!bar) return;
+        const allCats = ['全部', ...new Set(categories)];
+        bar.innerHTML = allCats.map(cat => {
+            const icon = cat === '全部' ? '🌟' : getPocketIcon(cat);
+            return `
+                <button onclick="window.setPocketFilter('${cat}')" 
+                        style="padding: 6px 15px; border-radius: 20px; border: none; font-size: 0.8rem; cursor: pointer; font-weight: 600; transition: all 0.2s; 
+                        background: ${window.currentPocketFilter === cat ? '#3b82f6' : '#f1f5f9'}; 
+                        color: ${window.currentPocketFilter === cat ? 'white' : '#64748b'}; flex-shrink: 0;">
+                    ${icon} ${cat}
+                </button>
+            `;
+        }).join('');
+    }
+
+    window.setPocketFilter = (cat) => {
+        window.currentPocketFilter = cat;
+        window.loadPocket();
+    };
+
+    window.deletePocketItem = async (id, name) => {
+        if (!confirm(`確定要刪除「${name}」嗎？`)) return;
+        const res = await fetch('/api/pocket/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        if ((await res.json()).status === 'success') {
+            window.loadPocket();
+        }
+    };
+
+    window.loadPocket = async () => {
+        const list = document.getElementById('pocket_list');
+        if (!list) return;
+        
+        try {
+            const res = await fetch('/api/pocket/list');
+            const data = await res.json();
+            if (data.status === 'success') {
+                const rawItems = data.data || [];
+                const categoriesInDB = rawItems.map(i => i.category);
+                renderFilterBar(categoriesInDB);
+                renderCatOptions(categoriesInDB);
+
+                let items = rawItems;
+                if (window.currentPocketFilter !== '全部') {
+                    items = rawItems.filter(i => i.category === window.currentPocketFilter);
+                }
+                
+                const priority = { '美食': 1, '旅遊': 2, '住宿': 3, '咖啡': 4, '購物': 5, '其他': 6 };
+                items.sort((a, b) => (priority[a.category] || 99) - (priority[b.category] || 99));
+
+                list.innerHTML = items.map(item => {
+                    const encodedLoc = encodeURIComponent(item.location || item.name);
+                    let mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodedLoc}`;
+                    const ua = navigator.userAgent;
+                    if (/iPhone|iPad|iPod/i.test(ua)) mapUrl = `comgooglemaps://?q=${encodedLoc}`;
+                    else if (/Android/i.test(ua)) mapUrl = `geo:0,0?q=${encodedLoc}`;
+
+                    return `
+                        <div style="background: white; border: 1px solid #f1f5f9; padding: 12px 15px; border-radius: 16px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); display: flex; align-items: center; gap: 12px; animation: fadeIn 0.3s ease;">
+                            <div style="font-size: 1.2rem;">${getPocketIcon(item.category)}</div>
+                            <div style="flex: 1;">
+                                <a href="${mapUrl}" target="_blank" style="display: block; font-size: 0.95rem; font-weight: 800; color: #3b82f6; text-decoration: none; margin-bottom: 2px;">
+                                    ${item.name}
+                                </a>
+                                ${item.location ? `<div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 2px;">📍 ${item.location}</div>` : ''}
+                                ${item.note ? `<div style="font-size: 0.8rem; color: #64748b; font-style: italic; background: #f8fafc; padding: 5px 8px; border-radius: 6px; display: inline-block;">"${item.note}"</div>` : ''}
+                            </div>
+                            <button onclick="window.deletePocketItem('${item.id}', '${item.name.replace(/'/g, "\\'")}')" 
+                                    style="background: none; border: none; color: #cbd5e1; cursor: pointer; font-size: 1rem; padding: 5px;">✕</button>
+                        </div>
+                    `;
+                }).join('') || `<div style="color: #94a3b8; text-align: center; padding: 40px;">"${window.currentPocketFilter}" 中尚無項目 📍</div>`;
+            }
+        } catch (e) { console.error("載入口袋失敗", e); }
+    };
+
+    document.getElementById('submitPocket').onclick = async () => {
+        const nameInput = document.getElementById('pocket_name');
+        const locInput = document.getElementById('pocket_location');
+        const noteInput = document.getElementById('pocket_note');
+        const name = nameInput.value.trim();
+        const location = locInput.value.trim();
+        const note = noteInput.value.trim();
+        const category = window.selectedPocketCategory;
+
+        if (!name) return alert('請輸入名稱！');
+
+        const res = await fetch('/api/pocket/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, location, note, category })
+        });
+        if ((await res.json()).status === 'success') {
+            window.resetPocketForm();
+            window.loadPocket();
+        }
     };
 });

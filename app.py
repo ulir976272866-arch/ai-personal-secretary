@@ -1382,6 +1382,118 @@ def update_event():
         print(f"Error updating event: {e}")
         return jsonify({"status": "error", "message": f"更新失敗: {str(e)}"})
 
+import uuid
+
+def handle_pocket(action, data=None):
+    """
+    處理口袋名單的 CRUD 操作。
+    """
+    sheet_id = os.getenv('POCKET_SHEET_ID')
+    creds = Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    service = build('sheets', 'v4', credentials=creds)
+
+    if action == 'list':
+        try:
+            result = service.spreadsheets().values().get(
+                spreadsheetId=sheet_id, range='A2:F200').execute()
+            rows = result.get('values', [])
+            pocket_list = []
+            for row in rows:
+                if len(row) >= 3:
+                    pocket_list.append({
+                        'id': row[0],
+                        'category': row[1],
+                        'name': row[2],
+                        'location': row[3] if len(row) > 3 else '',
+                        'note': row[4] if len(row) > 4 else '',
+                        'time': row[5] if len(row) > 5 else ''
+                    })
+            return pocket_list
+        except Exception as e:
+            print(f"Error listing pocket items: {e}")
+            return []
+
+    elif action == 'add':
+        try:
+            item_id = str(uuid.uuid4())[:8] # 簡短 ID
+            category = data.get('category', '其他')
+            name = data.get('name', '')
+            location = data.get('location', '')
+            note = data.get('note', '')
+            create_time = datetime.now().strftime('%Y-%m-%d %H:%M')
+            
+            values = [[item_id, category, name, location, note, create_time]]
+            body = {'values': values}
+            service.spreadsheets().values().append(
+                spreadsheetId=sheet_id, range='A2',
+                valueInputOption='RAW', body=body).execute()
+            return True
+        except Exception as e:
+            print(f"Error adding pocket item: {e}")
+            return False
+
+    elif action == 'delete':
+        try:
+            target_id = data.get('id')
+            # 1. 先獲取試算表資訊，找出第一個分頁的 sheetId
+            spreadsheet_metadata = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+            first_sheet_id = spreadsheet_metadata['sheets'][0]['properties']['sheetId']
+
+            # 2. 找出 ID 所在的行號
+            result = service.spreadsheets().values().get(
+                spreadsheetId=sheet_id, range='A:A').execute()
+            ids = result.get('values', [])
+            
+            row_index = -1
+            for i, row in enumerate(ids):
+                if row and row[0] == target_id:
+                    row_index = i
+                    break
+            
+            if row_index == -1:
+                return False
+
+            # 3. 刪除該行
+            body = {
+                'requests': [{
+                    'deleteDimension': {
+                        'range': {
+                            'sheetId': first_sheet_id,
+                            'dimension': 'ROWS',
+                            'startIndex': row_index,
+                            'endIndex': row_index + 1
+                        }
+                    }
+                }]
+            }
+            service.spreadsheets().batchUpdate(spreadsheetId=sheet_id, body=body).execute()
+            return True
+        except Exception as e:
+            print(f"Error deleting pocket item: {e}")
+            return False
+
+@app.route('/api/pocket/delete', methods=['POST'])
+def delete_pocket_item():
+    data = request.json
+    success = handle_pocket('delete', data)
+    if success:
+        return jsonify({"status": "success", "message": "已刪除"})
+    return jsonify({"status": "error", "message": "刪除失敗"})
+
+@app.route('/api/pocket/list')
+def get_pocket_list():
+    items = handle_pocket('list')
+    return jsonify({"status": "success", "data": items})
+
+@app.route('/api/pocket/add', methods=['POST'])
+def add_pocket_item():
+    data = request.json
+    success = handle_pocket('add', data)
+    if success:
+        return jsonify({"status": "success", "message": "成功存入口袋名單！📍"})
+    return jsonify({"status": "error", "message": "存入失敗"})
+
 if __name__ == '__main__':
     # 讀取環境變數中的 PORT，這是 Google Cloud Run 的要求
     import os
