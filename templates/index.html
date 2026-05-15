@@ -7,8 +7,8 @@
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#6366f1">
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="apple-touch-icon" href="/static/icon.png">
-    <link rel="icon" type="image/png" href="/static/icon.png">
+    <link rel="apple-touch-icon" href="/static/icons/icon.png">
+    <link rel="icon" type="image/png" href="/static/icons/icon.png">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Chart.js -->
@@ -335,9 +335,25 @@
             <button class="close-modal" onclick="closeModal('expenseModal')">✕</button>
             <h2 class="modal-title">💰 手動記帳</h2>
             <div class="modal-body">
-                <div class="form-group">
-                    <label>消費項目</label>
-                    <input type="text" id="expense_item" class="form-input" placeholder="吃了什麼？買了什麼？">
+                <div style="display: flex; gap: 12px; margin-bottom: 15px;">
+                    <div class="form-group" style="flex: 1.5; margin-bottom: 0;">
+                        <label>消費項目</label>
+                        <input type="text" id="expense_item" class="form-input" placeholder="吃了什麼？" style="margin-bottom: 0;">
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>分類</label>
+                        <select id="expense_category" class="form-input" style="margin-bottom: 0;">
+                            <option value="食">食</option>
+                            <option value="衣">衣</option>
+                            <option value="住">住</option>
+                            <option value="行">行</option>
+                            <option value="育">育</option>
+                            <option value="樂">樂</option>
+                            <option value="醫">醫</option>
+                            <option value="投資">投資</option>
+                            <option value="未分類">未分類</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>金額 (支援加減乘除)</label>
@@ -379,20 +395,6 @@
                         <button class="calc-btn" onclick="appendCalc('.')">.</button>
                         <button class="calc-btn equal" onclick="calculateResult()">=</button>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label>分類</label>
-                    <select id="expense_category" class="form-input">
-                        <option value="食">食</option>
-                        <option value="衣">衣</option>
-                        <option value="住">住</option>
-                        <option value="行">行</option>
-                        <option value="育">育</option>
-                        <option value="樂">樂</option>
-                        <option value="醫">醫</option>
-                        <option value="投資">投資</option>
-                        <option value="未分類">未分類</option>
-                    </select>
                 </div>
                 <button id="submitExpense" class="submit-btn btn-expense">確認記帳</button>
             </div>

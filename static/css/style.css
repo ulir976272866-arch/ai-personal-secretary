@@ -439,12 +439,12 @@ body {
 }
 
 .calc-btn {
-    padding: 15px 0;
+    padding: 10px 0;
     border-radius: 14px;
     border: none;
     background: #f1f5f9;
     color: var(--text-dark);
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
     cursor: pointer;
 }
@@ -540,17 +540,21 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
 }
 
 .submit-btn:active {
     transform: scale(0.97);
+    opacity: 0.9;
 }
 
 .submit-btn.disabled {
     background: #e2e8f0 !important;
     color: #94a3b8 !important;
-    cursor: not-allowed;
-    box-shadow: none;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    filter: grayscale(1);
+    opacity: 0.6;
 }
 
 .btn-schedule {
@@ -716,55 +720,9 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
     padding: 15px;
 }
 
-.submit-btn {
-    width: 100%;
-    padding: 16px;
-    border: none;
-    border-radius: 16px;
-    background: linear-gradient(135deg, var(--accent-orange), #ea580c);
-    color: white;
-    font-size: 1.1rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
 
-.submit-btn:active {
-    transform: scale(0.98);
-    opacity: 0.9;
-}
 
-.submit-btn.disabled {
-    background: #e2e8f0 !important;
-    color: #94a3b8 !important;
-    cursor: not-allowed !important;
-    box-shadow: none !important;
-    filter: grayscale(1);
-    opacity: 0.6;
-}
 
-.tag-btn {
-    padding: 6px 12px;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    color: #64748b;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.tag-btn:hover {
-    background: #f1f5f9;
-    border-color: #cbd5e1;
-    color: #1e293b;
-    transform: translateY(-1px);
-}
 
 
 .btn-expense { background: var(--primary-color); }
@@ -873,12 +831,7 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
     to { transform: rotate(360deg); }
 }
 
-.modal-body {
-    flex: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 20px;
-}
+
 
 /* Fix for mobile keyboard covering inputs */
 @media screen and (max-height: 500px) {
@@ -988,24 +941,7 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
 
 
 
-.tag-btn {
-    background: white;
-    border: 2px solid #f1f5f9;
-    padding: 8px 12px;
-    border-radius: 12px;
-    cursor: pointer;
-    font-size: 1.1rem;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
 
-.tag-btn:active {
-    transform: scale(0.9);
-    background: #f8fafc;
-    border-color: #cbd5e1;
-}
 
 /* --- 動態標籤系統 (V10.6) --- */
 .tag-btn {
@@ -1140,7 +1076,7 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
 }
 
 .todo-dropdown-item span {
-    font-size: 1.1rem;
+    font-size: 1rem;
     width: 24px;
     text-align: center;
 }

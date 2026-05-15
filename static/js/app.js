@@ -8,23 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.editingTodoId = null;
     window.editingMemoId = null;
     window.editingEventId = null;
-    window.todoCategories = JSON.parse(localStorage.getItem('todoCategories')) || [
-        { name: '任務', icon: '📝' },
-        { name: '影視', icon: '🎬' },
-        { name: '學習', icon: '📖' },
-        { name: '生活', icon: '🏠' },
-        { name: '還願', icon: '✨' },
-        { name: '工作', icon: '💼' }
-    ];
-
-    window.pocketCategories = JSON.parse(localStorage.getItem('pocketCategories')) || [
-        { name: '美食', icon: '🍜' },
-        { name: '旅遊', icon: '✈️' },
-        { name: '住宿', icon: '🏨' },
-        { name: '購物', icon: '🛍️' },
-        { name: '咖啡', icon: '☕' },
-        { name: '景點', icon: '🎡' }
-    ];
 
     // --- 自定義確認彈窗邏輯 ---
     let confirmResolver = null;
@@ -184,15 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 啟動時載入
     loadTodaySchedule();
 
-    // 從背景恢復時不再自動重新載入，保留使用者原本的查詢畫面
-    /*
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-            loadTodaySchedule();
-        }
-    });
-    */
-
     // --- 介面控制與變數初始化 ---
     const voiceBtn = document.getElementById('voiceBtn');
     const clearBtn = document.getElementById('clearBtn');
@@ -227,14 +201,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         document.getElementById(id).classList.add('show');
+        
+        // 分支邏輯優化 (V11.1)
         if (id === 'wishlistModal') window.loadWishes();
         if (id === 'todoModal') {
-            window.selectTodoCategory('', ''); // V11.0: 預設為請選擇
+            window.selectTodoCategory('', '');
             window.loadTodos();
             window.renderTodoCatDropdown();
         }
         if (id === 'memoModal') window.loadMemos();
-        if (id === 'pocketModal') window.loadPocket();
+        if (id === 'pocketModal') {
+            window.selectCategory(''); // 口袋名單開啟時預設空白
+            setTimeout(window.initPocketAutocomplete, 300);
+            window.loadPocket();
+        }
     };
 
     window.closeModal = (id) => {
@@ -248,13 +228,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- 初始化 Google Places Autocomplete ---
-    function initAutocomplete() {
+    window.initAutocomplete = () => {
         const input = document.getElementById('manual_location');
         if (!input || typeof google === 'undefined') return;
 
         const autocomplete = new google.maps.places.Autocomplete(input, {
             types: ['geocode', 'establishment'],
-            componentRestrictions: { country: 'tw' } // 限制在台灣
+            componentRestrictions: { country: 'tw' }
         });
 
         autocomplete.addListener('place_changed', () => {
@@ -264,7 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // 綁定口袋名單的地點輸入框
         const pocketInput = document.getElementById('pocket_location');
         if (pocketInput) {
             const pocketAutocomplete = new google.maps.places.Autocomplete(pocketInput, {
@@ -278,13 +257,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
-    }
-
-    window.initAutocomplete = initAutocomplete;
+    };
     
-    // 確保 Google Maps 載入後執行
     if (typeof google !== 'undefined') {
-        initAutocomplete();
+        window.initAutocomplete();
     }
 
     // --- 待辦功能 (V10.8 精簡版) ---
@@ -381,6 +357,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.addNewTodoCategory = async () => {
+        // 先關掉下拉選單
+        const dropdown = document.getElementById('todo_cat_dropdown');
+        if (dropdown) dropdown.classList.remove('show');
+        
         const result = await window.customCatInput();
         if (result && result.name) {
             // 檢查是否已存在
@@ -462,9 +442,12 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             const sortedTodos = filteredTodos.sort((a, b) => {
-                const pA = priorityMap[reverseMatrixMap[a['優先級']] || a['優先級']] ?? 4;
-                const pB = priorityMap[reverseMatrixMap[b['優先級']] || b['優先級']] ?? 4;
-                return pA - pB;
+                const getP = (p) => {
+                    if (!p) return 4;
+                    const trimmed = p.trim();
+                    return priorityMap[reverseMatrixMap[trimmed] || trimmed] ?? 4;
+                };
+                return getP(a['優先級']) - getP(b['優先級']);
             });
 
             if (sortedTodos.length === 0) {
@@ -474,12 +457,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             list.innerHTML = sortedTodos.map((item, idx) => {
                 const safeID = item['唯一 ID'] || `legacy_${idx}`;
-                let priorityVal = item['優先級'] || '一般';
+                let priorityVal = (item['優先級'] || '一般').trim();
                 // 正規化優先級值
                 if (reverseMatrixMap[priorityVal]) priorityVal = reverseMatrixMap[priorityVal];
                 
                 const priorityDisplay = matrixMap[priorityVal] || priorityVal;
-                const category = item['分類'] || '任務';
+                const category = (item['分類'] || '任務').trim();
                 const accentClass = priorityVal === '急要' ? 'accent-red' : (priorityVal === '重要' ? 'accent-yellow' : (priorityVal === '緊急' ? 'accent-orange' : 'accent-green'));
 
                 return `
@@ -492,7 +475,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div style="flex: 1;">
                             <div id="todo_text_${safeID}" style="color: #1e293b; font-weight: 700; font-size: 1.05rem; line-height: 1.4; margin-bottom: 4px;">${item['事項/內容']}</div>
                             <div style="display: flex; gap: 8px; align-items: center;">
-                                <span style="font-size: 0.65rem; color: #3b82f6; background: #eff6ff; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${category}</span>
+                                <span style="font-size: 0.65rem; color: #3b82f6; background: #eff6ff; padding: 2px 8px; border-radius: 6px; font-weight: 800;">
+                                    ${(window.todoCategories.find(c => c.name === category) || {icon: '📝'}).icon} ${category}
+                                </span>
                                 <span style="font-size: 0.7rem; font-weight: 600; color: #64748b;">• ${priorityDisplay}</span>
                             </div>
                         </div>
@@ -1390,10 +1375,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 口袋名單功能 (V10.9 完善版) ---
     window.currentPocketFilter = '全部';
     window.selectedPocketCategory = ''; // 預設空白
+    window.pocketCategories = JSON.parse(localStorage.getItem('pocketCategories')) || [
+        { name: '美食', icon: '🍜' },
+        { name: '咖啡', icon: '☕' },
+        { name: '景點', icon: '🎡' },
+        { name: '住宿', icon: '🏨' },
+        { name: '購物', icon: '🛍️' }
+    ];
 
     function getPocketIcon(cat) {
-        // 使用者要求移除所有圖示，回傳空字串
-        return '';
+        const found = window.pocketCategories.find(c => c.name === cat);
+        return found ? found.icon : '📍';
     }
 
     window.resetPocketForm = () => {
@@ -1438,6 +1430,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.addCustomCategory = async () => {
+        // 先關掉下拉選單
+        const optionsDiv = document.getElementById('cat_options');
+        if (optionsDiv) optionsDiv.style.display = 'none';
+        
         const result = await window.customCatInput();
         if (result && result.name) {
             // 檢查是否已存在
@@ -1571,15 +1567,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.currentPocketFilter = '全部';
     window.currentAreaFilter = '全部';
 
-    const originalOpenModal = window.openModal;
-    window.openModal = (id) => {
-        originalOpenModal(id);
-        if (id === 'pocketModal') {
-            window.selectCategory(''); // 開啟時預設空白
-            setTimeout(window.initPocketAutocomplete, 300);
-            window.loadPocket();
-        }
-    };
 
     function renderFilterBar(categories) {
         const select = document.getElementById('pocket_filter_cat');
@@ -1663,10 +1650,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 list.innerHTML = items.map(item => {
                     const mapUrl = getMapUrl(item.location || item.name);
+                    const icon = getPocketIcon(item.category);
                     return `
                         <div style="background: white; border: 1px solid #f1f5f9; padding: 15px; border-radius: 20px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); animation: fadeIn 0.3s ease;">
                             <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px;">
-                                <span style="font-size: 0.65rem; color: #fff; background: #14b8a6; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${item.category}</span>
+                                <span style="font-size: 0.65rem; color: #fff; background: #14b8a6; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${icon} ${item.category}</span>
                                 ${item.area ? `<span style="font-size: 0.65rem; color: #fff; background: #6366f1; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${item.area}</span>` : ''}
                                 <a href="${mapUrl}" target="_blank" style="flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 800; color: #0f172a; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                     ${item.name}

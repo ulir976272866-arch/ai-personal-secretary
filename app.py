@@ -1,14 +1,15 @@
 import os
 import json
+import uuid
+import requests
 from datetime import datetime, time, timedelta
+
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
-
 import google.generativeai as genai
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-import requests
 
 # 載入環境變數 (確保能讀到腳本同目錄下的 .env)
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
@@ -96,6 +97,15 @@ SPREADSHEET_ID = os.getenv("GOOGLE_SHEET_ID")
 # 使用者的日曆 ID (通常是使用者的 Gmail)
 CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID", "primary")
 
+def ensure_tz(ts):
+    """確保時間字串包含時區偏移量"""
+    if 'T' in ts:
+        if '+' not in ts and ts.count(':') >= 1 and not ts.endswith('Z'):
+            return ts + "+08:00"
+        return ts
+    else:
+        return f"{ts}T00:00:00+08:00"
+
 def get_monthly_report(service, now):
     """
     計算本月記帳總額 (含收支比) 與分類統計。
@@ -137,9 +147,11 @@ def get_monthly_report(service, now):
         save_rate = (balance / monthly_income * 100) if monthly_income > 0 else 0
         
         cat_report = ""
-        for cat, total in category_totals.items():
+        # 按金額排序
+        sorted_cats = sorted(category_totals.items(), key=lambda x: x[1], reverse=True)
+        for cat, total in sorted_cats:
             percentage = (total / monthly_expense * 100) if monthly_expense > 0 else 0
-            cat_report += f"🔹 {cat}: ${int(total)} ({percentage:.1f}%)\n"
+            cat_report += f"🔹 {cat}: ${int(total):,} ({percentage:.1f}%)\n"
             
         summary = f"💰 本月收入：${int(monthly_income):,}\n"
         summary += f"💸 本月支出：${int(monthly_expense):,}\n"
@@ -157,14 +169,6 @@ def check_conflicts(service, start_time, end_time, exclude_id=None):
     檢查指定時間範圍內是否有衝突的行程。
     """
     try:
-        def ensure_tz(ts):
-            if 'T' in ts:
-                if '+' not in ts and ts.count(':') >= 1 and not ts.endswith('Z'):
-                    return ts + "+08:00"
-                return ts
-            else:
-                return f"{ts}T00:00:00+08:00"
-
         t_min = ensure_tz(start_time)
         t_max = ensure_tz(end_time)
         
@@ -194,34 +198,13 @@ def check_conflicts(service, start_time, end_time, exclude_id=None):
 def morning_briefing():
     """生成每日早晨簡報"""
     now = datetime.now()
-    service_cal = build('calendar', 'v3', credentials=creds)
     service_sheets = build('sheets', 'v4', credentials=creds)
     
-    # 1. 抓取今日行程
-    today_start = datetime.combine(now.date(), time.min).isoformat() + '+08:00'
-    today_end = datetime.combine(now.date(), time.max).isoformat() + '+08:00'
-    events_result = service_cal.events().list(
-        calendarId=CALENDAR_ID, timeMin=today_start, timeMax=today_end,
-        singleEvents=True, orderBy='startTime'
-    ).execute()
-    events = events_result.get('items', [])
-    schedule_text = ", ".join([f"{e.get('summary')} ({e['start'].get('dateTime', '全天')[11:16]})" for e in events]) or "今天沒有行程"
+    # 抓取本月支出
+    monthly_total, _, _, _ = get_monthly_report(service_sheets, now)
     
-    # 2. 抓取本月支出與收入
-    monthly_total, _, _, monthly_income = get_monthly_report(service_sheets, now)
-    
-    # 3. 呼叫 AI 生成簡報
-    prompt = f"""
-    你是老闆的私人秘書。今天是 {now.strftime('%Y/%m/%d')}。
-    今日行程：{schedule_text}
-    本月目前累計收入：${int(monthly_income)}
-    本月目前累計支出：${int(monthly_total)}
-    結餘：${int(monthly_income - monthly_total)}
-    請寫一段大約 60 字的親切早晨簡報，語氣要專業且鼓勵老闆。
-    """
-    
-    # 為了省錢與節省額度，取消自動 AI 招呼語，改為固定親切招呼
-    reply = f"老闆早安！您今天有 {len(events)} 個行程，本月已支出 ${int(monthly_total)}。祝您有美好的一天！"
+    # 為了省錢與節省額度，目前使用固定親切招呼
+    reply = f"老闆早安！本月已支出 ${int(monthly_total):,}。祝您有美好的一天！"
     return jsonify({"status": "success", "message": reply})
 
 @app.route('/')
@@ -551,72 +534,9 @@ def chat():
             })
 
         elif intent_type == "query_schedule":
-            service = build('calendar', 'v3', credentials=creds)
-            
             # 取得查詢天數，預設為 1 天 (今天)
             days = parsed_data.get("days", 1)
-            
-            # 取得範圍：今天凌晨到 X 天後的午夜
-            today_start = datetime.combine(now.date(), time.min).isoformat() + '+08:00'
-            end_date = now + timedelta(days=days-1)
-            today_end = datetime.combine(end_date.date(), time.max).isoformat() + '+08:00'
-            
-            try:
-                events_result = service.events().list(
-                    calendarId=CALENDAR_ID, timeMin=today_start, timeMax=today_end,
-                    maxResults=50, singleEvents=True, orderBy='startTime'
-                ).execute()
-                events = events_result.get('items', [])
-            except Exception as e:
-                # 若發生 404，通常是使用者沒有將個人日曆共用給 Service Account
-                if "Not Found" in str(e) or "404" in str(e):
-                    return jsonify({
-                        "status": "success",
-                        "type": "chat",
-                        "message": "⚠️ 讀取行事曆失敗！請確認您已在 Google 日曆設定中，將日曆共用給「ulirbooking@booking-calendar-486007.iam.gserviceaccount.com」，並且權限設定為「進行變更」。"
-                    })
-                events = []
-            
-            schedule_list = []
-            for e in events:
-                start_str = e['start'].get('dateTime', e['start'].get('date'))
-                
-                # 處理日期與時間
-                try:
-                    dt_obj = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-                    date_val = dt_obj.strftime('%m/%d')
-                    time_val = dt_obj.strftime('%H:%M') if 'T' in start_str else '全天'
-                except:
-                    date_val = now.strftime('%m/%d')
-                    time_val = '全天'
-                    
-                full_title = e.get('summary', '無標題')
-                is_done = full_title.startswith("✅ ")
-                display_title = full_title.replace("✅ ", "", 1) if is_done else full_title
-                
-                # 如果是多天查詢，在標題前面加上日期
-                final_title = f"[{date_val}] {display_title}" if days > 1 else display_title
-
-                is_all_day = 'date' in e['start']
-
-                schedule_list.append({
-                    'id': e['id'],
-                    'time': time_val,
-                    'title': display_title,
-                    'display_title': final_title,
-                    'completed': is_done,
-                    'location': e.get('location', ''),
-                    'start_time': start_str,
-                    'is_all_day': is_all_day
-                })
-                
-            range_label = "今日" if days == 1 else f"未來 {days} 天"
-            return jsonify({
-                "status": "success",
-                "type": "query_schedule",
-                "data": schedule_list,
-                "date_str": range_label
-            })
+            return get_schedule_response(days)
 
         elif intent_type == "chat":
             return jsonify({
@@ -689,65 +609,21 @@ def get_memos():
 @app.route('/api/query_finance', methods=['POST'])
 def direct_query_finance():
     now = datetime.now()
-    current_month = now.strftime('%m')
-    current_year = now.strftime('%Y')
-    
     try:
-        rows = get_sheet_values('記帳')
-        if not rows:
-            return jsonify({"status": "error", "message": "找不到帳簿資料"})
-            
-        monthly_income = 0
-        monthly_expense = 0
-        category_totals = {}
+        service_sheets = build('sheets', 'v4', credentials=creds)
+        _, cat_report, _, _ = get_monthly_report(service_sheets, now)
         
-        for row in rows[1:]: # 跳過標題
-            # 檢查年份與月份 (假設 A 欄是年, B 欄是月)
-            if len(row) >= 6 and str(row[0]) == current_year and str(row[1]).strip("'").zfill(2) == current_month:
-                try:
-                    amt = float(str(row[5]).replace(',', ''))
-                    
-                    # 判斷是收入還是支出 (看 D 欄 [index 3] 是否有內容)
-                    is_income = len(row) > 3 and row[3].strip() != ""
-                    
-                    if is_income:
-                        monthly_income += amt
-                    else:
-                        monthly_expense += amt
-                        cat = row[6] if len(row) > 6 else "未分類"
-                        category_totals[cat] = category_totals.get(cat, 0) + amt
-                except:
-                    pass
-        
-        msg = f"📊 {current_year}年{current_month}月 記帳小結：\n\n"
-        msg += f"💰 本月收入：${monthly_income:,.0f} 元\n"
-        msg += "------------------\n"
-        
-        if category_totals:
-            msg += "📝 支出分類明細：\n"
-            # 按金額排序
-            sorted_cats = sorted(category_totals.items(), key=lambda x: x[1], reverse=True)
-            for cat, amt in sorted_cats:
-                msg += f" • {cat}：${amt:,.0f}\n"
-        else:
-            msg += "📝 本月暫無支出明細\n"
-            
-        msg += "------------------\n"
-        msg += f"💸 本月總支出：${monthly_expense:,.0f} 元\n"
-        balance = monthly_income - monthly_expense
-        msg += f"⚖️ 本月結餘：${balance:,.0f} 元"
+        msg = f"📊 {now.year}年{now.month}月 記帳小結：\n\n"
+        msg += cat_report
         
         return jsonify({"status": "success", "type": "chat", "message": msg})
     except Exception as e:
         print(f"Finance Query Error: {e}")
         return jsonify({"status": "error", "message": f"計算失敗：{str(e)}"})
 
-@app.route('/api/query_schedule', methods=['POST'])
-def direct_query_schedule():
-    data = request.json
-    days = data.get('days', 1)
+def get_schedule_response(days):
+    """取得行事曆行程的共通回傳格式"""
     now = datetime.now()
-    
     try:
         service = build('calendar', 'v3', credentials=creds)
         today_start = datetime.combine(now.date(), time.min).isoformat() + '+08:00'
@@ -759,45 +635,50 @@ def direct_query_schedule():
             maxResults=50, singleEvents=True, orderBy='startTime'
         ).execute()
         events = events_result.get('items', [])
-        
-        schedule_list = []
-        for e in events:
-            start_str = e['start'].get('dateTime', e['start'].get('date'))
-            try:
-                dt_obj = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-                date_val = dt_obj.strftime('%m/%d')
-                time_val = dt_obj.strftime('%H:%M') if 'T' in start_str else '全天'
-            except:
-                date_val = now.strftime('%m/%d')
-                time_val = '全天'
-            
-            full_title = e.get('summary', '無標題')
-            is_done = full_title.startswith("✅ ")
-            display_title = full_title.replace("✅ ", "", 1) if is_done else full_title
-            final_title = f"[{date_val}] {display_title}" if days > 1 else display_title
-
-            is_all_day = 'date' in e['start']
-            
-            schedule_list.append({
-                'id': e['id'],
-                'time': time_val,
-                'title': display_title, # 不要包含日期標籤，編輯時用原始標題
-                'display_title': final_title, # 顯示用的標題
-                'completed': is_done,
-                'location': e.get('location', ''),
-                'start_time': start_str,
-                'is_all_day': is_all_day
-            })
-            
-        range_label = "今日" if days == 1 else ("本週" if days == 7 else f"未來 {days} 天")
-        return jsonify({
-            "status": "success",
-            "type": "query_schedule",
-            "data": schedule_list,
-            "date_str": range_label
-        })
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+        if "Not Found" in str(e) or "404" in str(e):
+            return jsonify({
+                "status": "success",
+                "type": "chat",
+                "message": "⚠️ 讀取行事曆失敗！請確認日曆共用設定。"
+            })
+        events = []
+    
+    schedule_list = []
+    for e in events:
+        start_str = e['start'].get('dateTime', e['start'].get('date'))
+        try:
+            dt_obj = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+            date_val = dt_obj.strftime('%m/%d')
+            time_val = dt_obj.strftime('%H:%M') if 'T' in start_str else '全天'
+        except:
+            date_val = now.strftime('%m/%d')
+            time_val = '全天'
+        
+        full_title = e.get('summary', '無標題')
+        is_done = full_title.startswith("✅ ")
+        display_title = full_title.replace("✅ ", "", 1) if is_done else full_title
+        final_title = f"[{date_val}] {display_title}" if days > 1 else display_title
+        is_all_day = 'date' in e['start']
+        
+        schedule_list.append({
+            'id': e['id'], 'time': time_val, 'title': display_title,
+            'display_title': final_title, 'completed': is_done,
+            'location': e.get('location', ''), 'start_time': start_str,
+            'is_all_day': is_all_day
+        })
+        
+    range_label = "今日" if days == 1 else ("本週" if days == 7 else f"未來 {days} 天")
+    return jsonify({
+        "status": "success", "type": "query_schedule",
+        "data": schedule_list, "date_str": range_label
+    })
+
+@app.route('/api/query_schedule', methods=['POST'])
+def direct_query_schedule():
+    data = request.json
+    days = data.get('days', 1)
+    return get_schedule_response(days)
 
 @app.route('/api/manual_action', methods=['POST'])
 def manual_action():
@@ -850,7 +731,6 @@ def manual_action():
                     },
                 }
             
-            print(f"DEBUG: Inserting event: {json.dumps(event, indent=2, ensure_ascii=False)}")
 
             # 檢查衝突
             conflict_msg = check_conflicts(service, event['start'].get('dateTime', event['start'].get('date')), 
@@ -1027,7 +907,6 @@ def delete_wish():
     if not rows: return jsonify({"status": "error", "message": "找不到資料"})
     
     target_row_idx = -1
-    print(f"DEBUG: Deleting wish - Target ID: [{item_id}], Title: [{title}]")
     
     # 優先用 ID 進行精確匹配
     if item_id:
@@ -1037,16 +916,13 @@ def delete_wish():
                 current_id = str(row[7]).strip().split('.')[0] 
                 if current_id == item_id.strip():
                     target_row_idx = i + 1
-                    print(f"DEBUG: Found match by ID at row {target_row_idx}")
                     break
     
     # 如果 ID 沒對上，用名稱 + 狀態進行備案匹配 (優先找「想買」的)
     if target_row_idx == -1 and title:
-        print("DEBUG: ID match failed, trying title + status match...")
         for i, row in enumerate(rows):
             if len(row) > 4 and str(row[1]).strip() == str(title).strip() and str(row[4]).strip() == '想買':
                 target_row_idx = i + 1
-                print(f"DEBUG: Found active match by title at row {target_row_idx}")
                 break
 
     if target_row_idx == -1:
@@ -1379,17 +1255,13 @@ def handle_pocket(action, data=None):
     處理口袋名單的 CRUD 操作。
     """
     sheet_id = os.getenv('POCKET_SHEET_ID')
-    creds = Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     service = build('sheets', 'v4', credentials=creds)
 
     if action == 'list':
         try:
-            print(f"Debug: Fetching pocket items from Sheet ID: {sheet_id}")
             result = service.spreadsheets().values().get(
                 spreadsheetId=sheet_id, range='A2:G').execute()
             rows = result.get('values', [])
-            print(f"Debug: Found {len(rows)} items in sheet.")
             pocket_list = []
             for row in rows:
                 if len(row) >= 3:
@@ -1489,7 +1361,5 @@ def add_pocket_item():
     return jsonify({"status": "error", "message": "存入失敗"})
 
 if __name__ == '__main__':
-    # 讀取環境變數中的 PORT，這是 Google Cloud Run 的要求
-    import os
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port, debug=True)
