@@ -309,8 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
     };
-
-    window.removeTodoCategory = async (event, idx) => {
+window.removeTodoCategory = async (event, idx) => {
         if (event) {
             event.preventDefault();
             event.stopPropagation();
@@ -353,6 +352,18 @@ document.addEventListener('DOMContentLoaded', () => {
             window.loadTodos(); // 重新整理篩選列
         }
     };
+
+    // V10.9: 待辦清單按鈕狀態連動
+    const todoTitleInput = document.getElementById('todo_title');
+    const submitTodoBtn = document.getElementById('submitTodoBtn');
+    
+    if (todoTitleInput && submitTodoBtn) {
+        todoTitleInput.oninput = () => {
+            const hasVal = todoTitleInput.value.trim().length > 0;
+            submitTodoBtn.style.opacity = hasVal ? '1' : '0.3';
+            submitTodoBtn.style.pointerEvents = hasVal ? 'auto' : 'none';
+        };
+    }
 
     window.loadTodos = async (filterCategory = '全部', event = null) => {
         const list = document.getElementById('todo_list');
@@ -762,11 +773,12 @@ document.addEventListener('DOMContentLoaded', () => {
             input.value = '';
             window.editingTodoId = null;
             
-            // 恢復按鈕 UI
-            const submitBtn = document.querySelector('.add-todo-btn');
+            // 恢復按鈕 UI (V10.9)
+            const submitBtn = document.getElementById('submitTodoBtn');
             if (submitBtn) {
-                submitBtn.innerHTML = '＋';
-                submitBtn.style.background = '#3b82f6';
+                submitBtn.innerHTML = '✓';
+                submitBtn.style.opacity = '0.3';
+                submitBtn.style.pointerEvents = 'none';
             }
             
             window.loadTodos();
@@ -857,10 +869,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         input.focus();
         
-        const submitBtn = document.querySelector('.add-todo-btn');
+        const submitBtn = document.getElementById('submitTodoBtn');
         if (submitBtn) {
-            submitBtn.innerHTML = '💾';
-            submitBtn.style.background = '#10b981';
+            submitBtn.innerHTML = '✓';
+            submitBtn.style.opacity = '1';
+            submitBtn.style.pointerEvents = 'auto';
         }
 
         input.style.borderBottom = '2px solid #3b82f6';
