@@ -618,9 +618,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!btn.classList.contains('completed')) {
             btn.classList.add('completed');
             btn.innerText = '完成';
-            btn.style.width = '60px'; 
-            btn.style.fontSize = '0.75rem';
-            btn.style.fontWeight = '800';
         } else {
             li.classList.add('fade-out');
             let hidden = JSON.parse(localStorage.getItem('hiddenPocketEvents') || '[]');
@@ -631,6 +628,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.querySchedule(window.lastQueryDays || 7);
             }, 400);
         }
+    };
+
+    const getMapUrl = (location) => {
+        const encodedLoc = encodeURIComponent(location).replace(/%20/g, '+');
+        // 使用 Google 官方 Universal Link 格式，最為穩定且能跨平台喚起 App
+        return `https://www.google.com/maps/search/?api=1&query=${encodedLoc}`;
     };
 
     function renderScheduleCard(events, dateStr) {
@@ -669,12 +672,11 @@ document.addEventListener('DOMContentLoaded', () => {
         activeEvents.forEach(event => {
             let locationHtml = '';
             if (event.location) {
-                const encodedLoc = encodeURIComponent(event.location);
-                const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodedLoc}`;
+                const mapUrl = getMapUrl(event.location);
                 locationHtml = `
                     <div class="event-address-row">
                         <div class="event-address-icon">📍</div>
-                        <a href="${mapUrl}" target="_blank" class="location-link" style="color: #94a3b8; text-decoration: none;">${event.location}</a>
+                        <a href="${mapUrl}" class="location-link" style="color: #94a3b8; text-decoration: none;">${event.location}</a>
                     </div>`;
             }
 
@@ -1114,7 +1116,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.selectCategory = (cat) => {
         window.selectedPocketCategory = cat;
         const icon = cat ? getPocketIcon(cat) : '✨';
-        const label = cat ? `${cat}${icon}` : '請選擇類別 ✨';
+        const label = cat ? `${cat}${icon}` : '請選擇';
         
         const labelSpan = document.getElementById('selected_cat').querySelector('span');
         if (labelSpan) labelSpan.innerText = label;
@@ -1282,17 +1284,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 items.sort((a, b) => (priority[a.category] || 99) - (priority[b.category] || 99));
 
                 list.innerHTML = items.map(item => {
-                    const encodedLoc = encodeURIComponent(item.location || item.name);
-                    let mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodedLoc}`;
-                    const ua = navigator.userAgent;
-                    if (/iPhone|iPad|iPod/i.test(ua)) mapUrl = `comgooglemaps://?q=${encodedLoc}`;
-                    else if (/Android/i.test(ua)) mapUrl = `geo:0,0?q=${encodedLoc}`;
+                    const mapUrl = getMapUrl(item.location || item.name);
 
                     return `
                         <div style="background: white; border: 1px solid #f1f5f9; padding: 12px 15px; border-radius: 16px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); display: flex; align-items: center; gap: 12px; animation: fadeIn 0.3s ease;">
                             <div style="font-size: 1.2rem;">${getPocketIcon(item.category)}</div>
                             <div style="flex: 1;">
-                                <a href="${mapUrl}" target="_blank" style="display: block; font-size: 0.95rem; font-weight: 800; color: #3b82f6; text-decoration: none; margin-bottom: 2px;">
+                                <a href="${mapUrl}" style="display: block; font-size: 0.95rem; font-weight: 800; color: #3b82f6; text-decoration: none; margin-bottom: 2px;">
                                     ${item.name}
                                 </a>
                                 ${item.location ? `<div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 2px;">📍 ${item.location}</div>` : ''}

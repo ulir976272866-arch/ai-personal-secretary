@@ -1395,9 +1395,11 @@ def handle_pocket(action, data=None):
 
     if action == 'list':
         try:
+            print(f"Debug: Fetching pocket items from Sheet ID: {sheet_id}")
             result = service.spreadsheets().values().get(
-                spreadsheetId=sheet_id, range='A2:F200').execute()
+                spreadsheetId=sheet_id, range='A2:F').execute()
             rows = result.get('values', [])
+            print(f"Debug: Found {len(rows)} items in sheet.")
             pocket_list = []
             for row in rows:
                 if len(row) >= 3:
