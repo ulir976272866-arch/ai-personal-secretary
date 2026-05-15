@@ -952,7 +952,7 @@ def handle_todo():
             data.get('category', '待辦'),
             '未完成',
             unique_id,
-            '',
+            datetime.now().strftime("%H:%M:%S"),
             priority
         ]
         try:
@@ -1029,12 +1029,12 @@ def toggle_todo():
     status = '已完成' if is_completed else '未完成'
     finish_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S") if is_completed else ''
     
-    # 更新狀態 (D 欄), ID (E 欄), 完成時間 (F 欄)
+    # 更新狀態 (D 欄), ID (E 欄)
     service.spreadsheets().values().update(
         spreadsheetId=todo_id,
-        range=f'待辦!D{target_row_idx}:F{target_row_idx}',
+        range=f'待辦!D{target_row_idx}:E{target_row_idx}',
         valueInputOption='USER_ENTERED',
-        body={'values': [[status, item_id, finish_time]]}
+        body={'values': [[status, item_id]]}
     ).execute()
     
     return jsonify({"status": "success", "message": f"已標記為{status}"})
@@ -1243,6 +1243,20 @@ def update_event():
         return jsonify({"status": "error", "message": f"更新失敗: {str(e)}"})
 
 
+def get_lat_lng(address):
+    """將地址轉為經緯度 (使用 Google Maps 官方 API)"""
+    if not address: return None, None
+    try:
+        api_key = os.getenv('GOOGLE_MAPS_API_KEY')
+        url = f"https://maps.googleapis.com/maps/api/geocode/json?address={address}&key={api_key}"
+        res = requests.get(url, timeout=5).json()
+        if res.get('status') == 'OK':
+            loc = res['results'][0]['geometry']['location']
+            return loc['lat'], loc['lng']
+    except Exception as e:
+        print(f"Geocoding error: {e}")
+    return None, None
+
 def handle_pocket(action, data=None):
     """
     處理口袋名單的 CRUD 操作。
@@ -1253,7 +1267,7 @@ def handle_pocket(action, data=None):
     if action == 'list':
         try:
             result = service.spreadsheets().values().get(
-                spreadsheetId=sheet_id, range='A2:G').execute()
+                spreadsheetId=sheet_id, range='A2:I').execute()
             rows = result.get('values', [])
             pocket_list = []
             for row in rows:
@@ -1265,7 +1279,9 @@ def handle_pocket(action, data=None):
                         'location': row[3] if len(row) > 3 else '',
                         'area': row[4] if len(row) > 4 else '',
                         'note': row[5] if len(row) > 5 else '',
-                        'time': row[6] if len(row) > 6 else ''
+                        'time': row[6] if len(row) > 6 else '',
+                        'lat': row[7] if len(row) > 7 else None,
+                        'lng': row[8] if len(row) > 8 else None
                     })
             return pocket_list
         except Exception as e:
@@ -1282,7 +1298,13 @@ def handle_pocket(action, data=None):
             note = data.get('note', '')
             create_time = datetime.now().strftime('%Y-%m-%d %H:%M')
             
-            values = [[item_id, category, name, location, area, note, create_time]]
+            # 優先使用前端傳來的經緯度，若無則嘗試後端抓取
+            lat = data.get('lat')
+            lng = data.get('lng')
+            if lat is None or lng is None:
+                lat, lng = get_lat_lng(location or name)
+            
+            values = [[item_id, category, name, location, area, note, create_time, lat, lng]]
             body = {'values': values}
             service.spreadsheets().values().append(
                 spreadsheetId=sheet_id, range='A2',

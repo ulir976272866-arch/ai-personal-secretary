@@ -9,6 +9,30 @@ document.addEventListener('DOMContentLoaded', () => {
     window.editingMemoId = null;
     window.editingEventId = null;
 
+    // --- 定位與距離計算邏輯 (V11.2) ---
+    window.getCurrentLocation = () => {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) return reject("瀏覽器不支援定位");
+            navigator.geolocation.getCurrentPosition(
+                (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                (err) => reject(err),
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        });
+    };
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
+        const R = 6371; // km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
     // --- 自定義確認彈窗邏輯 ---
     let confirmResolver = null;
     window.customConfirm = (title, msg, icon = '🗑️') => {
@@ -146,7 +170,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 核心功能：每次打開自動載入今日行程卡片 ---
     async function loadTodaySchedule() {
-        // 如果已經有內容（例如從背景回來），就不再重複載入或清空
         if (chatHistory.innerHTML.trim() !== '') return;
 
         try {
@@ -1219,6 +1242,38 @@ document.addEventListener('DOMContentLoaded', () => {
             userInput.value = '';
         }
 
+        // --- 定位搜尋口袋名單邏輯 (V11.5) ---
+        if (message.includes('附近') && (message.includes('想去') || message.includes('口袋名單') || message.includes('推薦'))) {
+            appendMessage("正在為您掃描附近的口袋名單... 🛰️");
+            try {
+                const coords = await window.getCurrentLocation();
+                window.userCoords = coords; 
+                const res = await fetch('/api/pocket/list');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    const items = data.data.filter(i => i.lat && i.lng);
+                    items.forEach(i => i.distance = calculateDistance(coords.lat, coords.lng, i.lat, i.lng));
+                    
+                    const nearby = items.filter(i => i.distance < 5).sort((a, b) => a.distance - b.distance);
+                    
+                    if (nearby.length > 0) {
+                        let msg = `在您附近 5km 內找到了 ${nearby.length} 個想去的地方：\n`;
+                        nearby.slice(0, 3).forEach(i => {
+                            const dStr = i.distance < 1 ? `${Math.round(i.distance*1000)}m` : `${i.distance.toFixed(1)}km`;
+                            msg += `📍 ${getPocketIcon(i.category)} ${i.name} (約 ${dStr})\n`;
+                        });
+                        appendMessage(msg + "\n已為您在下方列出口袋名單！");
+                        window.loadPocket(); 
+                    } else {
+                        appendMessage("這附近似乎沒有您標記過的口袋名單喔！您可以換個地方試試。");
+                    }
+                }
+            } catch (e) {
+                appendMessage("暫時無法取得定位，請確保已開啟權限並重試。");
+            }
+            return;
+        }
+
         try {
             const response = await fetch('/api/chat', {
                 method: 'POST',
@@ -1651,18 +1706,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     items = items.filter(i => i.area === window.currentAreaFilter);
                 }
                 
-                // 3. 排序 (依照分類)
+                // 3. 排序 (依照分類或距離)
+                let userLoc = null;
+                try { 
+                    // 如果目前是需要排序距離，才去抓位置
+                    if (rawItems.some(i => i.lat)) {
+                        // 這裡不強制等待定位，若有定位才排
+                    }
+                } catch(e){}
+
                 const priorityMap = { '美食': 1, '旅遊': 2, '住宿': 3, '咖啡': 4, '購物': 5, '其他': 6 };
                 items.sort((a, b) => (priorityMap[a.category] || 99) - (priorityMap[b.category] || 99));
 
                 list.innerHTML = items.map(item => {
                     const mapUrl = getMapUrl(item.location || item.name);
                     const icon = getPocketIcon(item.category);
+                    
+                    // 距離顯示邏輯 (若有座標且有權限)
+                    let distHtml = '';
+                    if (window.userCoords && item.lat && item.lng) {
+                        const d = calculateDistance(window.userCoords.lat, window.userCoords.lng, item.lat, item.lng);
+                        const distStr = d < 1 ? `${Math.round(d*1000)}m` : `${d.toFixed(1)}km`;
+                        distHtml = `<span style="font-size: 0.7rem; color: #10b981; font-weight: 800; background: #ecfdf5; padding: 2px 8px; border-radius: 6px;">距離約 ${distStr}</span>`;
+                    }
+
                     return `
                         <div style="background: white; border: 1px solid #f1f5f9; padding: 15px; border-radius: 20px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); animation: fadeIn 0.3s ease;">
                             <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px;">
                                 <span style="font-size: 0.65rem; color: #fff; background: #14b8a6; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${icon} ${item.category}</span>
                                 ${item.area ? `<span style="font-size: 0.65rem; color: #fff; background: #6366f1; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${item.area}</span>` : ''}
+                                ${distHtml}
                                 <a href="${mapUrl}" target="_blank" style="flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 800; color: #0f172a; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                     ${item.name}
                                 </a>
