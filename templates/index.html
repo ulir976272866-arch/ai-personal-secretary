@@ -62,9 +62,9 @@
             <button class="close-modal" onclick="closeModal('todoModal')">✕</button>
             <h2 class="modal-title">✅ 待辦清單</h2>
             <div class="modal-body">
-                <!-- 整合式輸入區域 (V10.8) -->
-                <div style="display: flex; align-items: center; gap: 8px; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 16px; padding: 4px 10px; transition: border-color 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-                    <div id="todo_category_selector" class="custom-select" style="width: 100px; position: relative; flex-shrink: 0;">
+                <!-- 整合式輸入區域 (V10.9 改回穩定版) -->
+                <div style="display: flex; gap: 8px; margin-bottom: 15px; align-items: center; width: 100%;">
+                    <div id="todo_category_selector" class="custom-select" style="width: 105px; position: relative; flex-shrink: 0;">
                         <div id="selected_todo_cat" onclick="toggleTodoCategoryDropdown()" style="padding: 10px 8px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.8rem; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 42px; white-space: nowrap; overflow: hidden;">
                             <span id="current_todo_cat_display" style="overflow: hidden; text-overflow: ellipsis;">📝 任務</span>
                             <small style="color: #94a3b8; font-size: 0.6rem;">▼</small>
@@ -74,10 +74,7 @@
                     <input type="text" id="todo_title" 
                            placeholder="輸入新任務..." 
                            autocomplete="off" 
-                           autocorrect="off" 
-                           autocapitalize="off" 
-                           spellcheck="false"
-                           style="flex: 1; border: none; outline: none; padding: 12px 5px; font-size: 1rem; background: transparent;">
+                           style="flex: 1; min-width: 0; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff;">
                     <button id="submitTodoBtn" onclick="saveTodo()" style="background: #3b82f6; color: white; border: none; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.3; pointer-events: none; transition: all 0.2s;">✓</button>
                 </div>
                 
