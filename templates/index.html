@@ -106,9 +106,6 @@
 
         <!-- 對話紀錄區 -->
         <div id="chat-history">
-            <div class="message ai-message">
-                您好！我是您的私人 AI 行事曆助理。您可以直接跟我聊天，或使用上方的功能按鈕。
-            </div>
         </div>
 
         <button id="clearBtn" class="clear-btn" title="清空對話">
@@ -343,6 +340,7 @@
         </div>
     </div>
 
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&libraries=places&callback=initMap" async defer></script>
     <script src="/static/js/app.js"></script>
 </body>
 </html>

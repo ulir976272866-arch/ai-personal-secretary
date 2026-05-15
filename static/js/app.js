@@ -10,8 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 核心功能：每次打開自動載入今日行程卡片 ---
     async function loadTodaySchedule() {
-        // 清空所有舊紀錄
-        chatHistory.innerHTML = '';
+        // 如果已經有內容（例如從背景回來），就不再重複載入或清空
+        if (chatHistory.innerHTML.trim() !== '') return;
 
         try {
             const res = await fetch('/api/chat', {
@@ -22,8 +22,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.status === 'success' && data.type === 'query_schedule') {
                 renderScheduleCard(data.data, data.date_str);
-            } else {
-                appendMessage(data.message || '您好！今天沒有行程安排。');
             }
         } catch (e) {
             console.error('載入今日行程失敗:', e);
@@ -33,12 +31,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // 啟動時載入
     loadTodaySchedule();
 
-    // 從背景恢復時重新載入
+    // 從背景恢復時不再自動重新載入，保留使用者原本的查詢畫面
+    /*
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             loadTodaySchedule();
         }
     });
+    */
 
     // --- 介面控制與變數初始化 ---
     const voiceBtn = document.getElementById('voiceBtn');
@@ -88,6 +88,31 @@ document.addEventListener('DOMContentLoaded', () => {
             window.editingEventId = null;
         }
     };
+
+    // --- 初始化 Google Places Autocomplete ---
+    function initAutocomplete() {
+        const input = document.getElementById('manual_location');
+        if (!input || typeof google === 'undefined') return;
+
+        const autocomplete = new google.maps.places.Autocomplete(input, {
+            types: ['geocode', 'establishment'],
+            componentRestrictions: { country: 'tw' } // 限制在台灣
+        });
+
+        autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            if (place.formatted_address) {
+                input.value = place.formatted_address;
+            }
+        });
+    }
+
+    // 確保 Google Maps 載入後執行
+    if (typeof google !== 'undefined') {
+        initAutocomplete();
+    } else {
+        window.initMap = initAutocomplete; // 供 API Callback 使用
+    }
 
     // --- 載入資料並顯示 ---
     // --- 待辦功能 (Keep 風格) ---

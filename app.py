@@ -226,7 +226,9 @@ def morning_briefing():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # 優先尋找專用地圖 Key，若無則嘗試共用 Gemini Key
+    maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY') or os.getenv('GEMINI_API_KEY')
+    return render_template('index.html', maps_api_key=maps_api_key)
 
 @app.route('/chat', methods=['POST'])
 @app.route('/api/chat', methods=['POST'])
