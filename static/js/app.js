@@ -1161,7 +1161,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- 語音辨識 ---
+    // --- 語音辨識 (V12.0 Toggle & Cancel Support) ---
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
@@ -1169,13 +1169,19 @@ document.addEventListener('DOMContentLoaded', () => {
         recognition.continuous = false;
         recognition.interimResults = false;
 
+        let isListening = false;
+
         recognition.onstart = () => {
+            isListening = true;
             voiceBtn.classList.add('listening');
-            userInput.placeholder = "聆聽中...";
+            voiceBtn.innerHTML = '🛑'; // 變成停止圖示
+            userInput.placeholder = "聆聽中... (點擊紅點取消)";
         };
 
         recognition.onend = () => {
+            isListening = false;
             voiceBtn.classList.remove('listening');
+            voiceBtn.innerHTML = '🎤'; // 恢復為麥克風
             userInput.placeholder = "輸入行程或指令...";
         };
 
@@ -1186,7 +1192,11 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         voiceBtn.onclick = () => {
-            recognition.start();
+            if (isListening) {
+                recognition.abort(); // 立即取消錄音
+            } else {
+                recognition.start();
+            }
         };
     } else {
         voiceBtn.style.display = 'none';
@@ -1242,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
             userInput.value = '';
         }
 
-        // --- 定位搜尋口袋名單邏輯 (V11.5) ---
+        // --- 定位搜尋口袋名單邏輯 (V12.5 Diagnostic Update) ---
         if (message.includes('附近') && (message.includes('想去') || message.includes('口袋名單') || message.includes('推薦'))) {
             appendMessage("正在為您掃描附近的口袋名單... 🛰️");
             try {
@@ -1250,14 +1260,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.userCoords = coords; 
                 const res = await fetch('/api/pocket/list');
                 const data = await res.json();
+                
                 if (data.status === 'success') {
-                    const items = data.data.filter(i => i.lat && i.lng);
-                    items.forEach(i => i.distance = calculateDistance(coords.lat, coords.lng, i.lat, i.lng));
+                    const allItems = data.data;
+                    const itemsWithCoords = allItems.filter(i => i.lat && i.lng);
                     
-                    const nearby = items.filter(i => i.distance < 5).sort((a, b) => a.distance - b.distance);
+                    itemsWithCoords.forEach(i => {
+                        i.distance = calculateDistance(coords.lat, coords.lng, parseFloat(i.lat), parseFloat(i.lng));
+                    });
+                    
+                    // 將半徑擴大至 20km 以利測試
+                    const searchRadius = 20; 
+                    const nearby = itemsWithCoords.filter(i => i.distance < searchRadius).sort((a, b) => a.distance - b.distance);
                     
                     if (nearby.length > 0) {
-                        let msg = `在您附近 5km 內找到了 ${nearby.length} 個想去的地方：\n`;
+                        let msg = `在您附近 ${searchRadius}km 內找到了 ${nearby.length} 個想去的地方：\n`;
                         nearby.slice(0, 3).forEach(i => {
                             const dStr = i.distance < 1 ? `${Math.round(i.distance*1000)}m` : `${i.distance.toFixed(1)}km`;
                             msg += `📍 ${getPocketIcon(i.category)} ${i.name} (約 ${dStr})\n`;
@@ -1265,11 +1282,24 @@ document.addEventListener('DOMContentLoaded', () => {
                         appendMessage(msg + "\n已為您在下方列出口袋名單！");
                         window.loadPocket(); 
                     } else {
-                        appendMessage("這附近似乎沒有您標記過的口袋名單喔！您可以換個地方試試。");
+                        // 診斷式回覆
+                        let diagnosticMsg = `這附近 ${searchRadius}km 內似乎沒有您標記過的口袋名單喔！\n\n`;
+                        diagnosticMsg += `💡 診斷資訊：\n`;
+                        diagnosticMsg += `• 總清單數量：${allItems.length} 筆\n`;
+                        diagnosticMsg += `• 有座標記錄：${itemsWithCoords.length} 筆\n`;
+                        
+                        if (itemsWithCoords.length === 0) {
+                            diagnosticMsg += `\n⚠️ 偵測到所有資料都缺少座標！請檢查 Google Sheet 的 lat/lng 欄位是否為空。`;
+                        } else {
+                            diagnosticMsg += `\n您可以試著在口袋名單中手動搜尋特定店名。`;
+                        }
+                        
+                        appendMessage(diagnosticMsg);
                     }
                 }
             } catch (e) {
-                appendMessage("暫時無法取得定位，請確保已開啟權限並重試。");
+                console.error("Location Error:", e);
+                appendMessage("暫時無法取得定位，請確保已開啟權限並使用 HTTPS 連線。");
             }
             return;
         }
