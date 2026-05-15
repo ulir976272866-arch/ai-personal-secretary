@@ -8,6 +8,7 @@ import google.generativeai as genai
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+import requests
 
 # 載入環境變數 (確保能讀到腳本同目錄下的 .env)
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
@@ -84,7 +85,6 @@ def find_row_by_id(rows, target_id, id_col_idx):
                 return i + 1
     return -1
 
-import requests
 
 # -----------------------------------------------------------------
 # 2. 初始化 Gemini API (透過 requests 直接呼叫，避免舊版 SDK 問題)
@@ -252,8 +252,6 @@ def chat():
             "message": "系統找不到 service_account.json，請確認檔案存在。"
         }), 400
 
-    data = request.get_json()
-    user_text = data.get('text', '')
     now = datetime.now()
 
     bypass_data = None
@@ -416,10 +414,6 @@ def chat():
         except Exception as e:
             print(f"Gemini 解析錯誤: {e}")
             return jsonify({"status": "error", "message": "抱歉，我不太懂您的意思，可以換個說法嗎？"})
-
-    # -----------------------------------------------------------------
-    # 步驟 B: 根據意圖執行動作
-    # -----------------------------------------------------------------歉，我不太懂您的意思，可以換個說法嗎？"})
 
     # -----------------------------------------------------------------
     # 步驟 B: 根據意圖執行動作
@@ -672,10 +666,6 @@ def toggle_completion():
     except Exception as e:
         print("Toggle Completion Error:", str(e))
         return jsonify({"status": "error", "message": str(e)}), 500
-
-    except Exception as e:
-        print(f"API 執行錯誤: {e}")
-        return jsonify({"status": "error", "message": f"執行時發生錯誤：{str(e)}"})
 
 @app.route('/api/memo/list', methods=['GET'])
 def get_memos():
@@ -1397,7 +1387,7 @@ def handle_pocket(action, data=None):
         try:
             print(f"Debug: Fetching pocket items from Sheet ID: {sheet_id}")
             result = service.spreadsheets().values().get(
-                spreadsheetId=sheet_id, range='A2:F').execute()
+                spreadsheetId=sheet_id, range='A2:G').execute()
             rows = result.get('values', [])
             print(f"Debug: Found {len(rows)} items in sheet.")
             pocket_list = []
@@ -1408,8 +1398,9 @@ def handle_pocket(action, data=None):
                         'category': row[1],
                         'name': row[2],
                         'location': row[3] if len(row) > 3 else '',
-                        'note': row[4] if len(row) > 4 else '',
-                        'time': row[5] if len(row) > 5 else ''
+                        'area': row[4] if len(row) > 4 else '',
+                        'note': row[5] if len(row) > 5 else '',
+                        'time': row[6] if len(row) > 6 else ''
                     })
             return pocket_list
         except Exception as e:
@@ -1422,10 +1413,11 @@ def handle_pocket(action, data=None):
             category = data.get('category', '其他')
             name = data.get('name', '')
             location = data.get('location', '')
+            area = data.get('area', '')
             note = data.get('note', '')
             create_time = datetime.now().strftime('%Y-%m-%d %H:%M')
             
-            values = [[item_id, category, name, location, note, create_time]]
+            values = [[item_id, category, name, location, area, note, create_time]]
             body = {'values': values}
             service.spreadsheets().values().append(
                 spreadsheetId=sheet_id, range='A2',

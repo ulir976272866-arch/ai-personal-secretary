@@ -1,8 +1,140 @@
+// Google Maps API 回呼 (需在全域作用域)
+window.initMap = () => {
+    if (window.initAutocomplete) window.initAutocomplete();
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     window.editingWishId = null;
     window.editingTodoId = null;
     window.editingMemoId = null;
     window.editingEventId = null;
+    window.currentTodoTags = []; // V10.5: 存儲當前待辦的標籤
+    window.pocketCategories = JSON.parse(localStorage.getItem('pocketCategories')) || [
+        { name: '美食', icon: '🍜' },
+        { name: '旅遊', icon: '🚗' },
+        { name: '住宿', icon: '🏨' },
+        { name: '咖啡', icon: '☕' },
+        { name: '購物', icon: '🛍️' },
+        { name: '其他', icon: '📍' }
+    ];
+
+    // --- 自定義確認彈窗邏輯 ---
+    let confirmResolver = null;
+    window.customConfirm = (title, msg, icon = '🗑️') => {
+        return new Promise((resolve) => {
+            confirmResolver = resolve;
+            document.getElementById('confirm_title').innerText = title;
+            document.getElementById('confirm_msg').innerText = msg;
+            
+            const svgIcon = document.getElementById('confirm_svg');
+            const iconContainer = document.getElementById('confirm_icon_container');
+            
+            if (icon === '🗑️') {
+                svgIcon.style.display = 'block';
+                if (iconContainer.querySelector('.emoji-icon')) iconContainer.querySelector('.emoji-icon').remove();
+            } else {
+                svgIcon.style.display = 'none';
+                let emojiEl = iconContainer.querySelector('.emoji-icon');
+                if (!emojiEl) {
+                    emojiEl = document.createElement('div');
+                    emojiEl.className = 'emoji-icon';
+                    emojiEl.style.fontSize = '2.5rem';
+                    iconContainer.appendChild(emojiEl);
+                }
+                emojiEl.innerText = icon;
+            }
+            
+            document.getElementById('confirmModal').classList.add('show');
+        });
+    };
+
+    window.closeConfirm = (result) => {
+        document.getElementById('confirmModal').classList.remove('show');
+        if (confirmResolver) confirmResolver(result);
+    };
+
+    document.getElementById('confirm_yes_btn').onclick = () => window.closeConfirm(true);
+
+    // --- 自定義類別輸入彈窗邏輯 ---
+    let catInputResolver = null;
+    window.customCatInput = () => {
+        return new Promise((resolve) => {
+            catInputResolver = resolve;
+            document.getElementById('new_cat_name').value = '';
+            document.getElementById('new_cat_icon_hidden').value = '📌';
+            document.getElementById('new_cat_preview_icon').innerText = '📌';
+            document.getElementById('catInputModal').classList.add('show');
+            setTimeout(() => document.getElementById('new_cat_name').focus(), 300);
+        });
+    };
+
+    window.closeCatInput = (confirmed) => {
+        const name = document.getElementById('new_cat_name').value.trim();
+        const icon = document.getElementById('new_cat_icon_hidden').value.trim() || '📌';
+        document.getElementById('catInputModal').classList.remove('show');
+        document.getElementById('cat_emoji_suggestions').innerHTML = ''; 
+        if (catInputResolver) {
+            catInputResolver(confirmed ? { name, icon } : null);
+        }
+    };
+
+    // --- Emoji 智慧建議字典 ---
+    const emojiDict = {
+        '運動': ['🏃', '🏋️', '🏀', '⚽', '🎾', '🏊'],
+        '學習': ['📚', '✍️', '🎓', '🧪', '🧠'],
+        '美食': ['🍜', '🍕', '🍰', '🍣', '🍱', '🥘'],
+        '旅遊': ['🚗', '✈️', '🏝️', '🎒', '🗺️'],
+        '影視': ['🎬', '🍿', '🎥', '📺', '📽️'],
+        '生活': ['🏠', '🧹', '🧺', '🛋️', '🔑'],
+        '工作': ['💻', '💼', '📅', '👔', '📈'],
+        '購物': ['🛍️', '💰', '💳', '🎁'],
+        '健康': ['🍎', '💊', '🩺', '💤'],
+        '娛樂': ['🎮', '🎸', '🎨', '🧩'],
+        '還願': ['✨', '🙏', '🕯️', '🧧'],
+        '重要': ['🔥', '❗️', '🚨'],
+        '心情': ['😊', '🥰', '🌈', '☀️'],
+        '交通': ['🚲', '🚇', '🚌', '🚕'],
+        '理財': ['💎', '💵', '📊']
+    };
+
+    window.suggestEmoji = (text) => {
+        const suggestionsDiv = document.getElementById('cat_emoji_suggestions');
+        const previewIcon = document.getElementById('new_cat_preview_icon');
+        const hiddenIcon = document.getElementById('new_cat_icon_hidden');
+        if (!suggestionsDiv) return;
+        
+        let found = [];
+        for (const [key, icons] of Object.entries(emojiDict)) {
+            if (text.includes(key) || key.includes(text)) {
+                found = [...found, ...icons];
+            }
+        }
+        
+        const uniqueIcons = [...new Set(found)].slice(0, 8);
+        
+        if (uniqueIcons.length > 0) {
+            suggestionsDiv.innerHTML = uniqueIcons.map(icon => `
+                <div onclick="window.updateCatPreviewIcon('${icon}')" 
+                     style="width: 44px; height: 44px; border-radius: 12px; background: #fff; border: 1.5px solid #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; cursor: pointer; transition: all 0.2s; flex-shrink: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                    ${icon}
+                </div>
+            `).join('');
+            
+            // 自動更新預覽為第一個建議
+            if (uniqueIcons.length > 0) {
+                window.updateCatPreviewIcon(uniqueIcons[0]);
+            }
+        } else {
+            suggestionsDiv.innerHTML = '';
+        }
+    };
+
+    window.updateCatPreviewIcon = (icon) => {
+        const previewIcon = document.getElementById('new_cat_preview_icon');
+        const hiddenIcon = document.getElementById('new_cat_icon_hidden');
+        if (previewIcon) previewIcon.innerText = icon;
+        if (hiddenIcon) hiddenIcon.value = icon;
+    };
 
     const chatHistory = document.getElementById('chat-history');
     const userInput = document.getElementById('userInput');
@@ -75,7 +207,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         document.getElementById(id).classList.add('show');
         if (id === 'wishlistModal') window.loadWishes();
-        if (id === 'todoModal') window.loadTodos();
+        if (id === 'todoModal') {
+            window.loadTodos();
+            window.renderTodoCatDropdown();
+        }
         if (id === 'memoModal') window.loadMemos();
         if (id === 'pocketModal') window.loadPocket();
     };
@@ -123,119 +258,219 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    window.initAutocomplete = initAutocomplete;
+    
     // 確保 Google Maps 載入後執行
     if (typeof google !== 'undefined') {
         initAutocomplete();
-    } else {
-        window.initMap = initAutocomplete; // 供 API Callback 使用
     }
 
-    // --- 載入資料並顯示 ---
-    // --- 待辦功能 (Keep 風格) ---
-    window.addTodoTag = (tag) => {
-        const input = document.getElementById('todo_title');
-        input.value = tag + ' ' + input.value;
-        input.focus();
+    // --- 待辦功能 (V10.8 精簡版) ---
+    window.todoCategories = JSON.parse(localStorage.getItem('todoCategories')) || [
+        { name: '任務', icon: '📝' },
+        { name: '美食', icon: '🍕' },
+        { name: '影視', icon: '🎬' },
+        { name: '學習', icon: '📖' },
+        { name: '生活', icon: '🏠' },
+        { name: '還願', icon: '✨' },
+        { name: '旅遊', icon: '📍' }
+    ];
+
+    window.toggleTodoCategoryDropdown = () => {
+        const dropdown = document.getElementById('todo_cat_dropdown');
+        if (dropdown) dropdown.classList.toggle('show');
     };
 
-    window.loadTodos = async () => {
+    window.selectTodoCategory = (name, icon) => {
+        const catInput = document.getElementById('todo_category');
+        const displaySpan = document.getElementById('current_todo_cat_display');
+        const dropdown = document.getElementById('todo_cat_dropdown');
+        
+        if (catInput) catInput.value = name;
+        if (displaySpan) displaySpan.innerHTML = `${icon} ${name}`;
+        if (dropdown) dropdown.classList.remove('show');
+    };
+
+    window.renderTodoCatDropdown = () => {
+        const dropdown = document.getElementById('todo_cat_dropdown');
+        if (!dropdown) return;
+        
+        dropdown.innerHTML = window.todoCategories.map((cat, idx) => `
+            <div class="todo-dropdown-item" onclick="window.selectTodoCategory('${cat.name}', '${cat.icon}')">
+                <span>${cat.icon}</span> 
+                <div style="flex: 1;">${cat.name}</div>
+                <div class="cat-delete-btn" onclick="window.removeTodoCategory(event, ${idx})">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                </div>
+            </div>
+        `).join('') + `
+            <div class="todo-dropdown-item add-new" onclick="window.addNewTodoCategory()">
+                <span>＋</span> 新增類別...
+            </div>
+        `;
+    };
+
+    window.removeTodoCategory = async (event, idx) => {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        const cat = window.todoCategories[idx];
+        if (cat.name === '任務') {
+            alert('「任務」為預設類別，無法刪除唷！');
+            return;
+        }
+        
+        // 使用自定義彈窗
+        const confirmed = await window.customConfirm(
+            '確定刪除類別？',
+            `您即將刪除「${cat.icon} ${cat.name}」類別。`,
+            '🗑️'
+        );
+        
+        if (confirmed) {
+            window.todoCategories.splice(idx, 1);
+            localStorage.setItem('todoCategories', JSON.stringify(window.todoCategories));
+            
+            const currentCat = document.getElementById('todo_category').value;
+            if (currentCat === cat.name) {
+                window.selectTodoCategory('任務', '📝');
+            }
+            
+            window.renderTodoCatDropdown();
+            window.loadTodos(); 
+        }
+    };
+
+    window.addNewTodoCategory = async () => {
+        const result = await window.customCatInput();
+        if (result && result.name) {
+            window.todoCategories.push({ name: result.name, icon: result.icon });
+            localStorage.setItem('todoCategories', JSON.stringify(window.todoCategories));
+            window.renderTodoCatDropdown();
+            window.selectTodoCategory(result.name, result.icon);
+            window.loadTodos(); // 重新整理篩選列
+        }
+    };
+
+    window.loadTodos = async (filterCategory = '全部', event = null) => {
         const list = document.getElementById('todo_list');
+        const filterBar = document.getElementById('todo_filter_bar');
         if (!list) return;
 
         // 顯示載入中
-        list.innerHTML = `
-            <div style="text-align: center; padding: 30px; color: #94a3b8;">
-                <div class="loading-spinner" style="margin-bottom: 10px;">⌛</div>
-                正在讀取待辦清單...
-            </div>
-        `;
+        list.innerHTML = `<div style="text-align: center; padding: 30px; color: #94a3b8;"><div class="loading-spinner"></div> 正在讀取...</div>`;
 
         try {
             const res = await fetch('/api/todo');
             const data = await res.json();
-            
-            if (!Array.isArray(data)) {
-                throw new Error(data.message || '資料格式錯誤');
+            if (!Array.isArray(data)) throw new Error('資料錯誤');
+
+            const activeTodos = data.filter(i => i.狀態 === '未完成');
+
+            // --- 動態生成篩選列 (V10.8) ---
+            if (filterBar) {
+                // 找出目前有任務的類別
+                const activeCats = [...new Set(activeTodos.map(i => i.分類 || '任務'))];
+                const allCats = ['全部', ...activeCats];
+                
+                filterBar.innerHTML = allCats.map(cat => {
+                    let icon = '🌟'; // 全部
+                    if (cat !== '全部') {
+                        const found = window.todoCategories.find(c => c.name === cat);
+                        icon = found ? found.icon : '📝';
+                    }
+                    return `
+                        <button onclick="window.loadTodos('${cat}', event)" 
+                                class="pocket-filter-btn ${filterCategory === cat ? 'active' : ''}">
+                            ${icon} ${cat}
+                        </button>
+                    `;
+                }).join('');
+                
+                // 自動滾動到啟動的按鈕 (如果是點選的話)
+                if (event) {
+                    event.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                }
             }
 
-            // 僅顯示未完成的
-            const activeTodos = data.filter(i => i.狀態 === '未完成');
-            
-            if (activeTodos.length === 0) {
-                list.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 40px 20px;">任務全數達成！✨<br><small style="opacity: 0.7;">今天又是充實的一天呢</small></div>';
+            // 過濾與排序
+            let filteredTodos = activeTodos;
+            if (filterCategory !== '全部') {
+                filteredTodos = activeTodos.filter(i => i.分類 === filterCategory);
+            }
+
+            const priorityMap = { '急要': 0, '重要': 1, '緊急': 2, '一般': 3 };
+            const matrixMap = {
+                '急要': '重要且緊急',
+                '重要': '重要但不緊急',
+                '緊急': '緊急但不重要',
+                '一般': '不重要且不緊急'
+            };
+            // 處理反向映射 (如果資料庫裡存的是長字串)
+            const reverseMatrixMap = {
+                '重要且緊急': '急要',
+                '重要但不緊急': '重要',
+                '緊急但不重要': '緊急',
+                '不重要且不緊急': '一般'
+            };
+
+            const sortedTodos = filteredTodos.sort((a, b) => {
+                const pA = priorityMap[reverseMatrixMap[a['優先級']] || a['優先級']] ?? 4;
+                const pB = priorityMap[reverseMatrixMap[b['優先級']] || b['優先級']] ?? 4;
+                return pA - pB;
+            });
+
+            if (sortedTodos.length === 0) {
+                list.innerHTML = `<div style="color: #94a3b8; text-align: center; padding: 40px 20px;">目前沒有「${filterCategory}」任務 ✨</div>`;
                 return;
             }
 
-            // 排序邏輯：1. 重要且緊急優先 2. 建立時間早優先 (原始順序)
-            const priorityMap = {
-                '重要且緊急': 0,
-                '重要但不緊急': 1,
-                '不重要但緊急': 2,
-                '不重要且不緊急': 3
-            };
-
-            const sortedTodos = activeTodos.sort((a, b) => {
-                const pA = priorityMap[a['優先級']] !== undefined ? priorityMap[a['優先級']] : 4;
-                const pB = priorityMap[b['優先級']] !== undefined ? priorityMap[b['優先級']] : 4;
-                if (pA !== pB) return pA - pB;
-                return 0; // 維持原始順序 (最早在上方)
-            });
-
             list.innerHTML = sortedTodos.map((item, idx) => {
                 const safeID = item['唯一 ID'] || `legacy_${idx}`;
-                const priority = item['優先級'] || '不重要且不緊急';
+                let priorityVal = item['優先級'] || '一般';
+                // 正規化優先級值
+                if (reverseMatrixMap[priorityVal]) priorityVal = reverseMatrixMap[priorityVal];
                 
-                // 優先級顏色映射
-                let accentClass = 'accent-green';
-                if (priority.includes('重要且緊急')) accentClass = 'accent-red';
-                else if (priority.includes('重要但不緊急')) accentClass = 'accent-yellow';
-                else if (priority.includes('不重要但緊急')) accentClass = 'accent-orange';
+                const priorityDisplay = matrixMap[priorityVal] || priorityVal;
+                const category = item['分類'] || '任務';
+                const accentClass = priorityVal === '急要' ? 'accent-red' : (priorityVal === '重要' ? 'accent-yellow' : (priorityVal === '緊急' ? 'accent-orange' : 'accent-green'));
 
                 return `
                     <div id="todo_item_${safeID}" style="display: flex; align-items: center; gap: 12px; padding: 15px 15px 15px 22px; border-bottom: 1px solid #f8fafc; transition: all 0.3s; background: white; margin-bottom: 10px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); position: relative; overflow: hidden;">
                         <div class="todo-accent ${accentClass}"></div>
-                        
                         <div style="position: relative; width: 24px; height: 24px; flex-shrink: 0;">
-                            <input type="checkbox" 
-                                   style="width: 24px; height: 24px; cursor: pointer; opacity: 0; position: absolute; z-index: 2;"
-                                   onchange="window.prepareTodo('${safeID}', this.checked)">
+                            <input type="checkbox" style="width: 24px; height: 24px; cursor: pointer; opacity: 0; position: absolute; z-index: 2;" onchange="window.prepareTodo('${safeID}', this.checked)">
                             <div class="custom-checkbox" style="width: 24px; height: 24px; border: 2.5px solid #cbd5e1; border-radius: 8px; position: absolute; top: 0; left: 0; transition: all 0.2s;"></div>
                         </div>
-                        
                         <div style="flex: 1;">
-                            <div id="todo_text_${safeID}" style="color: #1e293b; font-weight: 700; font-size: 1.05rem; line-height: 1.4; margin-bottom: 4px;">
-                                ${item['事項/內容']}
-                            </div>
+                            <div id="todo_text_${safeID}" style="color: #1e293b; font-weight: 700; font-size: 1.05rem; line-height: 1.4; margin-bottom: 4px;">${item['事項/內容']}</div>
                             <div style="display: flex; gap: 8px; align-items: center;">
-                                <span style="font-size: 0.65rem; color: #94a3b8; background: #f8fafc; padding: 2px 6px; border-radius: 4px; font-weight: 600;">
-                                    ${item.分類}
-                                </span>
-                                <span style="font-size: 0.65rem; font-weight: 800; color: #64748b;">
-                                    • ${priority}
-                                </span>
+                                <span style="font-size: 0.65rem; color: #3b82f6; background: #eff6ff; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${category}</span>
+                                <span style="font-size: 0.7rem; font-weight: 600; color: #64748b;">• ${priorityDisplay}</span>
                             </div>
                         </div>
                         <div id="todo_action_${safeID}" style="display: flex; gap: 10px; align-items: center;">
                             <button onclick="window.deleteTodo('${safeID}', '${item['事項/內容'].replace(/'/g, "\\'")}')" 
-                                    style="background: none; border: none; color: #cbd5e1; cursor: pointer; font-size: 1.1rem; padding: 4px; transition: all 0.2s;">
-                                ✕
+                                    style="background: none; border: none; color: #cbd5e1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; transition: all 0.2s;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                             </button>
-                            <button onclick="window.editTodo('${safeID}', '${item['事項/內容'].replace(/'/g, "\\'")}', '${item.分類}')" 
-                                    style="background: none; color: #3b82f6; border: none; padding: 4px; font-size: 0.85rem; cursor: pointer; font-weight: 600; transition: all 0.2s;">
-                                編輯
-                            </button>
+                            <button onclick="window.editTodo('${safeID}', '${item['事項/內容'].replace(/'/g, "\\'")}', '${category}')" style="background: none; color: #3b82f6; border: none; padding: 4px; font-size: 0.85rem; cursor: pointer; font-weight: 600;">編輯</button>
                         </div>
                     </div>
                 `;
             }).join('');
         } catch (e) {
-            console.error('載入待辦清單失敗:', e);
-            list.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 20px;">載入失敗：${e.message} 🔌</div>`;
+            console.error('載入待辦失敗:', e);
+            list.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 20px;">載入失敗 🔌</div>`;
         }
     };
 
+
     window.deleteTodo = async (id, title) => {
-        if (!confirm(`確定要刪除「${title}」嗎？`)) return;
+        const confirmed = await window.customConfirm('確定刪除事項？', `確定要刪除「${title}」嗎？`, '🗑️');
+        if (!confirmed) return;
         
         const realID = id.startsWith('legacy_') ? '' : id;
         const res = await fetch('/api/todo/delete', {
@@ -451,21 +686,51 @@ document.addEventListener('DOMContentLoaded', () => {
         const content = document.getElementById('memo_content').value;
         const mood = document.getElementById('memo_mood').value;
         const weather = document.getElementById('memo_weather').value;
+        const btn = document.getElementById('submitMemoBtn');
+        
         if (!content || !mood || !weather) return;
- 
-        const res = await fetch('/api/memo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content, mood, weather })
-        });
-        const data = await res.json();
-        if (data.status === 'success') {
-            document.getElementById('memo_content').value = '';
-            document.getElementById('memo_mood').value = '';
-            document.getElementById('memo_weather').value = '';
-            window.checkMemoFields(); // 重置按鈕狀態
-            window.loadMemos(); // 儲存後立即刷新列表
-            // window.closeModal('memoModal'); // 不關閉彈窗，讓使用者看到記錄成功
+
+        // 1. 顯示載入中狀態
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<div class="loading-spinner"></div> 正在儲存...';
+        btn.style.opacity = '0.8';
+
+        try {
+            // 增加一個微小的延遲，讓動畫能被看見
+            await new Promise(resolve => setTimeout(resolve, 300));
+            const res = await fetch('/api/memo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, mood, weather })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                // 2. 清空輸入
+                document.getElementById('memo_content').value = '';
+                document.getElementById('memo_mood').value = '';
+                document.getElementById('memo_weather').value = '';
+                
+                // 3. 成功後直接關閉彈窗 (使用者的要求)
+                window.closeModal('memoModal');
+                
+                // 4. 重置與更新
+                window.checkMemoFields();
+                window.loadMemos();
+                
+                // 5. 給一點小提示
+                appendMessage('✨ 日記已成功記錄！', false);
+            } else {
+                alert('儲存失敗：' + (data.message || '未知錯誤'));
+            }
+        } catch (e) {
+            console.error('Save Memo Error:', e);
+            alert('系統發生錯誤，請重試。');
+        } finally {
+            // 恢復按鈕狀態 (如果沒關閉的話)
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            btn.style.opacity = '1';
         }
     };
 
@@ -478,17 +743,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.saveTodo = async () => {
         const input = document.getElementById('todo_title');
         const title = input.value.trim();
-        const priority = document.getElementById('todo_priority').value || '不重要且不緊急';
+        const priority = document.getElementById('todo_priority').value || '一般';
+        const category = document.getElementById('todo_category').value || '任務';
+        
         if (!title) return;
-
-        // 簡單判斷分類
-        let category = '任務';
-        if (title.includes('🎬')) category = '影視';
-        if (title.includes('🍕')) category = '美食';
-        if (title.includes('📖')) category = '學習';
-        if (title.includes('🏠')) category = '生活';
-        if (title.includes('✨')) category = '還願';
-        if (title.includes('📍')) category = '旅遊';
 
         const endpoint = window.editingTodoId ? '/api/todo/update' : '/api/todo';
         const payload = { title, category, priority };
@@ -505,18 +763,20 @@ document.addEventListener('DOMContentLoaded', () => {
             window.editingTodoId = null;
             
             // 恢復按鈕 UI
-            const submitBtn = document.querySelector('#todoModal .modal-content button[onclick="saveTodo()"]');
+            const submitBtn = document.querySelector('.add-todo-btn');
             if (submitBtn) {
                 submitBtn.innerHTML = '＋';
                 submitBtn.style.background = '#3b82f6';
-                submitBtn.style.width = '40px';
             }
             
             window.loadTodos();
             
-            // 重置優先級選擇到預設
+            // 重置選擇
             const defaultOpt = document.querySelector('.priority-opt.green');
-            if (defaultOpt) window.selectPriority(defaultOpt, '不重要且不緊急');
+            if (defaultOpt) window.selectPriority(defaultOpt, '一般');
+            
+            // 重置類別
+            window.selectTodoCategory('任務', '📝');
         }
     };
 
@@ -590,13 +850,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const input = document.getElementById('todo_title');
         input.value = title;
         window.editingTodoId = id;
+        
+        // 設定類別
+        const catObj = window.todoCategories.find(c => c.name === category) || { name: '任務', icon: '📝' };
+        window.selectTodoCategory(catObj.name, catObj.icon);
+        
         input.focus();
         
-        const submitBtn = document.querySelector('#todoModal .modal-content button[onclick="saveTodo()"]');
+        const submitBtn = document.querySelector('.add-todo-btn');
         if (submitBtn) {
-            submitBtn.innerHTML = '💾 儲存';
+            submitBtn.innerHTML = '💾';
             submitBtn.style.background = '#10b981';
-            submitBtn.style.width = '80px';
         }
 
         input.style.borderBottom = '2px solid #3b82f6';
@@ -1081,20 +1345,13 @@ document.addEventListener('DOMContentLoaded', () => {
         `).join('') || '<div style="color: #94a3b8; text-align: center; padding: 20px;">尚無生活記錄 📝</div>';
     };
 
-    // --- 口袋名單功能 (V7.1 完善版) ---
+    // --- 口袋名單功能 (V10.9 完善版) ---
     window.currentPocketFilter = '全部';
     window.selectedPocketCategory = ''; // 預設空白
 
-    const pocketIconMap = {
-        '美食': '🍜', '旅遊': '🚗', '住宿': '🏨', '咖啡': '☕', '購物': '🛍️', '其他': '✨'
-    };
-
     function getPocketIcon(cat) {
-        if (pocketIconMap[cat]) return pocketIconMap[cat];
-        for (const [key, icon] of Object.entries(pocketIconMap)) {
-            if (cat && cat.includes(key)) return icon;
-        }
-        return '✨';
+        // 使用者要求移除所有圖示，回傳空字串
+        return '';
     }
 
     window.resetPocketForm = () => {
@@ -1104,6 +1361,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (nameInput) nameInput.value = '';
         if (locInput) locInput.value = '';
         if (noteInput) noteInput.value = '';
+        document.getElementById('pocket_area').value = '';
+        document.getElementById('detected_area_display').style.display = 'none';
         window.selectCategory(''); // 重置類別
         updateSubmitButtonState();
     };
@@ -1115,8 +1374,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.selectCategory = (cat) => {
         window.selectedPocketCategory = cat;
-        const icon = cat ? getPocketIcon(cat) : '✨';
-        const label = cat ? `${cat}${icon}` : '請選擇';
+        const label = cat ? cat : '請選擇';
         
         const labelSpan = document.getElementById('selected_cat').querySelector('span');
         if (labelSpan) labelSpan.innerText = label;
@@ -1138,12 +1396,17 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.style.pointerEvents = (hasCat && hasName) ? 'auto' : 'none';
     }
 
-    window.addCustomCategory = () => {
-        const newCat = prompt('請輸入新的類別名稱：');
-        if (newCat && newCat.trim()) {
-            window.selectCategory(newCat.trim());
+    window.addCustomCategory = async () => {
+        const result = await window.customCatInput();
+        if (result && result.name) {
+            // 檢查是否已存在
+            if (!window.pocketCategories.find(c => c.name === result.name)) {
+                window.pocketCategories.push({ name: result.name, icon: result.icon });
+                localStorage.setItem('pocketCategories', JSON.stringify(window.pocketCategories));
+            }
+            window.selectCategory(result.name);
+            document.getElementById('cat_options').style.display = 'none';
         }
-        document.getElementById('cat_options').style.display = 'none';
     };
 
     function renderCatOptions(categories) {
@@ -1151,30 +1414,41 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!optionsDiv) return;
         
         const deletedCats = JSON.parse(localStorage.getItem('deletedPocketCats') || '[]');
-        const baseCats = ['美食', '旅遊', '住宿', '咖啡', '購物', '其他'].filter(c => !deletedCats.includes(c));
-        const allCats = [...new Set([...baseCats, ...categories])];
+        const allCats = [...window.pocketCategories].filter(c => !deletedCats.includes(c.name));
+        // 合併資料庫中已有的分類 (以防萬一)
+        const dbCats = [...new Set(categories)].filter(c => !allCats.find(ac => ac.name === c));
+        const finalCats = [...allCats, ...dbCats.map(c => ({ name: c, icon: getPocketIcon(c) }))];
         
-        optionsDiv.innerHTML = allCats.map(cat => `
-            <div style="padding: 12px; font-size: 0.9rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9;" 
-                 onclick="window.selectCategory('${cat}')">
-                <span>${cat}${getPocketIcon(cat)}</span>
-                <span onclick="event.stopPropagation(); window.deleteCategory('${cat}')" style="color: #cbd5e1; font-size: 0.8rem; padding: 5px;">✕</span>
+        optionsDiv.innerHTML = finalCats.map(catObj => `
+            <div class="todo-dropdown-item" onclick="window.selectCategory('${catObj.name}')">
+                <div style="flex: 1; font-weight: 600;">${catObj.name}</div>
+                <div class="cat-delete-btn" onclick="event.stopPropagation(); window.deleteCategory('${catObj.name}')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                </div>
             </div>
         `).join('') + `
-            <div style="padding: 12px; font-size: 0.9rem; color: #3b82f6; font-weight: 700; cursor: pointer; text-align: center; background: #eff6ff;" 
-                 onclick="window.addCustomCategory()">＋新增類別</div>
+            <div class="todo-dropdown-item add-new" onclick="window.addCustomCategory()">
+                <span>＋</span> 新增類別...
+            </div>
         `;
     }
 
     window.deleteCategory = async (cat) => {
-        if (!confirm(`確定要刪除「${cat}」類別以及該類別下的所有項目嗎？`)) return;
+        const confirmed = await window.customConfirm(
+            '確定刪除類別？',
+            `這將刪除「${cat}」類別以及該類別下的所有項目！`,
+            '🗑️'
+        );
+        if (!confirmed) return;
         
-        // 1. 如果是內建類別，記錄到 localStorage 隱藏
-        if (['美食', '旅遊', '住宿', '咖啡', '購物', '其他'].includes(cat)) {
-            let deleted = JSON.parse(localStorage.getItem('deletedPocketCats') || '[]');
-            if (!deleted.includes(cat)) deleted.push(cat);
-            localStorage.setItem('deletedPocketCats', JSON.stringify(deleted));
-        }
+        // 1. 從口袋名單分類清單中移除
+        window.pocketCategories = window.pocketCategories.filter(c => c.name !== cat);
+        localStorage.setItem('pocketCategories', JSON.stringify(window.pocketCategories));
+        
+        // 記錄到隱藏清單
+        let deleted = JSON.parse(localStorage.getItem('deletedPocketCats') || '[]');
+        if (!deleted.includes(cat)) deleted.push(cat);
+        localStorage.setItem('deletedPocketCats', JSON.stringify(deleted));
 
         // 2. 刪除該類別的所有項目
         const res = await fetch('/api/pocket/list');
@@ -1198,6 +1472,23 @@ document.addEventListener('DOMContentLoaded', () => {
         window.loadPocket();
     };
 
+    function parseAddressToArea(place) {
+        if (!place || !place.address_components) return '';
+        let components = place.address_components;
+        let country = '';
+        let city = '';
+        let district = '';
+
+        for (let comp of components) {
+            if (comp.types.includes('country')) country = comp.long_name;
+            if (comp.types.includes('administrative_area_level_1')) city = comp.long_name;
+            if (comp.types.includes('locality') || comp.types.includes('sublocality_level_1')) district = comp.long_name;
+        }
+
+        if (country !== 'Taiwan' && country !== '台灣') return country;
+        return (city + district).replace('台灣', '');
+    }
+
     window.initPocketAutocomplete = () => {
         const nameInput = document.getElementById('pocket_name');
         const locInput = document.getElementById('pocket_location');
@@ -1205,18 +1496,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const autocomplete = new google.maps.places.Autocomplete(nameInput, {
             types: ['establishment', 'geocode'],
-            componentRestrictions: { country: 'tw' }
+            fields: ['name', 'formatted_address', 'address_components', 'geometry']
         });
 
         autocomplete.addListener('place_changed', () => {
             const place = autocomplete.getPlace();
             if (place.name) nameInput.value = place.name;
             if (place.formatted_address) locInput.value = place.formatted_address;
+            
+            const area = parseAddressToArea(place);
+            if (area) {
+                const areaInput = document.getElementById('pocket_area');
+                const areaDisplay = document.getElementById('detected_area_display');
+                const areaVal = document.getElementById('detected_area_val');
+                if (areaInput) areaInput.value = area;
+                if (areaVal) areaVal.innerText = area;
+                if (areaDisplay) areaDisplay.style.display = 'block';
+            }
             updateSubmitButtonState();
         });
         
         nameInput.oninput = updateSubmitButtonState;
     };
+
+    window.currentPocketFilter = '全部';
+    window.currentAreaFilter = '全部';
 
     const originalOpenModal = window.openModal;
     window.openModal = (id) => {
@@ -1229,20 +1533,15 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function renderFilterBar(categories) {
-        const bar = document.getElementById('pocket_filter_bar');
-        if (!bar) return;
+        const select = document.getElementById('pocket_filter_cat');
+        if (!select) return;
+        const currentVal = window.currentPocketFilter;
         const allCats = ['全部', ...new Set(categories)];
-        bar.innerHTML = allCats.map(cat => {
-            const icon = cat === '全部' ? '🌟' : getPocketIcon(cat);
-            return `
-                <button onclick="window.setPocketFilter('${cat}')" 
-                        style="padding: 6px 15px; border-radius: 20px; border: none; font-size: 0.8rem; cursor: pointer; font-weight: 600; transition: all 0.2s; 
-                        background: ${window.currentPocketFilter === cat ? '#3b82f6' : '#f1f5f9'}; 
-                        color: ${window.currentPocketFilter === cat ? 'white' : '#64748b'}; flex-shrink: 0;">
-                    ${icon} ${cat}
-                </button>
-            `;
-        }).join('');
+        select.innerHTML = allCats.map(cat => `
+            <option value="${cat}" ${currentVal === cat ? 'selected' : ''}>
+                ${cat === '全部' ? '類別' : cat}
+            </option>
+        `).join('');
     }
 
     window.setPocketFilter = (cat) => {
@@ -1250,8 +1549,31 @@ document.addEventListener('DOMContentLoaded', () => {
         window.loadPocket();
     };
 
+    function renderAreaFilterBar(areas) {
+        const select = document.getElementById('pocket_filter_area');
+        if (!select) return;
+        const currentVal = window.currentAreaFilter;
+        const allAreas = ['全部', ...new Set(areas)];
+        select.innerHTML = allAreas.map(area => `
+            <option value="${area}" ${currentVal === area ? 'selected' : ''}>
+                ${area === '全部' ? '地區' : area}
+            </option>
+        `).join('');
+    }
+
+    window.setAreaFilter = (area) => {
+        window.currentAreaFilter = area;
+        window.loadPocket();
+    };
+
     window.deletePocketItem = async (id, name) => {
-        if (!confirm(`確定要刪除「${name}」嗎？`)) return;
+        const confirmed = await window.customConfirm(
+            '確定刪除項目？',
+            `您確定要將「${name}」從口袋名單中移除嗎？`,
+            '🗑️'
+        );
+        if (!confirmed) return;
+        
         const res = await fetch('/api/pocket/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1271,55 +1593,67 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.status === 'success') {
                 const rawItems = data.data || [];
-                const categoriesInDB = rawItems.map(i => i.category);
-                renderFilterBar(categoriesInDB);
-                renderCatOptions(categoriesInDB);
+                
+                // 1. 生成篩選列
+                renderFilterBar([...new Set(rawItems.map(i => i.category))]);
+                renderAreaFilterBar([...new Set(rawItems.map(i => i.area).filter(a => a))]);
+                renderCatOptions([...new Set(rawItems.map(i => i.category))]);
 
+                // 2. 多重過濾
                 let items = rawItems;
                 if (window.currentPocketFilter !== '全部') {
-                    items = rawItems.filter(i => i.category === window.currentPocketFilter);
+                    items = items.filter(i => i.category === window.currentPocketFilter);
+                }
+                if (window.currentAreaFilter !== '全部') {
+                    items = items.filter(i => i.area === window.currentAreaFilter);
                 }
                 
-                const priority = { '美食': 1, '旅遊': 2, '住宿': 3, '咖啡': 4, '購物': 5, '其他': 6 };
-                items.sort((a, b) => (priority[a.category] || 99) - (priority[b.category] || 99));
+                // 3. 排序 (依照分類)
+                const priorityMap = { '美食': 1, '旅遊': 2, '住宿': 3, '咖啡': 4, '購物': 5, '其他': 6 };
+                items.sort((a, b) => (priorityMap[a.category] || 99) - (priorityMap[b.category] || 99));
 
                 list.innerHTML = items.map(item => {
                     const mapUrl = getMapUrl(item.location || item.name);
-
                     return `
-                        <div style="background: white; border: 1px solid #f1f5f9; padding: 12px 15px; border-radius: 16px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); display: flex; align-items: center; gap: 12px; animation: fadeIn 0.3s ease;">
-                            <div style="font-size: 1.2rem;">${getPocketIcon(item.category)}</div>
-                            <div style="flex: 1;">
-                                <a href="${mapUrl}" style="display: block; font-size: 0.95rem; font-weight: 800; color: #3b82f6; text-decoration: none; margin-bottom: 2px;">
+                        <div style="background: white; border: 1px solid #f1f5f9; padding: 15px; border-radius: 20px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); animation: fadeIn 0.3s ease;">
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px;">
+                                <span style="font-size: 0.65rem; color: #fff; background: #14b8a6; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${item.category}</span>
+                                ${item.area ? `<span style="font-size: 0.65rem; color: #fff; background: #6366f1; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${item.area}</span>` : ''}
+                                <a href="${mapUrl}" target="_blank" style="flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 800; color: #0f172a; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                     ${item.name}
                                 </a>
-                                ${item.location ? `<div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 2px;">📍 ${item.location}</div>` : ''}
-                                ${item.note ? `<div style="font-size: 0.8rem; color: #64748b; font-style: italic; background: #f8fafc; padding: 5px 8px; border-radius: 6px; display: inline-block;">"${item.note}"</div>` : ''}
+                                <button onclick="window.deletePocketItem('${item.id}', '${item.name.replace(/'/g, "\\'")}')" 
+                                        style="background: none; border: none; color: #cbd5e1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 5px; transition: all 0.2s;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                                </button>
                             </div>
-                            <button onclick="window.deletePocketItem('${item.id}', '${item.name.replace(/'/g, "\\'")}')" 
-                                    style="background: none; border: none; color: #cbd5e1; cursor: pointer; font-size: 1rem; padding: 5px;">✕</button>
+                            <div style="padding-left: 2px;">
+                                ${item.location ? `<div style="font-size: 0.75rem; color: #64748b; display: flex; align-items: center; gap: 4px; margin-bottom: 6px;">
+                                    <span>📍</span>
+                                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.location}</span>
+                                </div>` : ''}
+                                ${item.note ? `<div style="font-size: 0.8rem; color: #64748b; font-style: italic; background: #f8fafc; padding: 6px 10px; border-radius: 8px; display: inline-block; width: 100%;">"${item.note}"</div>` : ''}
+                            </div>
                         </div>
                     `;
-                }).join('') || `<div style="color: #94a3b8; text-align: center; padding: 40px;">"${window.currentPocketFilter}" 中尚無項目 📍</div>`;
+                }).join('') || `<div style="color: #94a3b8; text-align: center; padding: 40px;">尚未有符合篩選的項目</div>`;
             }
         } catch (e) { console.error("載入口袋失敗", e); }
     };
 
     document.getElementById('submitPocket').onclick = async () => {
-        const nameInput = document.getElementById('pocket_name');
-        const locInput = document.getElementById('pocket_location');
-        const noteInput = document.getElementById('pocket_note');
-        const name = nameInput.value.trim();
-        const location = locInput.value.trim();
-        const note = noteInput.value.trim();
+        const name = document.getElementById('pocket_name').value.trim();
+        const location = document.getElementById('pocket_location').value.trim();
+        const area = document.getElementById('pocket_area').value;
+        const note = document.getElementById('pocket_note').value.trim();
         const category = window.selectedPocketCategory;
 
-        if (!name) return alert('請輸入名稱！');
+        if (!name) return;
 
         const res = await fetch('/api/pocket/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, location, note, category })
+            body: JSON.stringify({ name, location, area, note, category })
         });
         if ((await res.json()).status === 'success') {
             window.resetPocketForm();

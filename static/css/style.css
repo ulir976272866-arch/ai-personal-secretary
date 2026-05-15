@@ -857,13 +857,18 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
 
 /* H5 Premium Additions */
 .loading-spinner {
-    font-size: 1.5rem;
-    animation: spin 1s linear infinite;
+    width: 18px;
+    height: 18px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 0.8s linear infinite;
     display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
 }
 
 @keyframes spin {
-    from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
 
@@ -896,13 +901,6 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
 .p-not-important-not-urgent { background: linear-gradient(135deg, #10b981, #047857); box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
 
 /* Priority Selector UI */
-.priority-container {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 15px;
-}
-
 .priority-label {
     font-size: 0.85rem;
     color: var(--text-muted);
@@ -910,17 +908,25 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
     display: flex;
     align-items: center;
     gap: 5px;
+    margin-bottom: 5px;
 }
 
 .priority-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
     gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 5px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.priority-grid::-webkit-scrollbar {
+    display: none;
 }
 
 .priority-opt {
-    padding: 12px 8px;
-    border-radius: 14px;
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    border-radius: 12px;
     border: 2px solid #f1f5f9;
     background: #f8fafc;
     font-size: 0.85rem;
@@ -998,4 +1004,228 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
     transform: scale(0.9);
     background: #f8fafc;
     border-color: #cbd5e1;
+}
+
+/* --- 動態標籤系統 (V10.6) --- */
+.tag-btn {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 2px solid #f1f5f9;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+}
+
+.tag-btn.active {
+    border-color: #3b82f6;
+    background: #eff6ff;
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(59, 130, 246, 0.15);
+}
+
+.tag-btn .remove-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    background: #fecaca;
+    color: #ef4444;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+    opacity: 0;
+    transition: all 0.2s;
+    pointer-events: none;
+}
+
+.tag-btn:active .remove-badge,
+.tag-btn.editing .remove-badge {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.todo-tags-display {
+    display: none; /* V10.6: 移除上方顯示區 */
+}
+
+.category-select-btn {
+    width: 44px;
+    height: 44px;
+    background: #f1f5f9;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.category-select-btn:hover {
+    background: #e2e8f0;
+}
+
+.todo-dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    min-width: 180px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+    border-radius: 16px;
+    padding: 10px;
+    z-index: 1000;
+    border: 1px solid rgba(241, 245, 249, 0.8);
+    margin-top: 8px;
+    animation: dropdownFade 0.25s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.todo-dropdown-content.show {
+    display: block;
+}
+
+.todo-dropdown-item {
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    color: #334155;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+.todo-dropdown-item:hover {
+    background-color: #f1f5f9;
+    transform: translateX(4px);
+}
+
+.cat-delete-btn {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    color: #cbd5e1;
+    transition: all 0.2s;
+    opacity: 0.5;
+}
+
+.cat-delete-btn:hover {
+    background: #fee2e2;
+    color: #ef4444;
+    opacity: 1;
+}
+
+.todo-dropdown-item span {
+    font-size: 1.1rem;
+    width: 24px;
+    text-align: center;
+}
+
+.todo-dropdown-item.add-new {
+    border-top: 1px solid #f1f5f9;
+    margin-top: 6px;
+    padding-top: 14px;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+@keyframes dropdownFade {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.tag-remove {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #94a3b8;
+}
+
+.tag-remove:hover {
+    background: #ef4444;
+    color: white;
+}
+
+@keyframes tagPop {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.custom-tag-input-wrapper {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 2px 10px;
+    align-items: center;
+}
+
+.custom-tag-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 8px 0;
+    font-size: 0.9rem;
+    background: transparent;
+}
+
+.pocket-filter-btn {
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: none;
+    font-size: 0.85rem;
+    cursor: pointer;
+    font-weight: 700;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #f1f5f9;
+    color: #64748b;
+    white-space: nowrap;
+    flex-shrink: 0;
+    border: 1px solid transparent;
+}
+
+.pocket-filter-btn:hover {
+    background: #e2e8f0;
+    color: #334155;
+    transform: translateY(-1px);
+}
+
+.pocket-filter-btn.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    border-color: rgba(255,255,255,0.1);
 }
