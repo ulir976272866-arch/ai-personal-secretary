@@ -617,8 +617,24 @@ document.addEventListener('DOMContentLoaded', () => {
             let locationHtml = '';
             if (event.location) {
                 const isUrl = event.location.startsWith('http');
-                const mapUrl = isUrl ? event.location : `https://maps.google.com/maps?q=${encodeURIComponent(event.location)}`;
-                locationHtml = `<a href="${mapUrl}" target="_blank" class="location-link">📍 ${event.location}</a>`;
+                let mapUrl = event.location;
+                
+                if (!isUrl) {
+                    const encodedLoc = encodeURIComponent(event.location);
+                    const ua = navigator.userAgent;
+                    
+                    if (/iPhone|iPad|iPod/i.test(ua)) {
+                        // iOS 直接喚起 App
+                        mapUrl = `comgooglemaps://?q=${encodedLoc}`;
+                    } else if (/Android/i.test(ua)) {
+                        // Android 直接喚起 App
+                        mapUrl = `geo:0,0?q=${encodedLoc}`;
+                    } else {
+                        // 電腦端維持網頁版
+                        mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodedLoc}`;
+                    }
+                }
+                locationHtml = `<a href="${mapUrl}" class="location-link">📍 ${event.location}</a>`;
             }
 
             listHtml += `
