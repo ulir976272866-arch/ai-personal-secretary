@@ -66,10 +66,10 @@
                 <div style="display: flex; gap: 8px; margin-bottom: 15px; align-items: center; width: 100%;">
                     <div id="todo_category_selector" class="custom-select" style="width: 105px; position: relative; flex-shrink: 0;">
                         <div id="selected_todo_cat" onclick="toggleTodoCategoryDropdown()" style="padding: 10px 8px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.8rem; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 42px; white-space: nowrap; overflow: hidden;">
-                            <span id="current_todo_cat_display" style="overflow: hidden; text-overflow: ellipsis;">📝 任務</span>
+                            <span id="current_todo_cat_display" style="overflow: hidden; text-overflow: ellipsis;">請選擇</span>
                             <small style="color: #94a3b8; font-size: 0.6rem;">▼</small>
                         </div>
-                        <input type="hidden" id="todo_category" value="任務">
+                        <input type="hidden" id="todo_category" value="">
                     </div>
                     <input type="text" id="todo_title" 
                            placeholder="輸入新任務..." 
@@ -92,16 +92,12 @@
                     <input type="hidden" id="todo_priority" value="一般">
                 </div>
 
-                <!-- 任務清單與篩選 (V10.7) -->
-                <div id="todo_filter_bar" style="display: flex; gap: 8px; margin: 15px 0; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch;">
-                    <button onclick="window.loadTodos('全部', event)" class="pocket-filter-btn active">全部</button>
-                    <button onclick="window.loadTodos('任務', event)" class="pocket-filter-btn">任務</button>
-                    <button onclick="window.loadTodos('美食', event)" class="pocket-filter-btn">美食</button>
-                    <button onclick="window.loadTodos('影視', event)" class="pocket-filter-btn">影視</button>
-                    <button onclick="window.loadTodos('學習', event)" class="pocket-filter-btn">學習</button>
-                    <button onclick="window.loadTodos('生活', event)" class="pocket-filter-btn">生活</button>
-                    <button onclick="window.loadTodos('還願', event)" class="pocket-filter-btn">還願</button>
-                    <button onclick="window.loadTodos('旅遊', event)" class="pocket-filter-btn">旅遊</button>
+                <!-- 任務清單與篩選 (V10.9 統一下拉式) -->
+                <div id="todo_filter_area" style="display: flex; gap: 8px; margin: 15px 0; align-items: center;">
+                    <select id="todo_filter_cat" onchange="window.loadTodos(this.value)" 
+                            style="flex: 1; padding: 10px; border-radius: 12px; border: 1.5px solid #f1f5f9; background: #f8fafc; font-size: 0.85rem; font-weight: 600; color: #475569; outline: none; cursor: pointer; appearance: none; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 8px center; background-size: 16px;">
+                        <option value="全部">📝 全部任務</option>
+                    </select>
                 </div>
                 
                 <div id="todo_list" style="max-height: 400px; overflow-y: auto; padding: 5px;">

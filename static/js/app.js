@@ -8,14 +8,22 @@ document.addEventListener('DOMContentLoaded', () => {
     window.editingTodoId = null;
     window.editingMemoId = null;
     window.editingEventId = null;
-    window.currentTodoTags = []; // V10.5: 存儲當前待辦的標籤
+    window.todoCategories = JSON.parse(localStorage.getItem('todoCategories')) || [
+        { name: '任務', icon: '📝' },
+        { name: '影視', icon: '🎬' },
+        { name: '學習', icon: '📖' },
+        { name: '生活', icon: '🏠' },
+        { name: '還願', icon: '✨' },
+        { name: '工作', icon: '💼' }
+    ];
+
     window.pocketCategories = JSON.parse(localStorage.getItem('pocketCategories')) || [
         { name: '美食', icon: '🍜' },
-        { name: '旅遊', icon: '🚗' },
+        { name: '旅遊', icon: '✈️' },
         { name: '住宿', icon: '🏨' },
-        { name: '咖啡', icon: '☕' },
         { name: '購物', icon: '🛍️' },
-        { name: '其他', icon: '📍' }
+        { name: '咖啡', icon: '☕' },
+        { name: '景點', icon: '🎡' }
     ];
 
     // --- 自定義確認彈窗邏輯 ---
@@ -94,14 +102,22 @@ document.addEventListener('DOMContentLoaded', () => {
         '重要': ['🔥', '❗️', '🚨'],
         '心情': ['😊', '🥰', '🌈', '☀️'],
         '交通': ['🚲', '🚇', '🚌', '🚕'],
-        '理財': ['💎', '💵', '📊']
+        '理財': ['💎', '💵', '📊'],
+        '咖啡': ['☕', '🍵', '🥐', '🧁'],
+        '住宿': ['🏨', '🛌', '🏠', '⛺'],
+        '景點': ['🎡', '🎢', '🗼', '⛲', '🏛️'],
+        '醫療': ['🏥', '💊', '🩺', '🚑']
     };
 
     window.suggestEmoji = (text) => {
         const suggestionsDiv = document.getElementById('cat_emoji_suggestions');
-        const previewIcon = document.getElementById('new_cat_preview_icon');
-        const hiddenIcon = document.getElementById('new_cat_icon_hidden');
         if (!suggestionsDiv) return;
+        
+        if (!text.trim()) {
+            suggestionsDiv.innerHTML = '';
+            window.updateCatPreviewIcon('📌');
+            return;
+        }
         
         let found = [];
         for (const [key, icons] of Object.entries(emojiDict)) {
@@ -121,11 +137,11 @@ document.addEventListener('DOMContentLoaded', () => {
             `).join('');
             
             // 自動更新預覽為第一個建議
-            if (uniqueIcons.length > 0) {
-                window.updateCatPreviewIcon(uniqueIcons[0]);
-            }
+            window.updateCatPreviewIcon(uniqueIcons[0]);
         } else {
             suggestionsDiv.innerHTML = '';
+            // 如果沒匹配到，不強制變更，或是重置為預設
+            // window.updateCatPreviewIcon('📌'); 
         }
     };
 
@@ -134,6 +150,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const hiddenIcon = document.getElementById('new_cat_icon_hidden');
         if (previewIcon) previewIcon.innerText = icon;
         if (hiddenIcon) hiddenIcon.value = icon;
+    };
+
+    const getMapUrl = (location) => {
+        const encodedLoc = encodeURIComponent(location).replace(/%20/g, '+');
+        return `https://www.google.com/maps/search/?api=1&query=${encodedLoc}`;
     };
 
     const chatHistory = document.getElementById('chat-history');
@@ -208,6 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(id).classList.add('show');
         if (id === 'wishlistModal') window.loadWishes();
         if (id === 'todoModal') {
+            window.selectTodoCategory('', ''); // V11.0: 預設為請選擇
             window.loadTodos();
             window.renderTodoCatDropdown();
         }
@@ -287,19 +309,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const dropdown = document.getElementById('todo_cat_dropdown');
         
         if (catInput) catInput.value = name;
-        if (displaySpan) displaySpan.innerHTML = `${icon} ${name}`;
+        if (displaySpan) {
+            displaySpan.innerHTML = name ? `${icon} ${name}` : '請選擇';
+        }
         if (dropdown) dropdown.classList.remove('show');
+        updateTodoSubmitButtonState();
     };
+
+    function updateTodoSubmitButtonState() {
+        const btn = document.getElementById('submitTodoBtn');
+        const titleInput = document.getElementById('todo_title');
+        const catInput = document.getElementById('todo_category');
+        if (!btn || !titleInput || !catInput) return;
+        
+        const hasTitle = titleInput.value.trim().length > 0;
+        const hasCat = catInput.value !== '';
+        
+        btn.style.opacity = (hasTitle && hasCat) ? '1' : '0.3';
+        btn.style.pointerEvents = (hasTitle && hasCat) ? 'auto' : 'none';
+    }
 
     window.renderTodoCatDropdown = () => {
         const dropdown = document.getElementById('todo_cat_dropdown');
         if (!dropdown) return;
         
-        dropdown.innerHTML = window.todoCategories.map((cat, idx) => `
+        const deletedCats = JSON.parse(localStorage.getItem('deletedTodoCats') || '[]');
+        const allCats = [...window.todoCategories].filter(c => !deletedCats.includes(c.name));
+        
+        dropdown.innerHTML = allCats.map((cat, idx) => `
             <div class="todo-dropdown-item" onclick="window.selectTodoCategory('${cat.name}', '${cat.icon}')">
                 <span>${cat.icon}</span> 
                 <div style="flex: 1;">${cat.name}</div>
-                <div class="cat-delete-btn" onclick="window.removeTodoCategory(event, ${idx})">
+                <div class="cat-delete-btn" onclick="event.stopPropagation(); window.removeTodoCategory('${cat.name}')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                 </div>
             </div>
@@ -309,31 +350,28 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
     };
-window.removeTodoCategory = async (event, idx) => {
-        if (event) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-        
-        const cat = window.todoCategories[idx];
-        if (cat.name === '任務') {
+    window.removeTodoCategory = async (catName) => {
+        const catObj = window.todoCategories.find(c => c.name === catName) || { name: catName, icon: '📝' };
+        if (catName === '任務') {
             alert('「任務」為預設類別，無法刪除唷！');
             return;
         }
         
-        // 使用自定義彈窗
         const confirmed = await window.customConfirm(
             '確定刪除類別？',
-            `您即將刪除「${cat.icon} ${cat.name}」類別。`,
+            `您即將刪除「${catObj.icon} ${catName}」類別。`,
             '🗑️'
         );
         
         if (confirmed) {
-            window.todoCategories.splice(idx, 1);
-            localStorage.setItem('todoCategories', JSON.stringify(window.todoCategories));
+            // 1. 記錄到隱藏清單
+            let deleted = JSON.parse(localStorage.getItem('deletedTodoCats') || '[]');
+            if (!deleted.includes(catName)) deleted.push(catName);
+            localStorage.setItem('deletedTodoCats', JSON.stringify(deleted));
             
+            // 2. 如果當前選中，則重設
             const currentCat = document.getElementById('todo_category').value;
-            if (currentCat === cat.name) {
+            if (currentCat === catName) {
                 window.selectTodoCategory('任務', '📝');
             }
             
@@ -345,29 +383,32 @@ window.removeTodoCategory = async (event, idx) => {
     window.addNewTodoCategory = async () => {
         const result = await window.customCatInput();
         if (result && result.name) {
-            window.todoCategories.push({ name: result.name, icon: result.icon });
-            localStorage.setItem('todoCategories', JSON.stringify(window.todoCategories));
+            // 檢查是否已存在
+            if (!window.todoCategories.find(c => c.name === result.name)) {
+                window.todoCategories.push({ name: result.name, icon: result.icon || '📌' });
+                localStorage.setItem('todoCategories', JSON.stringify(window.todoCategories));
+            }
+            
+            // 重要：如果曾在刪除名單中，將其移除（復原）
+            let deleted = JSON.parse(localStorage.getItem('deletedTodoCats') || '[]');
+            if (deleted.includes(result.name)) {
+                deleted = deleted.filter(c => c !== result.name);
+                localStorage.setItem('deletedTodoCats', JSON.stringify(deleted));
+            }
+            
             window.renderTodoCatDropdown();
-            window.selectTodoCategory(result.name, result.icon);
-            window.loadTodos(); // 重新整理篩選列
+            window.selectTodoCategory(result.name, result.icon || '📌');
+            window.loadTodos(); 
         }
     };
 
-    // V10.9: 待辦清單按鈕狀態連動
     const todoTitleInput = document.getElementById('todo_title');
-    const submitTodoBtn = document.getElementById('submitTodoBtn');
-    
-    if (todoTitleInput && submitTodoBtn) {
-        todoTitleInput.oninput = () => {
-            const hasVal = todoTitleInput.value.trim().length > 0;
-            submitTodoBtn.style.opacity = hasVal ? '1' : '0.3';
-            submitTodoBtn.style.pointerEvents = hasVal ? 'auto' : 'none';
-        };
+    if (todoTitleInput) {
+        todoTitleInput.oninput = updateTodoSubmitButtonState;
     }
 
-    window.loadTodos = async (filterCategory = '全部', event = null) => {
+    window.loadTodos = async (filterCategory = '全部') => {
         const list = document.getElementById('todo_list');
-        const filterBar = document.getElementById('todo_filter_bar');
         if (!list) return;
 
         // 顯示載入中
@@ -380,30 +421,23 @@ window.removeTodoCategory = async (event, idx) => {
 
             const activeTodos = data.filter(i => i.狀態 === '未完成');
 
-            // --- 動態生成篩選列 (V10.8) ---
-            if (filterBar) {
-                // 找出目前有任務的類別
+            // --- 動態生成篩選列 (V10.9 統一下拉式) ---
+            const filterSelect = document.getElementById('todo_filter_cat');
+            if (filterSelect) {
+                const deletedCats = JSON.parse(localStorage.getItem('deletedTodoCats') || '[]');
+                // 找出目前有任務的類別 + 使用者自定義類別
                 const activeCats = [...new Set(activeTodos.map(i => i.分類 || '任務'))];
-                const allCats = ['全部', ...activeCats];
+                const customCats = window.todoCategories.map(c => c.name).filter(c => !deletedCats.includes(c));
+                const allFilterCats = ['全部', ...new Set([...activeCats, ...customCats])].filter(c => !deletedCats.includes(c) || c === '全部');
                 
-                filterBar.innerHTML = allCats.map(cat => {
-                    let icon = '🌟'; // 全部
+                filterSelect.innerHTML = allFilterCats.map(cat => {
+                    let icon = '🌟';
                     if (cat !== '全部') {
                         const found = window.todoCategories.find(c => c.name === cat);
                         icon = found ? found.icon : '📝';
                     }
-                    return `
-                        <button onclick="window.loadTodos('${cat}', event)" 
-                                class="pocket-filter-btn ${filterCategory === cat ? 'active' : ''}">
-                            ${icon} ${cat}
-                        </button>
-                    `;
+                    return `<option value="${cat}" ${filterCategory === cat ? 'selected' : ''}>${icon} ${cat === '全部' ? '全部任務' : cat}</option>`;
                 }).join('');
-                
-                // 自動滾動到啟動的按鈕 (如果是點選的話)
-                if (event) {
-                    event.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                }
             }
 
             // 過濾與排序
@@ -907,11 +941,6 @@ window.removeTodoCategory = async (event, idx) => {
         }
     };
 
-    const getMapUrl = (location) => {
-        const encodedLoc = encodeURIComponent(location).replace(/%20/g, '+');
-        // 使用 Google 官方 Universal Link 格式，最為穩定且能跨平台喚起 App
-        return `https://www.google.com/maps/search/?api=1&query=${encodedLoc}`;
-    };
 
     function renderScheduleCard(events, dateStr) {
         const card = document.createElement('div');
@@ -1385,18 +1414,17 @@ window.removeTodoCategory = async (event, idx) => {
         options.style.display = options.style.display === 'none' ? 'block' : 'none';
     };
 
-    window.selectCategory = (cat) => {
-        window.selectedPocketCategory = cat;
-        const label = cat ? cat : '請選擇';
+    window.selectCategory = (name, icon) => {
+        window.selectedPocketCategory = name;
+        const iconToUse = icon || '📍';
+        const displayLabel = name ? `${iconToUse} ${name}` : '請選擇';
         
         const labelSpan = document.getElementById('selected_cat').querySelector('span');
-        if (labelSpan) labelSpan.innerText = label;
+        if (labelSpan) {
+            labelSpan.innerHTML = displayLabel;
+        }
         
         document.getElementById('cat_options').style.display = 'none';
-        
-        const clearBtn = document.getElementById('clear_cat');
-        if (clearBtn) clearBtn.style.display = cat ? 'inline-block' : 'none';
-        
         updateSubmitButtonState();
     };
 
@@ -1413,11 +1441,26 @@ window.removeTodoCategory = async (event, idx) => {
         const result = await window.customCatInput();
         if (result && result.name) {
             // 檢查是否已存在
-            if (!window.pocketCategories.find(c => c.name === result.name)) {
-                window.pocketCategories.push({ name: result.name, icon: result.icon });
+            const existing = window.pocketCategories.find(c => c.name === result.name);
+            if (!existing) {
+                window.pocketCategories.push({ name: result.name, icon: result.icon || '📍' });
                 localStorage.setItem('pocketCategories', JSON.stringify(window.pocketCategories));
             }
-            window.selectCategory(result.name);
+            
+            // 重要：如果曾在刪除名單中，將其移除（復原）
+            let deleted = JSON.parse(localStorage.getItem('deletedPocketCats') || '[]');
+            if (deleted.includes(result.name)) {
+                deleted = deleted.filter(c => c !== result.name);
+                localStorage.setItem('deletedPocketCats', JSON.stringify(deleted));
+            }
+            
+            // 重新渲染選單 (V10.9 修復正確路徑)
+            const response = await fetch('/api/pocket/list');
+            const data = await response.json();
+            const dbCategories = [...new Set((data.data || []).map(item => item.category))];
+            renderCatOptions(dbCategories);
+            
+            window.selectCategory(result.name, result.icon || '📍');
             document.getElementById('cat_options').style.display = 'none';
         }
     };
@@ -1428,12 +1471,14 @@ window.removeTodoCategory = async (event, idx) => {
         
         const deletedCats = JSON.parse(localStorage.getItem('deletedPocketCats') || '[]');
         const allCats = [...window.pocketCategories].filter(c => !deletedCats.includes(c.name));
-        // 合併資料庫中已有的分類 (以防萬一)
+        
+        // 合併資料庫中已有的分類
         const dbCats = [...new Set(categories)].filter(c => !allCats.find(ac => ac.name === c));
-        const finalCats = [...allCats, ...dbCats.map(c => ({ name: c, icon: getPocketIcon(c) }))];
+        const finalCats = [...allCats, ...dbCats.map(c => ({ name: c, icon: '📍' }))];
         
         optionsDiv.innerHTML = finalCats.map(catObj => `
-            <div class="todo-dropdown-item" onclick="window.selectCategory('${catObj.name}')">
+            <div class="todo-dropdown-item" onclick="window.selectCategory('${catObj.name}', '${catObj.icon}')">
+                <span style="margin-right: 8px;">${catObj.icon}</span>
                 <div style="flex: 1; font-weight: 600;">${catObj.name}</div>
                 <div class="cat-delete-btn" onclick="event.stopPropagation(); window.deleteCategory('${catObj.name}')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
@@ -1446,43 +1491,34 @@ window.removeTodoCategory = async (event, idx) => {
         `;
     }
 
-    window.deleteCategory = async (cat) => {
+    window.deleteCategory = async (catName) => {
+        const catObj = window.pocketCategories.find(c => c.name === catName) || { name: catName, icon: '📍' };
         const confirmed = await window.customConfirm(
             '確定刪除類別？',
-            `這將刪除「${cat}」類別以及該類別下的所有項目！`,
+            `您即將刪除「${catObj.icon} ${catName}」類別。`,
             '🗑️'
         );
         if (!confirmed) return;
         
         // 1. 從口袋名單分類清單中移除
-        window.pocketCategories = window.pocketCategories.filter(c => c.name !== cat);
+        window.pocketCategories = window.pocketCategories.filter(c => c.name !== catName);
         localStorage.setItem('pocketCategories', JSON.stringify(window.pocketCategories));
         
-        // 記錄到隱藏清單
+        // 2. 記錄到隱藏清單
         let deleted = JSON.parse(localStorage.getItem('deletedPocketCats') || '[]');
-        if (!deleted.includes(cat)) deleted.push(cat);
+        if (!deleted.includes(catName)) deleted.push(catName);
         localStorage.setItem('deletedPocketCats', JSON.stringify(deleted));
 
-        // 2. 刪除該類別的所有項目
-        const res = await fetch('/api/pocket/list');
-        const data = await res.json();
-        const items = data.data || [];
-        const itemsToDelete = items.filter(i => i.category === cat);
-        
-        for (const item of itemsToDelete) {
-            await fetch('/api/pocket/delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: item.id })
-            });
+        // 3. 重設選取狀態
+        if (window.selectedPocketCategory === catName) {
+            window.selectCategory('', '📍');
         }
 
-        // 3. 重置選中的類別
-        if (window.selectedPocketCategory === cat) {
-            window.selectCategory('');
-        }
-        
-        window.loadPocket();
+        // 4. 重新渲染選單 (V10.9 修復正確路徑)
+        const response = await fetch('/api/pocket/list');
+        const data = await response.json();
+        const dbCategories = [...new Set((data.data || []).map(item => item.category))];
+        renderCatOptions(dbCategories);
     };
 
     function parseAddressToArea(place) {
