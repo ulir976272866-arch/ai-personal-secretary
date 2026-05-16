@@ -6,7 +6,7 @@
     <title>AI 行事曆助理</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#6366f1">
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css?v=1.8">
     <link rel="apple-touch-icon" href="/static/icons/icon.png">
     <link rel="icon" type="image/png" href="/static/icons/icon.png">
     <!-- Google Fonts -->
@@ -72,6 +72,8 @@
     <div class="input-area">
         <div class="input-container">
             <button id="voiceBtn" class="voice-btn">🎤</button>
+            <button id="chatCameraBtn" class="voice-btn" onclick="document.getElementById('chat_camera_input').click()" style="margin-left: 5px;">📷</button>
+            <input type="file" id="chat_camera_input" accept="image/*" capture="environment" style="display: none;" onchange="handleChatImage(this)">
             <input type="text" id="userInput" placeholder="輸入行程或指令..." autocomplete="off">
             <button id="sendBtn" class="send-btn">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -276,22 +278,23 @@
                 <h2 class="modal-title">🎁 願望清單</h2>
                 <button class="close-modal" onclick="closeModal('wishlistModal')">✕</button>
             </div>
-            <div class="modal-body">
-                <div style="background: #fff5f5; padding: 15px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(255, 245, 245, 0.5); border: 1px solid #fee2e2;">
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                        <input type="text" id="wish_name" class="form-input" placeholder="您想要什麼？" style="flex: 2; margin-bottom: 0;">
-                        <input type="number" id="wish_price" class="form-input" placeholder="價格" style="flex: 1.2; margin-bottom: 0;">
-                        <button onclick="saveWish()" style="background: #f97316; color: white; border: none; width: 45px; height: 45px; border-radius: 14px; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3);">＋</button>
+            <div class="wish-input-section" style="background: #fff5f5; padding: 15px 20px; border-bottom: 1px solid #fee2e2; flex-shrink: 0;">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <input type="text" id="wish_name" class="form-input" placeholder="您想要什麼？" style="flex: 2; margin-bottom: 0;">
+                    <input type="number" id="wish_price" class="form-input" placeholder="價格" style="flex: 1.2; margin-bottom: 0;">
+                    <button onclick="saveWish()" style="background: #f97316; color: white; border: none; width: 45px; height: 45px; border-radius: 14px; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3);">＋</button>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                    <div class="wish-tags" style="display: flex; gap: 6px; flex-wrap: wrap; flex: 1;">
+                        <span class="wish-tag active purple" onclick="selectWishTag(this, '必買')" style="white-space: nowrap; font-size: 0.85rem; padding: 6px 10px;">💎 必買</span>
+                        <span class="wish-tag green" onclick="selectWishTag(this, '可買')" style="white-space: nowrap; font-size: 0.85rem; padding: 6px 10px;">✅ 可買</span>
+                        <span class="wish-tag yellow" onclick="selectWishTag(this, '可不買')" style="white-space: nowrap; font-size: 0.85rem; padding: 6px 10px;">🤔 可不買</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; gap: 10px;">
-                        <div class="wish-tags" style="display: flex; gap: 6px; flex-wrap: wrap; flex: 1;">
-                            <span class="wish-tag active purple" onclick="selectWishTag(this, '必買')" style="white-space: nowrap; font-size: 0.85rem; padding: 6px 10px;">💎 必買</span>
-                            <span class="wish-tag green" onclick="selectWishTag(this, '可買')" style="white-space: nowrap; font-size: 0.85rem; padding: 6px 10px;">✅ 可買</span>
-                            <span class="wish-tag yellow" onclick="selectWishTag(this, '可不買')" style="white-space: nowrap; font-size: 0.85rem; padding: 6px 10px;">🤔 可不買</span>
-                        </div>
-                        <div id="wish_summary" style="font-size: 0.78rem; color: #f97316; font-weight: 800; line-height: 1.2; text-align: right; flex-shrink: 0; min-width: 75px;"></div>
-                    </div>
-                    <input type="hidden" id="wish_category" value="必買">
+                    <div id="wish_summary" style="font-size: 0.78rem; color: #f97316; font-weight: 800; line-height: 1.2; text-align: right; flex-shrink: 0; min-width: 75px;"></div>
+                </div>
+            </div>
+            <div class="modal-body" style="padding: 15px 20px 25px;">
+                <input type="hidden" id="wish_category" value="必買">
                     <input type="hidden" id="wish_note" value="">
                     <div id="wish_list">
                         <div style="text-align: center; padding: 30px; color: #94a3b8;">
@@ -316,9 +319,20 @@
                 <button class="close-modal" onclick="closeModal('expenseModal')">✕</button>
             </div>
             <div class="modal-body">
+                <!-- 收支切換器 (V18.0 Premium Toggle) -->
+                <div class="expense-type-toggle" style="display: flex; background: #f1f5f9; padding: 4px; border-radius: 14px; margin-bottom: 20px; gap: 4px;">
+                    <button type="button" id="type_expense" onclick="setExpenseType('expense')" class="type-btn active" style="flex: 1; padding: 10px; border: none; border-radius: 11px; font-weight: 800; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 6px; background: white; color: #ef4444; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        💸 支出
+                    </button>
+                    <button type="button" id="type_income" onclick="setExpenseType('income')" class="type-btn" style="flex: 1; padding: 10px; border: none; border-radius: 11px; font-weight: 800; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 6px; background: transparent; color: #64748b;">
+                        💰 收入
+                    </button>
+                </div>
+                <input type="hidden" id="expense_type" value="expense">
+
                 <div style="display: flex; gap: 12px; margin-bottom: 15px;">
                     <div class="form-group" style="flex: 1.5; margin-bottom: 0;">
-                        <label>消費項目</label>
+                        <label id="item_label">支出項目</label>
                         <input type="text" id="expense_item" class="form-input" placeholder="消費了什麼？" style="margin-bottom: 0;">
                     </div>
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
@@ -384,7 +398,7 @@
                         <button class="calc-btn equal" onclick="calculateResult()">=</button>
                     </div>
                 </div>
-                <button id="submitExpense" class="submit-btn btn-expense">確認記帳</button>
+                <button id="submitExpense" class="submit-btn btn-expense">確認支出記帳 💸</button>
             </div>
             <div class="modal-footer">
                 <button onclick="window.open('https://docs.google.com/spreadsheets/d/1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg', '_blank')" class="sheet-link-btn">
@@ -501,6 +515,16 @@
                 <button id="confirm_delete_expense_btn" style="flex: 1.2; padding: 12px; border-radius: 14px; border: none; background: #ef4444; color: white; font-weight: 700; font-size: 0.9rem; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);">確定刪除</button>
             </div>
         </div>
+    </div>
+
+    <!-- 掃描儀全螢幕特效 (V23.1) -->
+    <div id="scanOverlay" class="scan-overlay">
+        <div class="scan-container">
+            <div class="scan-laser"></div>
+            <img id="scanPreview" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.5;">
+        </div>
+        <div class="scan-text">SCANNING...</div>
+        <p style="margin-top: 10px; font-size: 0.8rem; color: rgba(255,255,255,0.6);">正在搜尋 NT$ 金額</p>
     </div>
     <script src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&libraries=places&callback=initMap" async defer></script>
     <script src="/static/js/app.js"></script>

@@ -3,6 +3,7 @@ import json
 import uuid
 import requests
 from datetime import datetime, time, timedelta, timezone
+from PIL import Image
 
 # 定義台灣時區 (UTC+8)
 TW_TZ = timezone(timedelta(hours=8))
@@ -94,6 +95,10 @@ def find_row_by_id(rows, target_id, id_col_idx):
 # 2. 初始化 Gemini API (透過 requests 直接呼叫，避免舊版 SDK 問題)
 # -----------------------------------------------------------------
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY, transport='rest')
+else:
+    print("Warning: GEMINI_API_KEY not found in environment.")
 
 # 試算表 ID (從 .env 取得)
 SPREADSHEET_ID = os.getenv("GOOGLE_SHEET_ID")
@@ -197,6 +202,8 @@ def check_conflicts(service, start_time, end_time, exclude_id=None):
         print(f"Conflict Check Error: {e}")
         return None
 
+
+
 @app.route('/api/morning_briefing', methods=['POST'])
 def morning_briefing():
     """生成每日早晨簡報"""
@@ -219,96 +226,56 @@ def index():
 @app.route('/chat', methods=['POST'])
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    """處理前端送來的對話訊息"""
-    data = request.json
-    user_text = data.get('text', '')
+    """處理前端送來的對話訊息 (支援文字與圖片)"""
+    user_text = ""
+    image_file = None
     
-    if not user_text:
-        return jsonify({"status": "error", "message": "請輸入內容"}), 400
+    if request.is_json:
+        data = request.json
+        user_text = data.get('text', '')
+    else:
+        user_text = request.form.get('text', '')
+        if 'image' in request.files:
+            image_file = request.files['image']
+    
+    if not user_text and not image_file:
+        return jsonify({"status": "error", "message": "請輸入內容或傳送圖片"}), 400
 
     if not GEMINI_API_KEY:
-        return jsonify({
-            "status": "error", 
-            "message": "系統尚未設定 GEMINI_API_KEY，請先在 .env 中填寫您的 API Key。"
-        }), 400
+        return jsonify({"status": "error", "message": "尚未設定 API Key"}), 400
 
     if not creds:
-        return jsonify({
-            "status": "error", 
-            "message": "系統找不到 service_account.json，請確認檔案存在。"
-        }), 400
+        return jsonify({"status": "error", "message": "找不到 service_account.json"}), 400
 
     now = datetime.now(TW_TZ)
-
     bypass_data = None
-    if user_text == "今日行程":
-        bypass_data = {"type": "query_schedule", "days": 1}
-    elif user_text == "這週行程":
-        bypass_data = {"type": "query_schedule", "days": 7}
-    elif user_text == "本月合計":
-        bypass_data = {"type": "query_expense_report"}
-    elif user_text == "開啟記帳表單":
-        bypass_data = {"type": "open_spreadsheet"}
-    elif user_text.startswith("+行程"):
-        # 格式：+行程 標題, 時間, 地點
-        # 範例：+行程 開會, 2026-05-14 14:00, 台北車站
-        try:
-            parts = user_text[3:].strip().split(',')
-            if len(parts) >= 3:
-                title = parts[0].strip()
-                time_str = parts[1].strip()
-                location = parts[2].strip()
-                
-                # 簡單處理時間格式，如果沒年份就補上今年
-                if len(time_str) <= 11: # MM-DD HH:MM
-                    time_str = f"{now.year}-{time_str}"
-                
-                # 轉換為 ISO 格式 (假設輸入是 YYYY-MM-DD HH:MM)
-                try:
+    
+    if not image_file:
+        if user_text == "今日行程":
+            bypass_data = {"type": "query_schedule", "days": 1}
+        elif user_text == "這週行程":
+            bypass_data = {"type": "query_schedule", "days": 7}
+        elif user_text == "本月合計":
+            bypass_data = {"type": "query_expense_report"}
+        elif user_text == "開啟記帳表單":
+            bypass_data = {"type": "open_spreadsheet"}
+        elif user_text.startswith("+行程"):
+            try:
+                parts = user_text[3:].strip().split(',')
+                if len(parts) >= 3:
+                    title, time_str, location = [p.strip() for p in parts[:3]]
+                    if len(time_str) <= 11: time_str = f"{now.year}-{time_str}"
                     dt = datetime.strptime(time_str.replace('/', '-'), '%Y-%m-%d %H:%M')
-                    iso_start = dt.isoformat()
-                    iso_end = (dt + timedelta(hours=1)).isoformat()
-                    
                     bypass_data = {
-                        "type": "calendar",
-                        "title": title,
-                        "start_time": iso_start,
-                        "end_time": iso_end,
-                        "location": location
+                        "type": "calendar", "title": title, "location": location,
+                        "start_time": dt.isoformat(), "end_time": (dt + timedelta(hours=1)).isoformat()
                     }
-                except:
-                    return jsonify({"status": "error", "message": "時間格式錯誤！請使用：YYYY-MM-DD HH:MM"})
-            else:
-                return jsonify({"status": "error", "message": "格式不對喔！請輸入：+行程 標題, 時間, 地點"})
-        except Exception as e:
-            return jsonify({"status": "error", "message": f"手動輸入解析失敗：{str(e)}"})
-    elif user_text.startswith("+記帳"):
-        # 格式：+記帳 項目, 金額, 分類
-        # 範例：+記帳 晚餐, 150, 食
-        try:
-            parts = user_text[3:].strip().split(',')
-            if len(parts) >= 3:
-                item = parts[0].strip()
-                amount = parts[1].strip()
-                category = parts[2].strip()
-                
-                bypass_data = {
-                    "type": "expense",
-                    "item": item,
-                    "amount": int(amount),
-                    "category": category
-                }
-            else:
-                return jsonify({"status": "error", "message": "格式不對喔！請輸入：+記帳 項目, 金額, 分類"})
-        except Exception as e:
-            return jsonify({"status": "error", "message": f"手動記帳解析失敗：{str(e)}"})
-        
+            except: pass
+
     if bypass_data:
         parsed_data = bypass_data
-        intent_type = parsed_data.get('type')
     else:
-        # --- 動態獲取現有記帳分類 ---
-        expense_categories = ["食", "衣", "住", "行", "育", "樂", "醫", "投資", "公益"] # 預設基本款
+        expense_categories = ["食", "衣", "住", "行", "育", "樂", "醫", "投資", "公益"]
         try:
             service_sheets = build('sheets', 'v4', credentials=creds)
             rows_result = service_sheets.spreadsheets().values().get(
@@ -316,226 +283,97 @@ def chat():
             ).execute()
             existing_cats = set([row[0] for row in rows_result.get('values', [])[1:] if row])
             for ec in existing_cats:
-                if ec not in expense_categories:
-                    expense_categories.append(ec)
-        except:
-            pass
+                if ec not in expense_categories: expense_categories.append(ec)
+        except: pass
         cat_list_str = "、".join(expense_categories)
 
         prompt = f"""
-        你是一個專屬秘書，現在的時間是 {now.strftime('%Y-%m-%d %H:%M:%S')} (星期{now.weekday() + 1})。
-        使用者輸入了一句話，請判斷這是「行事曆行程」還是「記帳花費」，並將萃取出的資訊以 JSON 格式回傳。
+        你是一個精明的數位秘書，現在時間是 {now.strftime('%Y-%m-%d %H:%M:%S')}。
         
-        【重要行事曆規則】：使用者如果要新增行事曆，必須同時明確提供「日期」、「時間」與「地點(或提及線上)」。
-        如果這三個條件有任何一個遺漏，請「不要」回傳 type: "calendar"，而是改為回傳 type: "chat"，並在 "message" 中以親切的語氣詢問使用者缺少的資訊。
-
-        如果資訊完全齊全（包含日期、時間、地點），才能回傳行事曆格式：
-        {{
-            "type": "calendar",
-            "title": "行程名稱",
-            "start_time": "YYYY-MM-DDTHH:MM:SS",
-            "end_time": "YYYY-MM-DDTHH:MM:SS",
-            "location": "地點"
-        }}
+        【視覺掃描規則】：
+        - 如果是收據：優先尋找「NT$」後的金額。
+        - 如果是行程：提取標題、時間與地點。
         
-        如果是記帳，請依照以下分類歸類 ({cat_list_str})，並回傳：
-        {{
-            "type": "expense",
-            "item": "消費項目",
-            "amount": 數值 (整數),
-            "category": "分類名稱"
-        }}
+        【意圖判斷】：
+        - 記帳：type: "expense" (item, amount, category: {cat_list_str}, expense_type: "income" 或 "expense")
+        - 行事曆：type: "calendar" (title, start_time, location)
+        - 其他：chat, query_schedule, query_expense_report
         
-        如果是想要查詢今天或特定天數的行程 (例如「這週行程」、「明後天行程」)，請回傳：
-        {{
-            "type": "query_schedule",
-            "days": 天數 (整數，例如這週回傳 7，明天回傳 2)
-        }}
-
-        如果是想要查詢本月的記帳合計或報告 (例如「本月合計」)，請回傳：
-        {{
-            "type": "query_expense_report"
-        }}
-
-        如果是想要刪除最後一筆記帳資料 (例如「刪除上一筆」或「刪除最後一筆」)，請回傳：
-        {{
-            "type": "delete_last_expense"
-        }}
-
-        如果是想要開啟記帳本、打開表單 (例如「開啟記帳表單」、「打開表單」)，請回傳：
-        {{
-            "type": "open_spreadsheet"
-        }}
+        【特別規則】：如果是領錢、薪水、進帳、退款、中獎等屬於「收入」，請將 expense_type 設為 "income"。
         
-        如果都不是，或者是普通的聊天，請回傳：
-        {{
-            "type": "chat",
-            "reply": "你對使用者的聊天回覆"
-        }}
-
-        請只回傳合法的 JSON 字串，不要有其他 markdown 標籤或文字。
-        使用者輸入：「{user_text}」
+        請回傳 JSON。
         """
 
         try:
-            # 使用帳號清單中確認存在的 gemini-flash-latest
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={GEMINI_API_KEY}"
+            model = genai.GenerativeModel('gemini-3.1-flash-lite')
+            contents = [prompt]
+            if user_text: contents.append(f"使用者：{user_text}")
+            if image_file: contents.append(Image.open(image_file))
             
-            payload = {
-                "contents": [{
-                    "parts": [{"text": f"現在日期時間是 {now.strftime('%Y-%m-%d %H:%M:%S')}。請根據以下指令回傳 JSON：\n{prompt}\n指令：{user_text}"}]
-                }]
-            }
+            response = model.generate_content(contents)
+            text = response.text.replace('```json', '').replace('```', '').strip()
             
-            response = requests.post(url, json=payload, timeout=15)
-            res_data = response.json()
-            
-            if response.status_code != 200:
-                error_info = res_data.get('error', {}).get('message', '未知錯誤')
-                print(f"Gemini API Error (HTTP {response.status_code}): {res_data}")
-                return jsonify({"status": "error", "message": f"Gemini API 報錯 ({response.status_code}): {error_info}"})
-            
-            if 'candidates' not in res_data:
-                print("Gemini API missing candidates:", res_data)
-                return jsonify({"status": "error", "message": f"Gemini API 未回傳有效內容: {json.dumps(res_data)}"})
-                
-            response_text = res_data['candidates'][0]['content']['parts'][0]['text'].strip()
-            
-            # 移除可能存在的 markdown json 標記
-            if response_text.startswith("```json"):
-                response_text = response_text[7:]
-            if response_text.endswith("```"):
-                response_text = response_text[:-3]
-            
-            parsed_data = json.loads(response_text)
-            intent_type = parsed_data.get('type')
+            data = json.loads(text)
+            parsed_data = data[0] if isinstance(data, list) and len(data) > 0 else data
         except Exception as e:
-            print(f"Gemini 解析錯誤: {e}")
-            return jsonify({"status": "error", "message": "抱歉，我不太懂您的意思，可以換個說法嗎？"})
+            print(f"Gemini AI Error: {e}")
+            return jsonify({"status": "error", "message": "AI 處理失敗，請稍後再試。"})
 
-    # -----------------------------------------------------------------
-    # 步驟 B: 根據意圖執行動作
-    # -----------------------------------------------------------------
     intent_type = parsed_data.get("type")
-
     try:
         if intent_type == "calendar":
-            # 呼叫 Google Calendar API 新增行程
             service = build('calendar', 'v3', credentials=creds)
             event = {
                 'summary': parsed_data.get('title'),
                 'location': parsed_data.get('location', ''),
-                'start': {
-                    'dateTime': parsed_data.get('start_time'),
-                    'timeZone': 'Asia/Taipei',
-                },
-                'end': {
-                    'dateTime': parsed_data.get('end_time'),
-                    'timeZone': 'Asia/Taipei',
-                },
+                'start': {'dateTime': parsed_data.get('start_time'), 'timeZone': 'Asia/Taipei'},
+                'end': {'dateTime': parsed_data.get('end_time') or (datetime.fromisoformat(parsed_data.get('start_time')) + timedelta(hours=1)).isoformat(), 'timeZone': 'Asia/Taipei'},
             }
-            # 檢查衝突
-            conflict_msg = check_conflicts(service, parsed_data.get('start_time'), parsed_data.get('end_time'))
-            if conflict_msg:
-                return jsonify({
-                    "status": "error",
-                    "message": conflict_msg + "\n\n❌ 為了維持日曆整潔，已攔截此重複行程。"
-                })
-            
-            created_event = service.events().insert(calendarId=CALENDAR_ID, body=event).execute()
-            
-            return jsonify({
-                "status": "success",
-                "type": "calendar",
-                "message": f"✅ 已幫您將「{parsed_data.get('title')}」加入日曆！"
-            })
+            conflict_msg = check_conflicts(service, event['start']['dateTime'], event['end']['dateTime'])
+            if conflict_msg: return jsonify({"status": "error", "message": conflict_msg})
+            service.events().insert(calendarId=CALENDAR_ID, body=event).execute()
+            return jsonify({"status": "success", "type": "calendar", "message": f"✅ 已排入日曆：{parsed_data.get('title')}"})
 
         elif intent_type == "expense":
-            # 呼叫 Google Sheets API 新增記帳紀錄
-            if not SPREADSHEET_ID:
-                return jsonify({"status": "error", "message": "尚未設定 GOOGLE_SHEET_ID"})
-                
             service = build('sheets', 'v4', credentials=creds)
-            
-            # A:Year, B:Month, C:Date, D:IncomeItem, E:ExpenseItem, F:Amount, G:Category
-            values = [
-                [
-                    now.strftime('%Y'), 
-                    f"'{now.strftime('%m')}", 
-                    now.strftime('%Y/%m/%d'), 
-                    "", # 收入項目留空
-                    parsed_data.get('item'), 
-                    parsed_data.get('amount'), 
-                    parsed_data.get('category')
-                ]
-            ]
-            body = {'values': values}
-            
-            range_name = '記帳!A:G'
-            
-            result = service.spreadsheets().values().append(
-                spreadsheetId=SPREADSHEET_ID,
-                range=range_name,
-                valueInputOption='USER_ENTERED',
-                body=body
-            ).execute()
+            # 欄位順序：年度(A), 月份(B), 日期(C), 收入(D), 支出(E), 金額(F), 類別(G)
+            is_income = parsed_data.get('expense_type') == 'income'
+            body = {'values': [[
+                str(now.year), 
+                f"'{now.month:02d}", 
+                now.strftime("%Y/%m/%d"), 
+                parsed_data.get('item') if is_income else "", 
+                "" if is_income else parsed_data.get('item'), 
+                parsed_data.get('amount'), 
+                parsed_data.get('category')
+            ]]}
+            service.spreadsheets().values().append(spreadsheetId=SPREADSHEET_ID, range='記帳!A:G', valueInputOption='USER_ENTERED', body=body).execute()
+            _, cat_report, cat_dict, _ = get_monthly_report(service, now)
+            emoji = "💰" if is_income else "💸"
+            label = "收入" if is_income else "支出"
+            return jsonify({"status": "success", "type": "expense", "message": f"{emoji} 已記{label}：{parsed_data.get('item')} ${parsed_data.get('amount')}\n\n{cat_report}", "chart_data": cat_dict})
 
-            # 呼叫小助手計算本月總額
-            monthly_total, cat_report, cat_dict, monthly_income = get_monthly_report(service, now)
-
-            return jsonify({
-                "status": "success",
-                "type": "expense",
-                "message": f"💰 已幫您記帳：{parsed_data.get('item')} ${parsed_data.get('amount')} (分類: {parsed_data.get('category')})\n\n{cat_report}",
-                "chart_data": cat_dict
-            })
+        elif intent_type == "query_schedule":
+            return get_schedule_response(parsed_data.get("days", 1))
 
         elif intent_type == "query_expense_report":
-            if not SPREADSHEET_ID:
-                return jsonify({"status": "error", "message": "尚未設定 GOOGLE_SHEET_ID"})
             service = build('sheets', 'v4', credentials=creds)
-            
-            # 呼叫小助手計算本月總額
-            monthly_total, cat_report, cat_dict, monthly_income = get_monthly_report(service, now)
-
-            return jsonify({
-                "status": "success",
-                "type": "expense_report",
-                "message": f"📊 本月收支結算報告：\n\n{cat_report}",
-                "chart_data": cat_dict
-            })
+            _, cat_report, cat_dict, _ = get_monthly_report(service, now)
+            return jsonify({"status": "success", "type": "expense_report", "message": f"📊 本月結算：\n\n{cat_report}", "chart_data": cat_dict})
 
         elif intent_type == "delete_last_expense":
-            if not SPREADSHEET_ID:
-                return jsonify({"status": "error", "message": "尚未設定 GOOGLE_SHEET_ID"})
             service = build('sheets', 'v4', credentials=creds)
-            
-            result = service.spreadsheets().values().get(
-                spreadsheetId=SPREADSHEET_ID, range='記帳!A:F'
-            ).execute()
-            rows = result.get('values', [])
+            res = service.spreadsheets().values().get(spreadsheetId=SPREADSHEET_ID, range='記帳!A:F').execute()
+            rows = res.get('values', [])
             last_row_index = len(rows)
-            
             if last_row_index > 1:
                 deleted_data = rows[-1]
-                clear_range = f'記帳!A{last_row_index}:F{last_row_index}'
-                service.spreadsheets().values().clear(
-                    spreadsheetId=SPREADSHEET_ID, range=clear_range
-                ).execute()
-                
+                service.spreadsheets().values().clear(spreadsheetId=SPREADSHEET_ID, range=f'記帳!A{last_row_index}:F{last_row_index}').execute()
                 item = deleted_data[3] if len(deleted_data) > 3 else "未知"
                 amt = deleted_data[4] if len(deleted_data) > 4 else "0"
-                return jsonify({
-                    "status": "success",
-                    "type": "chat",
-                    "message": f"🗑️ 已刪除最後一筆資料：\n「{item} ${amt}」"
-                })
+                return jsonify({"status": "success", "type": "chat", "message": f"🗑️ 已刪除最後一筆資料：\n「{item} ${amt}」"})
             else:
-                return jsonify({
-                    "status": "success",
-                    "type": "chat",
-                    "message": "⚠️ 表單是空的，沒有資料可以刪除喔！"
-                })
+                return jsonify({"status": "success", "type": "chat", "message": "⚠️ 表單是空的，沒有資料可以刪除。"})
 
         elif intent_type == "open_spreadsheet":
             if not SPREADSHEET_ID:
@@ -547,11 +385,6 @@ def chat():
                 "url": link,
                 "message": f"已為您準備好記帳本連結：\n<a href='{link}' target='_blank' class='chat-link'>點此開啟記帳本</a>"
             })
-
-        elif intent_type == "query_schedule":
-            # 取得查詢天數，預設為 1 天 (今天)
-            days = parsed_data.get("days", 1)
-            return get_schedule_response(days)
 
         elif intent_type == "chat":
             return jsonify({
@@ -768,12 +601,13 @@ def manual_action():
                 
             service = build('sheets', 'v4', credentials=creds)
             # A:Year, B:Month, C:Date, D:IncomeItem, E:ExpenseItem, F:Amount, G:Category
+            is_income = data.get('expense_type') == 'income'
             values = [[
                 now.strftime('%Y'), 
                 f"'{now.strftime('%m')}", 
                 now.strftime('%Y/%m/%d'), 
-                "", # 收入項目留空
-                data.get('item'), 
+                data.get('item') if is_income else "", # 收入項目
+                "" if is_income else data.get('item'), # 支出項目
                 data.get('amount'), 
                 data.get('category')
             ]]

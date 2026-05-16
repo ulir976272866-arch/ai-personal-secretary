@@ -16,8 +16,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     updateDynamicDateIcons();
 
-    // --- 記帳分類管理核心 (V17.6 軍規同步版) ---
-    window.expenseCategories = [];
+    window.expenseCategories = ["食", "衣", "住", "行", "育", "樂", "醫", "投資", "公益"];
+    window.incomeCategories = ["薪資", "獎金", "投資獲利", "投資", "退款", "其他進帳"];
+
+    // --- 分類選單核心邏輯 (V23.0 完美修復版) ---
+    window.updateExpenseCategoryDropdown = (mode = 'expense') => {
+        const select = document.getElementById('manual_expense_category');
+        if (!select) return;
+
+        select.innerHTML = '';
+
+        const deletedCats = JSON.parse(localStorage.getItem('deletedExpenseCats') || '[]');
+        const customCats = (window.customExpenseCategories || []).filter(c => !deletedCats.includes(c));
+        
+        const incomeMap = { "薪資": "💰", "獎金": "🧧", "投資獲利": "💹", "投資": "📈", "退款": "🔙", "其他進帳": "🪙" };
+        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "投資": "📈", "公益": "💖" };
+
+        let finalCategories = [];
+        if (mode === 'income') {
+            finalCategories = window.incomeCategories.map(cat => ({ name: cat, icon: incomeMap[cat] || "💰" }));
+        } else {
+            // 支出模式：預設 + 自訂
+            const baseCats = window.expenseCategories.map(cat => ({ name: cat, icon: expenseMap[cat] || "💸" }));
+            const extraCats = customCats.map(cat => ({ name: cat, icon: "📝" }));
+            finalCategories = [...baseCats, ...extraCats];
+        }
+
+        select.innerHTML = finalCategories.map(item => 
+            `<option value="${item.name}">${item.icon} ${item.name}</option>`
+        ).join('');
+        
+        if (mode === 'income') select.value = '薪資';
+    };
 
     // 強制自癒並讀取資料
     window.loadExpenseCategories = () => {
@@ -1115,7 +1145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.querySchedule(window.lastQueryDays || 7);
     };
 
-    window.toggleEventDone = (id) => {
+    window.toggleEventDone = async (id) => {
         const li = document.getElementById(`event_li_${id}`);
         const btn = li.querySelector('.done-btn');
 
@@ -1124,10 +1154,23 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.innerText = '完成';
         } else {
             li.classList.add('fade-out');
+            
+            // 1. 同步到後端 (真正修改 Google 日曆標題)
+            try {
+                await fetch('/api/toggle_completion', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event_id: id })
+                });
+            } catch (e) {
+                console.error("Sync Error:", e);
+            }
+
+            // 2. 本地快取 (雙重保險 + 立即反饋)
             let hidden = JSON.parse(localStorage.getItem('hiddenPocketEvents') || '[]');
             if (!hidden.includes(id)) hidden.push(id);
             localStorage.setItem('hiddenPocketEvents', JSON.stringify(hidden));
-            // 延遲一下讓動畫跑完，然後重新渲染整個卡片以更新 Header 的計數
+            
             setTimeout(() => {
                 window.querySchedule(window.lastQueryDays || 7);
             }, 400);
@@ -1151,7 +1194,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        const activeEvents = events.filter(e => !hiddenEvents.includes(e.id));
+        const activeEvents = events.filter(e => !e.completed && !hiddenEvents.includes(e.id));
 
         if (activeEvents.length === 0) {
             const isTrulyEmpty = events.length === 0;
@@ -1383,7 +1426,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
     } else {
-        voiceBtn.style.display = 'none';
+        voiceBtn.onclick = () => {
+            showToast('您的瀏覽器不支援語音功能，請更換瀏覽器後再試', 'warning');
+        };
     }
 
     // --- 核心查詢功能 ---
@@ -1427,12 +1472,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.handleSend = async function (text = null) {
+    window.handleChatImage = async (input) => {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        
+        toggleScanner(true, file);
+        const compressedBlob = await compressImage(file);
+        await window.handleSend(null, compressedBlob);
+        toggleScanner(false);
+        input.value = '';
+    };
+
+    window.handleSend = async function (text = null, file = null) {
         const message = text || userInput.value.trim();
-        if (!message) return;
+        if (!message && !file) return;
 
         if (!text) {
-            appendMessage(message, true);
+            if (file) {
+                appendMessage(`[傳送圖片] ${message || ''}`, true);
+            } else {
+                appendMessage(message, true);
+            }
             userInput.value = '';
         }
 
@@ -1489,11 +1549,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: message })
-            });
+            let response;
+            if (file) {
+                const formData = new FormData();
+                formData.append('text', message || '');
+                formData.append('image', file);
+                response = await fetch('/api/chat', {
+                    method: 'POST',
+                    body: formData
+                });
+            } else {
+                response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: message })
+                });
+            }
             const data = await response.json();
 
             if (data.status === 'success') {
@@ -1613,6 +1684,49 @@ document.addEventListener('DOMContentLoaded', () => {
     // 移除重複的舊函數邏輯
 
 
+    // --- 掃描儀 UI 控制 (V23.1) ---
+    const toggleScanner = (show, file = null) => {
+        const overlay = document.getElementById('scanOverlay');
+        const preview = document.getElementById('scanPreview');
+        if (!overlay) return;
+        if (show) {
+            if (file) {
+                preview.src = URL.createObjectURL(file);
+            }
+            overlay.style.display = 'flex';
+        } else {
+            overlay.style.display = 'none';
+        }
+    };
+
+    // --- 圖片壓縮小助手 (V23.0) ---
+    const compressImage = (file, maxWidth = 1024) => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > maxWidth) {
+                        height = (maxWidth / width) * height;
+                        width = maxWidth;
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8);
+                };
+            };
+        });
+    };
+
+
+
     document.getElementById('submitExpense').onclick = async () => {
         window.calculateResult();
 
@@ -1631,12 +1745,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const expenseType = document.getElementById('expense_type').value;
+        const emoji = expenseType === 'income' ? '💰' : '💸';
+
         closeModal();
-        appendMessage(`記帳：${item} $${amount} [${category}]`, true);
+        appendMessage(`${emoji} 記帳：${item} $${amount} [${category}]`, true);
         const res = await fetch('/api/manual_action', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'expense', item, amount: parseInt(amount), category })
+            body: JSON.stringify({ type: 'expense', expense_type: expenseType, item, amount: parseInt(amount), category })
         });
         const data = await res.json();
         appendMessage(data.message);
@@ -1704,6 +1821,57 @@ document.addEventListener('DOMContentLoaded', () => {
     window.toggleCatDropdown = () => {
         const options = document.getElementById('cat_options');
         if (options) options.classList.toggle('show');
+    };
+
+    window.setExpenseType = (type) => {
+        const btnExpense = document.getElementById('type_expense');
+        const btnIncome = document.getElementById('type_income');
+        const typeInput = document.getElementById('expense_type');
+        const itemLabel = document.getElementById('item_label');
+        const itemInput = document.getElementById('expense_item');
+        const submitBtn = document.getElementById('submitExpense');
+
+        typeInput.value = type;
+
+        if (type === 'income') {
+            btnIncome.classList.add('active');
+            btnIncome.style.background = 'white';
+            btnIncome.style.color = '#3b82f6'; // 藍色
+            btnIncome.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
+
+            btnExpense.classList.remove('active');
+            btnExpense.style.background = 'transparent';
+            btnExpense.style.color = '#64748b';
+            btnExpense.style.boxShadow = 'none';
+
+            if (itemLabel) itemLabel.innerText = '收入項目';
+            if (itemInput) itemInput.placeholder = '這筆收入是哪來的？';
+            if (submitBtn) {
+                submitBtn.innerText = '確認收入入帳 💰';
+                submitBtn.style.background = '#3b82f6';
+            }
+            // 自動切換分類選單為收入類別 (V20.0)
+            updateExpenseCategoryDropdown('income');
+        } else {
+            btnExpense.classList.add('active');
+            btnExpense.style.background = 'white';
+            btnExpense.style.color = '#ef4444'; // 紅色
+            btnExpense.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
+
+            btnIncome.classList.remove('active');
+            btnIncome.style.background = 'transparent';
+            btnIncome.style.color = '#64748b';
+            btnIncome.style.boxShadow = 'none';
+
+            if (itemLabel) itemLabel.innerText = '支出項目';
+            if (itemInput) itemInput.placeholder = '消費了什麼？';
+            if (submitBtn) {
+                submitBtn.innerText = '確認支出記帳 💸';
+                submitBtn.style.background = 'var(--secondary-color)';
+            }
+        }
+        // 自動切換分類選單
+        window.updateExpenseCategoryDropdown(type);
     };
 
     window.selectCategory = (name, icon) => {
