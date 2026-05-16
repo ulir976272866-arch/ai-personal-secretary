@@ -4,10 +4,17 @@ window.initMap = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    window.editingWishId = null;
-    window.editingTodoId = null;
-    window.editingMemoId = null;
     window.editingEventId = null;
+
+    // --- 更新動態日期圖示 (V13.0) ---
+    function updateDynamicDateIcons() {
+        const today = new Date();
+        const day = today.getDate();
+        document.querySelectorAll('.current-day-val').forEach(el => {
+            el.innerText = day;
+        });
+    }
+    updateDynamicDateIcons();
 
     // --- 定位與距離計算邏輯 (V11.2) ---
     window.getCurrentLocation = () => {

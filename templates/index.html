@@ -26,7 +26,7 @@
     <div class="action-card">
         <!-- 第一層：母分頁 -->
         <div class="parent-tabs">
-            <button class="tab-btn active" onclick="switchTab('schedule', event)">📅 行程</button>
+            <button class="tab-btn active" onclick="switchTab('schedule', event)"><span class="dynamic-date-wrapper"><span class="date-top"></span><span class="date-num current-day-val"></span></span> 行程</button>
             <button class="tab-btn" onclick="switchTab('finance', event)">💰 記帳</button>
             <button class="tab-btn" onclick="switchTab('memo', event)">📝 備忘</button>
         </div>
@@ -36,7 +36,7 @@
             <!-- 行程子選單 -->
             <div id="sub_schedule" class="sub-menu active">
                 <button class="sub-btn" onclick="openModal('scheduleModal')">➕ 新增</button>
-                <button class="sub-btn" onclick="querySchedule(1)">📅 今日</button>
+                <button class="sub-btn" onclick="querySchedule(1)"><span class="dynamic-date-wrapper"><span class="date-top"></span><span class="date-num current-day-val"></span></span> 今日</button>
                 <button class="sub-btn" onclick="querySchedule(7)">🗓️ 本週</button>
                 <button class="sub-btn" onclick="querySchedule(30)">📊 本月</button>
             </div>
