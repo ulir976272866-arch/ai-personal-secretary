@@ -16,6 +16,183 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     updateDynamicDateIcons();
 
+    // --- 記帳分類管理核心 (V17.6 軍規同步版) ---
+    window.expenseCategories = [];
+
+    // 強制自癒並讀取資料
+    window.loadExpenseCategories = () => {
+        try {
+            const raw = localStorage.getItem('customExpenseCategories');
+            let stored = raw ? JSON.parse(raw) : [];
+            if (!Array.isArray(stored)) return [];
+            
+            // 強大相容性：將純文字、損壞物件全部轉為正確格式
+            return stored.map(c => {
+                if (typeof c === 'string') return { name: c, icon: '💸' };
+                if (c && typeof c === 'object' && c.name) {
+                    return { name: String(c.name).trim(), icon: c.icon || '💸' };
+                }
+                return null;
+            }).filter(c => c !== null);
+        } catch (e) {
+            return [];
+        }
+    };
+
+    window.saveExpenseCategories = (cats) => {
+        localStorage.setItem('customExpenseCategories', JSON.stringify(cats));
+        window.expenseCategories = cats;
+    };
+
+    window.updateExpenseDropdown = () => {
+        const select = document.getElementById('manual_expense_category');
+        if (!select) return;
+        
+        select.innerHTML = '';
+        const firstOpt = new Option("請選擇", "");
+        firstOpt.disabled = true;
+        firstOpt.selected = true;
+        select.add(firstOpt);
+
+        const baseCats = [
+            { name: "食", icon: "🍔" }, { name: "衣", icon: "👔" }, { name: "住", icon: "🏠" },
+            { name: "行", icon: "🚗" }, { name: "育", icon: "📚" }, { name: "樂", icon: "🎬" },
+            { name: "醫", icon: "🏥" }, { name: "投資", icon: "📈" }, { name: "公益", icon: "💖" }
+        ];
+
+        baseCats.forEach(cat => {
+            const display = `${cat.icon} ${cat.name}`;
+            select.add(new Option(display, display));
+        });
+
+        // 讀取最新自定義分類
+        window.expenseCategories = window.loadExpenseCategories();
+        window.expenseCategories.forEach(cat => {
+            const display = `${cat.icon} ${cat.name}`;
+            select.add(new Option(display, display));
+        });
+
+        const uncatDisplay = "❓ 未分類";
+        select.add(new Option(uncatDisplay, uncatDisplay));
+    };
+
+    window.suggestExpenseEmoji = (text) => {
+        const suggestions = {
+            '寵物': ['🐶', '🐱', '🐹', '🐰'],
+            '保養': ['🧴', '✨', '💅', '💄'],
+            '化妝': ['💄', '🎨', '✨'],
+            '美容': ['💇', '💅', '🧴', '💄', '✨'],
+            '美髮': ['💇', '✂️', '💈'],
+            '禮物': ['🎁', '💝', '🎂'],
+            '保險': ['🛡️', '📄', '💰'],
+            '孝親': ['👵', '👴', '🧧', '❤️'],
+            '捐款': ['💖', '🤲', '🕊️'],
+            '學費': ['🎓', '🎒', '🖋️'],
+            '裝修': ['🛠️', '🏠', '🎨'],
+            '運動': ['🏃', '🏋️', '🏀', '🎾'],
+            '零用': ['💵', '🪙', '🧧'],
+            '旅遊': ['✈️', '🏨', '🌍', '📸'],
+            '進修': ['📚', '✍️', '💡']
+        };
+        
+        const container = document.getElementById('expense_emoji_suggestions');
+        container.innerHTML = '';
+        
+        // --- 修改核心：如果沒打字，直接收起來 (V16.1) ---
+        if (!text || !text.trim()) return;
+
+        // 智慧匹配關鍵字
+        const matchedKey = Object.keys(suggestions).find(k => k.includes(text) || text.includes(k));
+        
+        // 如果沒有匹配到，也不顯示預設的那一排 (比照待辦清單)
+        if (!matchedKey) return;
+        
+        const icons = suggestions[matchedKey];
+        icons.forEach(icon => {
+            const span = document.createElement('span');
+            span.innerText = icon;
+            span.style.cssText = "font-size: 1.5rem; cursor: pointer; padding: 6px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); flex-shrink: 0;";
+            span.onclick = () => {
+                document.getElementById('new_expense_cat_preview').innerText = icon;
+                document.getElementById('new_expense_cat_icon_hidden').value = icon;
+            };
+            container.appendChild(span);
+        });
+    };
+
+    window.confirmAddExpenseCategory = () => {
+        const input = document.getElementById('new_expense_cat_name');
+        const name = input.value.trim();
+        const icon = document.getElementById('new_expense_cat_icon_hidden').value || '💸';
+        
+        if (name) {
+            let current = window.loadExpenseCategories();
+            if (!current.some(c => c.name === name)) {
+                current.push({ name, icon });
+                window.saveExpenseCategories(current);
+                window.updateExpenseDropdown();
+                
+                const select = document.getElementById('manual_expense_category');
+                const targetVal = `${icon} ${name}`;
+                select.value = targetVal;
+                showToast(`已新增並選取：${targetVal}`, 'success');
+            } else {
+                showToast("此分類已存在喔！");
+            }
+            closeModal('expenseCatModal');
+        } else {
+            showToast("請輸入分類名稱！");
+        }
+    };
+
+    window.openExpenseCatManage = () => {
+        const container = document.getElementById('expense_manage_list');
+        if (!container) return;
+        
+        window.expenseCategories = window.loadExpenseCategories();
+        container.innerHTML = window.expenseCategories.map(cat => `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 8px;">
+                <div style="font-size: 1rem; font-weight: 600; color: #1e293b;">${cat.icon} ${cat.name}</div>
+                <button onclick="deleteExpenseCategory('${cat.name}')" style="background: #fee2e2; color: #ef4444; border: none; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">刪除</button>
+            </div>
+        `).join('');
+        
+        if (window.expenseCategories.length === 0) {
+            container.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 20px;">目前沒有自定義分類。</div>';
+        }
+        openModal('expenseCatManageModal');
+    };
+
+    window.deleteExpenseCategory = (name) => {
+        const targetText = document.getElementById('delete_expense_cat_target_text');
+        if (targetText) targetText.innerHTML = `確定要刪除「${name}」分類嗎？<br><span style="font-size:0.75rem; color:#94a3b8;">(這不會影響已記錄的帳目)</span>`;
+        
+        const confirmBtn = document.getElementById('confirm_delete_expense_btn');
+        if (confirmBtn) confirmBtn.onclick = () => {
+            let current = window.loadExpenseCategories().filter(c => c.name !== name);
+            window.saveExpenseCategories(current);
+            window.updateExpenseDropdown();
+            window.openExpenseCatManage(); 
+            closeModal('expenseDeleteConfirmModal');
+            showToast(`已刪除分類：${name}`, 'success');
+        };
+        openModal('expenseDeleteConfirmModal');
+    };
+
+    window.addNewExpenseCategory = () => {
+        document.getElementById('new_expense_cat_name').value = '';
+        document.getElementById('new_expense_cat_preview').innerText = '💸';
+        document.getElementById('new_expense_cat_icon_hidden').value = '💸';
+        document.getElementById('expense_emoji_suggestions').innerHTML = '';
+        // 核心修正：不預填建議
+        openModal('expenseCatModal');
+    };
+
+    window.suggestExpenseExpenseEmoji = (text) => window.suggestExpenseEmoji(text);
+
+    // 初始化選單
+    window.updateExpenseDropdown();
+
     // --- 定位與距離計算邏輯 (V11.2) ---
     window.getCurrentLocation = () => {
         return new Promise((resolve, reject) => {
@@ -34,8 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLon = (lon2 - lon1) * Math.PI / 180;
         const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
     }
@@ -47,10 +224,10 @@ document.addEventListener('DOMContentLoaded', () => {
             confirmResolver = resolve;
             document.getElementById('confirm_title').innerText = title;
             document.getElementById('confirm_msg').innerText = msg;
-            
+
             const svgIcon = document.getElementById('confirm_svg');
             const iconContainer = document.getElementById('confirm_icon_container');
-            
+
             if (icon === '🗑️') {
                 svgIcon.style.display = 'block';
                 if (iconContainer.querySelector('.emoji-icon')) iconContainer.querySelector('.emoji-icon').remove();
@@ -65,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 emojiEl.innerText = icon;
             }
-            
+
             document.getElementById('confirmModal').classList.add('show');
         });
     };
@@ -94,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const name = document.getElementById('new_cat_name').value.trim();
         const icon = document.getElementById('new_cat_icon_hidden').value.trim() || '📌';
         document.getElementById('catInputModal').classList.remove('show');
-        document.getElementById('cat_emoji_suggestions').innerHTML = ''; 
+        document.getElementById('cat_emoji_suggestions').innerHTML = '';
         if (catInputResolver) {
             catInputResolver(confirmed ? { name, icon } : null);
         }
@@ -126,22 +303,22 @@ document.addEventListener('DOMContentLoaded', () => {
     window.suggestEmoji = (text) => {
         const suggestionsDiv = document.getElementById('cat_emoji_suggestions');
         if (!suggestionsDiv) return;
-        
+
         if (!text.trim()) {
             suggestionsDiv.innerHTML = '';
             window.updateCatPreviewIcon('📌');
             return;
         }
-        
+
         let found = [];
         for (const [key, icons] of Object.entries(emojiDict)) {
             if (text.includes(key) || key.includes(text)) {
                 found = [...found, ...icons];
             }
         }
-        
+
         const uniqueIcons = [...new Set(found)].slice(0, 8);
-        
+
         if (uniqueIcons.length > 0) {
             suggestionsDiv.innerHTML = uniqueIcons.map(icon => `
                 <div onclick="window.updateCatPreviewIcon('${icon}')" 
@@ -149,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${icon}
                 </div>
             `).join('');
-            
+
             // 自動更新預覽為第一個建議
             window.updateCatPreviewIcon(uniqueIcons[0]);
         } else {
@@ -234,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         document.getElementById(id).classList.add('show');
-        
+
         // 分支邏輯優化 (V11.1)
         if (id === 'wishlistModal') window.loadWishes();
         if (id === 'todoModal') {
@@ -291,7 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     };
-    
+
     if (typeof google !== 'undefined') {
         window.initAutocomplete();
     }
@@ -315,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const catInput = document.getElementById('todo_category');
         const displaySpan = document.getElementById('current_todo_cat_display');
         const dropdown = document.getElementById('todo_cat_dropdown');
-        
+
         if (catInput) catInput.value = name;
         if (displaySpan) {
             displaySpan.innerHTML = name ? `${icon} ${name}` : '請選擇';
@@ -329,10 +506,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const titleInput = document.getElementById('todo_title');
         const catInput = document.getElementById('todo_category');
         if (!btn || !titleInput || !catInput) return;
-        
+
         const hasTitle = titleInput.value.trim().length > 0;
         const hasCat = catInput.value !== '';
-        
+
         btn.style.opacity = (hasTitle && hasCat) ? '1' : '0.3';
         btn.style.pointerEvents = (hasTitle && hasCat) ? 'auto' : 'none';
     }
@@ -340,10 +517,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.renderTodoCatDropdown = () => {
         const dropdown = document.getElementById('todo_cat_dropdown');
         if (!dropdown) return;
-        
+
         const deletedCats = JSON.parse(localStorage.getItem('deletedTodoCats') || '[]');
         const allCats = [...window.todoCategories].filter(c => !deletedCats.includes(c.name));
-        
+
         dropdown.innerHTML = allCats.map((cat, idx) => `
             <div class="todo-dropdown-item" onclick="window.selectTodoCategory('${cat.name}', '${cat.icon}')">
                 <span>${cat.icon}</span> 
@@ -360,28 +537,28 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     window.removeTodoCategory = async (catName) => {
         const catObj = window.todoCategories.find(c => c.name === catName) || { name: catName, icon: '📝' };
-        
-        
+
+
         const confirmed = await window.customConfirm(
             '確定刪除類別？',
             `您即將刪除「${catObj.icon} ${catName}」類別。`,
             '🗑️'
         );
-        
+
         if (confirmed) {
             // 1. 記錄到隱藏清單
             let deleted = JSON.parse(localStorage.getItem('deletedTodoCats') || '[]');
             if (!deleted.includes(catName)) deleted.push(catName);
             localStorage.setItem('deletedTodoCats', JSON.stringify(deleted));
-            
+
             // 2. 如果當前選中，則重設
             const currentCat = document.getElementById('todo_category').value;
             if (currentCat === catName) {
                 window.selectTodoCategory('任務', '📝');
             }
-            
+
             window.renderTodoCatDropdown();
-            window.loadTodos(); 
+            window.loadTodos();
         }
     };
 
@@ -389,7 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 先關掉下拉選單
         const dropdown = document.getElementById('todo_cat_dropdown');
         if (dropdown) dropdown.classList.remove('show');
-        
+
         const result = await window.customCatInput();
         if (result && result.name) {
             // 檢查是否已存在
@@ -397,17 +574,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.todoCategories.push({ name: result.name, icon: result.icon || '📌' });
                 localStorage.setItem('todoCategories', JSON.stringify(window.todoCategories));
             }
-            
+
             // 重要：如果曾在刪除名單中，將其移除（復原）
             let deleted = JSON.parse(localStorage.getItem('deletedTodoCats') || '[]');
             if (deleted.includes(result.name)) {
                 deleted = deleted.filter(c => c !== result.name);
                 localStorage.setItem('deletedTodoCats', JSON.stringify(deleted));
             }
-            
+
             window.renderTodoCatDropdown();
             window.selectTodoCategory(result.name, result.icon || '📌');
-            window.loadTodos(); 
+            window.loadTodos();
         }
     };
 
@@ -438,7 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const activeCats = [...new Set(activeTodos.map(i => i.分類 || '任務'))];
                 const customCats = window.todoCategories.map(c => c.name).filter(c => !deletedCats.includes(c));
                 const allFilterCats = ['全部', ...new Set([...activeCats, ...customCats])].filter(c => !deletedCats.includes(c) || c === '全部');
-                
+
                 filterSelect.innerHTML = allFilterCats.map(cat => {
                     let icon = '🌟';
                     if (cat !== '全部') {
@@ -489,7 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let priorityVal = (item['優先級'] || '一般').trim();
                 // 正規化優先級值
                 if (reverseMatrixMap[priorityVal]) priorityVal = reverseMatrixMap[priorityVal];
-                
+
                 const priorityDisplay = matrixMap[priorityVal] || priorityVal;
                 const category = (item['分類'] || '任務').trim();
                 const accentClass = priorityVal === '急要' ? 'accent-red' : (priorityVal === '重要' ? 'accent-yellow' : (priorityVal === '緊急' ? 'accent-orange' : 'accent-green'));
@@ -505,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div id="todo_text_${safeID}" style="color: #1e293b; font-weight: 700; font-size: 1.05rem; line-height: 1.4; margin-bottom: 4px;">${item['事項/內容']}</div>
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 <span style="font-size: 0.65rem; color: #3b82f6; background: #eff6ff; padding: 2px 8px; border-radius: 6px; font-weight: 800;">
-                                    ${(window.todoCategories.find(c => c.name === category) || {icon: '📝'}).icon} ${category}
+                                    ${(window.todoCategories.find(c => c.name === category) || { icon: '📝' }).icon} ${category}
                                 </span>
                                 <span style="font-size: 0.7rem; font-weight: 600; color: #64748b;">• ${priorityDisplay}</span>
                             </div>
@@ -532,14 +709,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deleteTodo = async (id, title) => {
         const confirmed = await window.customConfirm('確定刪除事項？', `確定要刪除「${title}」嗎？`, '🗑️');
         if (!confirmed) return;
-        
+
         const realID = id.startsWith('legacy_') ? '' : id;
         const res = await fetch('/api/todo/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: realID, title })
         });
-        
+
         if ((await res.json()).status === 'success') {
             const item = document.getElementById(`todo_item_${id}`);
             if (item) {
@@ -573,14 +750,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const item = document.getElementById(`todo_item_${id}`);
         item.style.opacity = '0.5';
         item.style.transform = 'translateX(20px)';
-        
+
         const realID = id.startsWith('legacy_') ? '' : id;
         const res = await fetch('/api/todo/toggle', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: realID, title, completed: true })
         });
-        
+
         if ((await res.json()).status === 'success') {
             item.style.height = '0';
             item.style.padding = '0';
@@ -622,7 +799,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/wishlist');
             const data = await res.json();
-            
+
             if (!Array.isArray(data)) {
                 throw new Error(data.message || '資料格式錯誤');
             }
@@ -640,11 +817,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const price = parseInt(item.預估價格) || 0;
                 totalBudget += price;
                 const itemID = item['唯一 ID'] || item.id;
-                
+
                 // 根據分類決定顏色 (加強匹配與相容舊標籤)
                 const cat = (item.分類 || '').trim();
                 let cardStyle = 'background: white; border: 1px solid #f1f5f9; color: #1e293b;';
-                
+
                 if (cat.includes('必買')) {
                     cardStyle = 'background: #f3e8ff; border: 1px solid #d8b4fe; color: #7e22ce;';
                 } else if (cat.includes('可買') || cat.includes('家用') || cat.includes('送禮')) {
@@ -684,7 +861,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
             }).join('');
-            
+
             if (summary) {
                 summary.innerHTML = `預算總計：<br>$${totalBudget.toLocaleString()}`;
             }
@@ -703,7 +880,7 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id, title, actual_price: actualPrice })
         });
-        
+
         if ((await res.json()).status === 'success') {
             window.loadWishes();
             alert("已記錄您的圓夢時刻！🎊");
@@ -711,14 +888,14 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.deleteWish = async (id, title) => {
-        if (!confirm(`確定要斷捨離「${title}」這個願望嗎？`)) return;
+        if (!(await window.customConfirm('確定要斷捨離？', `確定要從清單移除「${title}」嗎？`))) return;
 
         const res = await fetch('/api/wishlist/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: String(id), title })
         });
-        
+
         const result = await res.json();
         if (result.status === 'success') {
             window.loadWishes();
@@ -748,7 +925,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const mood = document.getElementById('memo_mood').value;
         const weather = document.getElementById('memo_weather').value;
         const btn = document.getElementById('submitMemoBtn');
-        
+
         if (!content || !mood || !weather) return;
 
         // 1. 顯示載入中狀態
@@ -771,14 +948,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('memo_content').value = '';
                 document.getElementById('memo_mood').value = '';
                 document.getElementById('memo_weather').value = '';
-                
+
                 // 3. 成功後直接關閉彈窗 (使用者的要求)
                 window.closeModal('memoModal');
-                
+
                 // 4. 重置與更新
                 window.checkMemoFields();
                 window.loadMemos();
-                
+
                 // 5. 給一點小提示
                 appendMessage('✨ 日記已成功記錄！', false);
             } else {
@@ -806,7 +983,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const title = input.value.trim();
         const priority = document.getElementById('todo_priority').value || '一般';
         const category = document.getElementById('todo_category').value || '任務';
-        
+
         if (!title) return;
 
         const endpoint = window.editingTodoId ? '/api/todo/update' : '/api/todo';
@@ -818,11 +995,11 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        
+
         if ((await res.json()).status === 'success') {
             input.value = '';
             window.editingTodoId = null;
-            
+
             // 恢復按鈕 UI (V10.9)
             const submitBtn = document.getElementById('submitTodoBtn');
             if (submitBtn) {
@@ -830,13 +1007,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitBtn.style.opacity = '0.3';
                 submitBtn.style.pointerEvents = 'none';
             }
-            
+
             window.loadTodos();
-            
+
             // 重置選擇
             const defaultOpt = document.querySelector('.priority-opt.green');
             if (defaultOpt) window.selectPriority(defaultOpt, '一般');
-            
+
             // 重置類別
             window.selectTodoCategory('任務', '📝');
         }
@@ -862,13 +1039,13 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        
+
         if ((await res.json()).status === 'success') {
             nameInput.value = '';
             priceInput.value = '';
             noteInput.value = '';
             window.editingWishId = null;
-            
+
             const submitBtn = document.querySelector('#wishlistModal .modal-content button[onclick="saveWish()"]');
             if (submitBtn) {
                 submitBtn.innerHTML = '＋';
@@ -883,7 +1060,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('wish_name').value = name;
         document.getElementById('wish_price').value = price;
         window.editingWishId = id;
-        
+
         // 映射舊標籤到新標籤
         let displayCategory = category;
         if (category === '送禮' || category === '家用') displayCategory = '可買';
@@ -912,13 +1089,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const input = document.getElementById('todo_title');
         input.value = title;
         window.editingTodoId = id;
-        
+
         // 設定類別
         const catObj = window.todoCategories.find(c => c.name === category) || { name: '任務', icon: '📝' };
         window.selectTodoCategory(catObj.name, catObj.icon);
-        
+
         input.focus();
-        
+
         const submitBtn = document.getElementById('submitTodoBtn');
         if (submitBtn) {
             submitBtn.innerHTML = '✓';
@@ -941,7 +1118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.toggleEventDone = (id) => {
         const li = document.getElementById(`event_li_${id}`);
         const btn = li.querySelector('.done-btn');
-        
+
         if (!btn.classList.contains('completed')) {
             btn.classList.add('completed');
             btn.innerText = '完成';
@@ -961,10 +1138,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderScheduleCard(events, dateStr) {
         const card = document.createElement('div');
         card.className = 'schedule-card';
-        
+
         const hiddenEvents = JSON.parse(localStorage.getItem('hiddenPocketEvents') || '[]');
         const hiddenCount = hiddenEvents.length;
-        
+
         let headerHtml = `
             <div class="schedule-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px;">
                 <h3 style="margin:0; font-size: 1rem; color: var(--accent-amber);">🗓️ ${dateStr} 行程</h3>
@@ -973,13 +1150,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 </span>
             </div>
         `;
-        
+
         const activeEvents = events.filter(e => !hiddenEvents.includes(e.id));
 
         if (activeEvents.length === 0) {
             const isTrulyEmpty = events.length === 0;
             const emptyMsg = isTrulyEmpty ? '今天沒有安排行程喔！' : '🎉 已完成所有行程！';
-            
+
             card.innerHTML = headerHtml + `
                 <div style="padding: 30px 15px; text-align: center;">
                     <p style="color: #64748b; margin:0;">${emptyMsg}</p>
@@ -1049,58 +1226,58 @@ document.addEventListener('DOMContentLoaded', () => {
         scrollToBottom();
         return msgDiv;
     }
-    clearBtn.onclick = () => {
-        if (confirm('確定要清空所有對話內容嗎？')) {
+    clearBtn.onclick = async () => {
+        if (await window.customConfirm('確定清空對話？', '清空後將無法復原目前的對話內容喔！', '🧹')) {
             chatHistory.innerHTML = '';
             appendMessage('對話已清空。');
         }
     };
 
     window.editEvent = (id, title, location, startTime, isAllDay) => {
-         window.editingEventId = id;
-         document.getElementById('manual_summary').value = title;
-         document.getElementById('manual_location').value = location;
-         
-         const dateInput = document.getElementById('manual_date');
-         const allDayCheckbox = document.getElementById('manual_all_day');
-         const timeWrapper = document.getElementById('time_input_wrapper');
- 
-         if (isAllDay) {
-             dateInput.value = startTime;
-             allDayCheckbox.checked = true;
-             timeWrapper.style.display = 'none';
-         } else {
-             // startTime format: YYYY-MM-DDTHH:MM:SS+08:00 or YYYY-MM-DDTHH:MM:SSZ
-             const dt = new Date(startTime);
-             const yyyy = dt.getFullYear();
-             const mm = String(dt.getMonth() + 1).padStart(2, '0');
-             const dd = String(dt.getDate()).padStart(2, '0');
-             dateInput.value = `${yyyy}-${mm}-${dd}`;
-             
-             allDayCheckbox.checked = false;
-             timeWrapper.style.display = 'flex';
-             
-             let hours = dt.getHours();
-             const minutes = dt.getMinutes();
-             const ampm = hours >= 12 ? 'PM' : 'AM';
-             
-             if (hours > 12) hours -= 12;
-             if (hours === 0) hours = 12;
-             
-             document.getElementById('manual_ampm').value = ampm;
-             document.getElementById('manual_hour').value = hours;
-             document.getElementById('manual_minute').value = String(minutes).padStart(2, '0');
-         }
- 
-         // 修改按鈕 UI
-         const submitBtn = document.getElementById('submitSchedule');
-         if (submitBtn) {
-             submitBtn.innerText = '💾 儲存修改';
-             submitBtn.style.background = '#10b981';
-         }
-         
-         window.openModal('scheduleModal');
-     };
+        window.editingEventId = id;
+        document.getElementById('manual_summary').value = title;
+        document.getElementById('manual_location').value = location;
+
+        const dateInput = document.getElementById('manual_date');
+        const allDayCheckbox = document.getElementById('manual_all_day');
+        const timeWrapper = document.getElementById('time_input_wrapper');
+
+        if (isAllDay) {
+            dateInput.value = startTime;
+            allDayCheckbox.checked = true;
+            timeWrapper.style.display = 'none';
+        } else {
+            // startTime format: YYYY-MM-DDTHH:MM:SS+08:00 or YYYY-MM-DDTHH:MM:SSZ
+            const dt = new Date(startTime);
+            const yyyy = dt.getFullYear();
+            const mm = String(dt.getMonth() + 1).padStart(2, '0');
+            const dd = String(dt.getDate()).padStart(2, '0');
+            dateInput.value = `${yyyy}-${mm}-${dd}`;
+
+            allDayCheckbox.checked = false;
+            timeWrapper.style.display = 'flex';
+
+            let hours = dt.getHours();
+            const minutes = dt.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+
+            if (hours > 12) hours -= 12;
+            if (hours === 0) hours = 12;
+
+            document.getElementById('manual_ampm').value = ampm;
+            document.getElementById('manual_hour').value = hours;
+            document.getElementById('manual_minute').value = String(minutes).padStart(2, '0');
+        }
+
+        // 修改按鈕 UI
+        const submitBtn = document.getElementById('submitSchedule');
+        if (submitBtn) {
+            submitBtn.innerText = '💾 儲存修改';
+            submitBtn.style.background = '#10b981';
+        }
+
+        window.openModal('scheduleModal');
+    };
 
     window.deleteEvent = async (eventId, title) => {
         const confirmed = await window.customConfirm("確定刪除？", `您確定要從日曆移除「${title}」嗎？`);
@@ -1111,7 +1288,7 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ event_id: eventId })
         });
-        
+
         const data = await res.json();
         if (data.status === 'success') {
             const li = document.getElementById(`event_li_${eventId}`);
@@ -1125,7 +1302,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 計算機邏輯 ---
     const expenseAmountInput = document.getElementById('expense_amount');
-    window.appendCalc = function(val) {
+    window.appendCalc = function (val) {
         const amountInput = document.getElementById('expense_amount');
         if (amountInput.value === '0' && val !== '.') {
             amountInput.value = val;
@@ -1134,11 +1311,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.clearEntry = function() {
+    window.clearEntry = function () {
         document.getElementById('expense_amount').value = '0';
     };
 
-    window.clearCalc = function() {
+    window.clearCalc = function () {
         document.getElementById('expense_amount').value = '0';
         document.getElementById('calc_history').innerText = '';
     };
@@ -1154,10 +1331,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const amountInput = document.getElementById('expense_amount');
             const historyDiv = document.getElementById('calc_history');
             const expression = amountInput.value.replace(/×/g, '*').replace(/÷/g, '/');
-            
+
             // 存入上方懸浮歷史區
             historyDiv.innerText = amountInput.value;
-            
+
             // 安全計算
             const result = eval(expression);
             amountInput.value = Math.round(result).toString();
@@ -1232,7 +1409,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.lastQueryDays = days;
         const rangeLabel = days === 1 ? '今日' : (days === 7 ? '本週' : '本月');
         appendMessage(`查詢${rangeLabel}行程...`, true);
-        
+
         try {
             const res = await fetch('/api/query_schedule', {
                 method: 'POST',
@@ -1250,7 +1427,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.handleSend = async function(text = null) {
+    window.handleSend = async function (text = null) {
         const message = text || userInput.value.trim();
         if (!message) return;
 
@@ -1264,43 +1441,43 @@ document.addEventListener('DOMContentLoaded', () => {
             appendMessage("正在為您掃描附近的口袋名單... 🛰️");
             try {
                 const coords = await window.getCurrentLocation();
-                window.userCoords = coords; 
+                window.userCoords = coords;
                 const res = await fetch('/api/pocket/list');
                 const data = await res.json();
-                
+
                 if (data.status === 'success') {
                     const allItems = data.data;
                     const itemsWithCoords = allItems.filter(i => i.lat && i.lng);
-                    
+
                     itemsWithCoords.forEach(i => {
                         i.distance = calculateDistance(coords.lat, coords.lng, parseFloat(i.lat), parseFloat(i.lng));
                     });
-                    
+
                     // 將半徑擴大至 20km 以利測試
-                    const searchRadius = 20; 
+                    const searchRadius = 20;
                     const nearby = itemsWithCoords.filter(i => i.distance < searchRadius).sort((a, b) => a.distance - b.distance);
-                    
+
                     if (nearby.length > 0) {
                         let msg = `在您附近 ${searchRadius}km 內找到了 ${nearby.length} 個想去的地方：\n`;
                         nearby.slice(0, 3).forEach(i => {
-                            const dStr = i.distance < 1 ? `${Math.round(i.distance*1000)}m` : `${i.distance.toFixed(1)}km`;
+                            const dStr = i.distance < 1 ? `${Math.round(i.distance * 1000)}m` : `${i.distance.toFixed(1)}km`;
                             msg += `📍 ${getPocketIcon(i.category)} ${i.name} (約 ${dStr})\n`;
                         });
                         appendMessage(msg + "\n已為您在下方列出口袋名單！");
-                        window.loadPocket(); 
+                        window.loadPocket();
                     } else {
                         // 診斷式回覆
                         let diagnosticMsg = `這附近 ${searchRadius}km 內似乎沒有您標記過的口袋名單喔！\n\n`;
                         diagnosticMsg += `💡 診斷資訊：\n`;
                         diagnosticMsg += `• 總清單數量：${allItems.length} 筆\n`;
                         diagnosticMsg += `• 有座標記錄：${itemsWithCoords.length} 筆\n`;
-                        
+
                         if (itemsWithCoords.length === 0) {
                             diagnosticMsg += `\n⚠️ 偵測到所有資料都缺少座標！請檢查 Google Sheet 的 lat/lng 欄位是否為空。`;
                         } else {
                             diagnosticMsg += `\n您可以試著在口袋名單中手動搜尋特定店名。`;
                         }
-                        
+
                         appendMessage(diagnosticMsg);
                     }
                 }
@@ -1339,7 +1516,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 事件監聽 ---
     sendBtn.onclick = () => window.handleSend();
     userInput.onkeypress = (e) => { if (e.key === 'Enter') window.handleSend(); };
-    
+
     document.getElementById('manual_date').valueAsDate = new Date();
 
     const sModal = document.getElementById('scheduleModal');
@@ -1376,7 +1553,7 @@ document.addEventListener('DOMContentLoaded', () => {
             startTime = `${date}T${hourStr}:${minuteStr}:00`;
             finalIsAllDay = false;
         }
-        
+
         if (window.editingEventId) {
             appendMessage(`正在更新行程：${title}...`, true);
             const res = await fetch('/api/update_event', {
@@ -1416,20 +1593,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- 質感提示系統 (V15.0) ---
+    window.showToast = (msg, type = 'warning') => {
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        const icon = type === 'success' ? '✅' : '⚠️';
+        toast.innerHTML = `<span>${icon}</span> <span>${msg}</span>`;
+
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    };
+    // 移除重複的舊函數邏輯
+
+
     document.getElementById('submitExpense').onclick = async () => {
         window.calculateResult();
-        
+
         const item = document.getElementById('expense_item').value;
         const amount = document.getElementById('expense_amount').value;
-        const category = document.getElementById('expense_category').value;
+        const category = document.getElementById('manual_expense_category').value;
+
+        // 強制檢查分類 (V14.6)
+        if (!category) {
+            showToast('請選擇分類！');
+            return;
+        }
 
         if (!item || amount === '0' || !amount) {
-            alert('請輸入項目與金額！');
+            showToast('請輸入項目與金額！');
             return;
         }
 
         closeModal();
-        appendMessage(`記帳：${item} $${amount}`, true);
+        appendMessage(`記帳：${item} $${amount} [${category}]`, true);
         const res = await fetch('/api/manual_action', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1437,7 +1640,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const data = await res.json();
         appendMessage(data.message);
-        
+
         // 清空
         document.getElementById('expense_item').value = '';
         clearCalc();
@@ -1507,12 +1710,12 @@ document.addEventListener('DOMContentLoaded', () => {
         window.selectedPocketCategory = name;
         const iconToUse = icon || '📍';
         const displayLabel = name ? `${iconToUse} ${name}` : '請選擇';
-        
+
         const labelSpan = document.getElementById('selected_cat').querySelector('span');
         if (labelSpan) {
             labelSpan.innerHTML = displayLabel;
         }
-        
+
         const options = document.getElementById('cat_options');
         if (options) options.classList.remove('show');
         updateSubmitButtonState();
@@ -1531,7 +1734,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 先關掉下拉選單
         const optionsDiv = document.getElementById('cat_options');
         if (optionsDiv) optionsDiv.classList.remove('show');
-        
+
         const result = await window.customCatInput();
         if (result && result.name) {
             // 檢查是否已存在
@@ -1540,20 +1743,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.pocketCategories.push({ name: result.name, icon: result.icon || '📍' });
                 localStorage.setItem('pocketCategories', JSON.stringify(window.pocketCategories));
             }
-            
+
             // 重要：如果曾在刪除名單中，將其移除（復原）
             let deleted = JSON.parse(localStorage.getItem('deletedPocketCats') || '[]');
             if (deleted.includes(result.name)) {
                 deleted = deleted.filter(c => c !== result.name);
                 localStorage.setItem('deletedPocketCats', JSON.stringify(deleted));
             }
-            
+
             // 重新渲染選單 (V10.9 修復正確路徑)
             const response = await fetch('/api/pocket/list');
             const data = await response.json();
             const dbCategories = [...new Set((data.data || []).map(item => item.category))];
             renderCatOptions(dbCategories);
-            
+
             window.selectCategory(result.name, result.icon || '📍');
             const opts = document.getElementById('cat_options');
             if (opts) opts.classList.remove('show');
@@ -1563,14 +1766,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderCatOptions(categories) {
         const optionsDiv = document.getElementById('cat_options');
         if (!optionsDiv) return;
-        
+
         const deletedCats = JSON.parse(localStorage.getItem('deletedPocketCats') || '[]');
         const allCats = [...window.pocketCategories].filter(c => !deletedCats.includes(c.name));
-        
+
         // 合併資料庫中已有的分類
         const dbCats = [...new Set(categories)].filter(c => !allCats.find(ac => ac.name === c));
         const finalCats = [...allCats, ...dbCats.map(c => ({ name: c, icon: '📍' }))];
-        
+
         optionsDiv.innerHTML = finalCats.map(catObj => `
             <div class="todo-dropdown-item" onclick="window.selectCategory('${catObj.name}', '${catObj.icon}')">
                 <span style="margin-right: 8px;">${catObj.icon}</span>
@@ -1594,11 +1797,11 @@ document.addEventListener('DOMContentLoaded', () => {
             '🗑️'
         );
         if (!confirmed) return;
-        
+
         // 1. 從口袋名單分類清單中移除
         window.pocketCategories = window.pocketCategories.filter(c => c.name !== catName);
         localStorage.setItem('pocketCategories', JSON.stringify(window.pocketCategories));
-        
+
         // 2. 記錄到隱藏清單
         let deleted = JSON.parse(localStorage.getItem('deletedPocketCats') || '[]');
         if (!deleted.includes(catName)) deleted.push(catName);
@@ -1647,7 +1850,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const place = autocomplete.getPlace();
             if (place.name) nameInput.value = place.name;
             if (place.formatted_address) locInput.value = place.formatted_address;
-            
+
             const area = parseAddressToArea(place);
             if (area) {
                 const areaInput = document.getElementById('pocket_area');
@@ -1659,7 +1862,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             updateSubmitButtonState();
         });
-        
+
         nameInput.oninput = updateSubmitButtonState;
     };
 
@@ -1708,7 +1911,7 @@ document.addEventListener('DOMContentLoaded', () => {
             '🗑️'
         );
         if (!confirmed) return;
-        
+
         const res = await fetch('/api/pocket/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1722,13 +1925,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.loadPocket = async () => {
         const list = document.getElementById('pocket_list');
         if (!list) return;
-        
+
         try {
             const res = await fetch('/api/pocket/list');
             const data = await res.json();
             if (data.status === 'success') {
                 const rawItems = data.data || [];
-                
+
                 // 1. 生成篩選列
                 renderFilterBar([...new Set(rawItems.map(i => i.category))]);
                 renderAreaFilterBar([...new Set(rawItems.map(i => i.area).filter(a => a))]);
@@ -1742,15 +1945,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (window.currentAreaFilter !== '全部') {
                     items = items.filter(i => i.area === window.currentAreaFilter);
                 }
-                
+
                 // 3. 排序 (依照分類或距離)
                 let userLoc = null;
-                try { 
+                try {
                     // 如果目前是需要排序距離，才去抓位置
                     if (rawItems.some(i => i.lat)) {
                         // 這裡不強制等待定位，若有定位才排
                     }
-                } catch(e){}
+                } catch (e) { }
 
                 const priorityMap = { '美食': 1, '旅遊': 2, '住宿': 3, '咖啡': 4, '購物': 5, '其他': 6 };
                 items.sort((a, b) => (priorityMap[a.category] || 99) - (priorityMap[b.category] || 99));
@@ -1758,12 +1961,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 list.innerHTML = items.map(item => {
                     const mapUrl = getMapUrl(item.location || item.name);
                     const icon = getPocketIcon(item.category);
-                    
+
                     // 距離顯示邏輯 (若有座標且有權限)
                     let distHtml = '';
                     if (window.userCoords && item.lat && item.lng) {
                         const d = calculateDistance(window.userCoords.lat, window.userCoords.lng, item.lat, item.lng);
-                        const distStr = d < 1 ? `${Math.round(d*1000)}m` : `${d.toFixed(1)}km`;
+                        const distStr = d < 1 ? `${Math.round(d * 1000)}m` : `${d.toFixed(1)}km`;
                         distHtml = `<span style="font-size: 0.7rem; color: #10b981; font-weight: 800; background: #ecfdf5; padding: 2px 8px; border-radius: 6px;">距離約 ${distStr}</span>`;
                     }
 

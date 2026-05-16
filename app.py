@@ -2,7 +2,10 @@ import os
 import json
 import uuid
 import requests
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
+
+# 定義台灣時區 (UTC+8)
+TW_TZ = timezone(timedelta(hours=8))
 
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
@@ -197,7 +200,7 @@ def check_conflicts(service, start_time, end_time, exclude_id=None):
 @app.route('/api/morning_briefing', methods=['POST'])
 def morning_briefing():
     """生成每日早晨簡報"""
-    now = datetime.now()
+    now = datetime.now(TW_TZ)
     service_sheets = build('sheets', 'v4', credentials=creds)
     
     # 抓取本月支出
@@ -235,7 +238,7 @@ def chat():
             "message": "系統找不到 service_account.json，請確認檔案存在。"
         }), 400
 
-    now = datetime.now()
+    now = datetime.now(TW_TZ)
 
     bypass_data = None
     if user_text == "今日行程":
@@ -304,9 +307,21 @@ def chat():
         parsed_data = bypass_data
         intent_type = parsed_data.get('type')
     else:
-        # -----------------------------------------------------------------
-        # 步驟 A: 讓 Gemini 判斷意圖並萃取資訊
-        # -----------------------------------------------------------------
+        # --- 動態獲取現有記帳分類 ---
+        expense_categories = ["食", "衣", "住", "行", "育", "樂", "醫", "投資", "公益"] # 預設基本款
+        try:
+            service_sheets = build('sheets', 'v4', credentials=creds)
+            rows_result = service_sheets.spreadsheets().values().get(
+                spreadsheetId=SPREADSHEET_ID, range='記帳!G:G'
+            ).execute()
+            existing_cats = set([row[0] for row in rows_result.get('values', [])[1:] if row])
+            for ec in existing_cats:
+                if ec not in expense_categories:
+                    expense_categories.append(ec)
+        except:
+            pass
+        cat_list_str = "、".join(expense_categories)
+
         prompt = f"""
         你是一個專屬秘書，現在的時間是 {now.strftime('%Y-%m-%d %H:%M:%S')} (星期{now.weekday() + 1})。
         使用者輸入了一句話，請判斷這是「行事曆行程」還是「記帳花費」，並將萃取出的資訊以 JSON 格式回傳。
@@ -323,7 +338,7 @@ def chat():
             "location": "地點"
         }}
         
-        如果是記帳，請依照以下分類歸類 (醫、行、投資、食、住、衣、育、樂、未分類)，並回傳：
+        如果是記帳，請依照以下分類歸類 ({cat_list_str})，並回傳：
         {{
             "type": "expense",
             "item": "消費項目",
@@ -608,7 +623,7 @@ def get_memos():
 
 @app.route('/api/query_finance', methods=['POST'])
 def direct_query_finance():
-    now = datetime.now()
+    now = datetime.now(TW_TZ)
     try:
         service_sheets = build('sheets', 'v4', credentials=creds)
         _, cat_report, _, _ = get_monthly_report(service_sheets, now)
@@ -623,7 +638,7 @@ def direct_query_finance():
 
 def get_schedule_response(days):
     """取得行事曆行程的共通回傳格式"""
-    now = datetime.now()
+    now = datetime.now(TW_TZ)
     try:
         service = build('calendar', 'v3', credentials=creds)
         today_start = datetime.combine(now.date(), time.min).isoformat() + '+08:00'
@@ -687,7 +702,7 @@ def manual_action():
     """
     data = request.get_json()
     action_type = data.get('type')
-    now = datetime.now()
+    now = datetime.now(TW_TZ)
 
     try:
         if action_type == 'calendar':
@@ -788,7 +803,7 @@ def manual_action():
 # --- 備忘、願望、待辦 API ---
 @app.route('/api/memo', methods=['GET', 'POST'])
 def handle_memo():
-    now = datetime.now()
+    now = datetime.now(TW_TZ)
     diary_id = os.getenv('DIARY_SHEET_ID')
     if request.method == 'POST':
         data = request.json
@@ -815,9 +830,9 @@ def handle_wishlist():
             return jsonify({"status": "error", "message": "環境變數未設定 WISH_SHEET_ID"}), 500
             
         # 欄位：建立日期, 商品名稱, 預估價格, 備註/連結, 狀態, 分類, 實際價格, 唯一 ID, 儲存時間
-        unique_id = str(int(datetime.now().timestamp() * 1000))
+        unique_id = str(int(datetime.now(TW_TZ).timestamp() * 1000))
         row = [
-            datetime.now().strftime("%Y-%m-%d"),
+            datetime.now(TW_TZ).strftime("%Y-%m-%d"),
             data.get('name', ''),
             data.get('price', '0'),
             data.get('note', ''),
@@ -825,7 +840,7 @@ def handle_wishlist():
             data.get('category', '靈感'),
             '',
             unique_id,
-            datetime.now().strftime("%H:%M:%S")
+            datetime.now(TW_TZ).strftime("%H:%M:%S")
         ]
         try:
             append_to_sheet('願望清單', row, spreadsheet_id=wish_id)
@@ -873,7 +888,7 @@ def fulfill_wish():
         for i, row in enumerate(rows):
             if len(row) > 1 and str(row[1]).strip() == str(title).strip():
                 target_row_idx = i + 1
-                item_id = str(int(datetime.now().timestamp() * 1000)) if not item_id else item_id
+                item_id = str(int(datetime.now(TW_TZ).timestamp() * 1000)) if not item_id else item_id
                 break
                 
     if target_row_idx == -1:
@@ -944,15 +959,15 @@ def handle_todo():
         if not todo_id:
             return jsonify({"status": "error", "message": "環境變數未設定 TODO_SHEET_ID"}), 500
         # 欄位：建立日期, 事項/內容, 分類, 狀態, 唯一 ID, 完成時間
-        unique_id = str(int(datetime.now().timestamp() * 1000))
+        unique_id = str(int(datetime.now(TW_TZ).timestamp() * 1000))
         priority = data.get('priority', '不重要且不緊急')
         row = [
-            datetime.now().strftime("%Y-%m-%d"),
+            datetime.now(TW_TZ).strftime("%Y-%m-%d"),
             data.get('title', ''),
             data.get('category', '待辦'),
             '未完成',
             unique_id,
-            datetime.now().strftime("%H:%M:%S"),
+            datetime.now(TW_TZ).strftime("%H:%M:%S"),
             priority
         ]
         try:
@@ -1019,7 +1034,7 @@ def toggle_todo():
                 if len(row) > 1 and str(row[1]).strip() == str(search_title).strip():
                     target_row_idx = i + 1
                     # 順便幫它補上一個 ID，以後就不會認錯了
-                    item_id = str(int(datetime.now().timestamp() * 1000)) if not item_id else item_id
+                    item_id = str(int(datetime.now(TW_TZ).timestamp() * 1000)) if not item_id else item_id
                     break
     
     if target_row_idx == -1:
@@ -1027,7 +1042,7 @@ def toggle_todo():
     
     service = get_sheets_service()
     status = '已完成' if is_completed else '未完成'
-    finish_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S") if is_completed else ''
+    finish_time = datetime.now(TW_TZ).strftime("%Y-%m-%d %H:%M:%S") if is_completed else ''
     
     # 更新狀態 (D 欄), ID (E 欄)
     service.spreadsheets().values().update(
@@ -1119,7 +1134,7 @@ def update_wish():
         spreadsheetId=wish_id,
         range=f'願望清單!I{target_row_idx}',
         valueInputOption='USER_ENTERED',
-        body={'values': [[datetime.now().strftime("%H:%M:%S")]]}
+        body={'values': [[datetime.now(TW_TZ).strftime("%H:%M:%S")]]}
     ).execute()
     
     return jsonify({"status": "success", "message": "願望已更新"})
@@ -1296,7 +1311,7 @@ def handle_pocket(action, data=None):
             location = data.get('location', '')
             area = data.get('area', '')
             note = data.get('note', '')
-            create_time = datetime.now().strftime('%Y-%m-%d %H:%M')
+            create_time = datetime.now(TW_TZ).strftime('%Y-%m-%d %H:%M')
             
             # 優先使用前端傳來的經緯度，若無則嘗試後端抓取
             lat = data.get('lat')
