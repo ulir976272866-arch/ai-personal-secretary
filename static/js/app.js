@@ -1338,6 +1338,115 @@ document.addEventListener('DOMContentLoaded', () => {
         scrollToBottom();
     }
 
+    function renderCompletedScheduleCard(events, keyword, days) {
+        const card = document.createElement('div');
+        card.className = 'schedule-card';
+
+        const kLabel = keyword ? `關鍵字「${keyword}」` : '所有';
+        let headerHtml = `
+            <div class="schedule-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid #f1f5f9;">
+                <h3 style="margin:0; font-size: 1rem; color: #10b981;">🔍 已完成行程 (${kLabel})</h3>
+                <span style="font-size: 0.7rem; color: #94a3b8; background: #ecfdf5; padding: 4px 10px; border-radius: 8px; font-weight: 800; border: 1.5px solid #a7f3d0;">
+                    過去 ${days} 天
+                </span>
+            </div>
+        `;
+
+        if (events.length === 0) {
+            card.innerHTML = headerHtml + `
+                <div style="padding: 30px 15px; text-align: center;">
+                    <p style="color: #64748b; margin:0;">沒有找到任何符合的已完成行程喔！</p>
+                </div>
+            `;
+            chatHistory.appendChild(card);
+            scrollToBottom();
+            return;
+        }
+
+        let listHtml = '<div class="schedule-list">';
+        events.forEach(event => {
+            let locationHtml = '';
+            if (event.location) {
+                const mapUrl = getMapUrl(event.location);
+                locationHtml = `
+                    <div class="event-address-row">
+                        <div class="event-address-icon">📍</div>
+                        <a href="${mapUrl}" class="location-link" style="color: #94a3b8; text-decoration: none;">${event.location}</a>
+                    </div>`;
+            }
+
+            listHtml += `
+                <div id="completed_event_li_${event.id}" class="schedule-item" style="border-left: 4px solid #10b981;">
+                    <div class="event-info" style="flex: 1;">
+                        <div class="event-time-row" style="color: #10b981; font-weight: 800;">[${event.date}] ${event.time}</div>
+                        <div class="event-title-row" style="text-decoration: line-through; color: #94a3b8;">✅ ${event.title}</div>
+                        ${locationHtml}
+                    </div>
+                    <div class="event-actions" style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
+                        <button onclick="window.restoreCompletedEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')" 
+                                style="cursor: pointer; background: #ecfdf5; border: 1.5px solid #a7f3d0; color: #047857; padding: 4px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; border-radius: 8px;">
+                            ↩️ 恢復
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        listHtml += '</div>';
+        card.innerHTML = headerHtml + listHtml;
+        chatHistory.appendChild(card);
+        scrollToBottom();
+    }
+
+    window.restoreCompletedEvent = async (id, name) => {
+        showToast(`🔄 正在將「${name}」恢復為未完成...`, 'info');
+        
+        try {
+            // A. 從隱藏名單中移除
+            let hidden = JSON.parse(localStorage.getItem('hiddenPocketEvents') || '[]');
+            hidden = hidden.filter(item => item !== id);
+            localStorage.setItem('hiddenPocketEvents', JSON.stringify(hidden));
+
+            // B. 發送 API 請求取消完成標記
+            const res = await fetch('/api/toggle_completion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event_id: id })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                showToast(`✅ 已成功將「${name}」恢復至未完成日程！`, 'success');
+                // C. 將該行卡片項目更新為「已恢復」視覺
+                const li = document.getElementById(`completed_event_li_${id}`);
+                if (li) {
+                    li.style.background = '#f8fafc';
+                    li.style.borderLeft = '4px solid #f59e0b';
+                    const titleRow = li.querySelector('.event-title-row');
+                    if (titleRow) {
+                        titleRow.style.textDecoration = 'none';
+                        titleRow.style.color = '#0f172a';
+                        titleRow.innerText = name;
+                    }
+                    const btn = li.querySelector('button');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.style.background = '#f1f5f9';
+                        btn.style.border = '1px solid #cbd5e1';
+                        btn.style.color = '#94a3b8';
+                        btn.innerText = '已恢復至行程';
+                    }
+                }
+                
+                // D. 重整主畫面行程
+                window.querySchedule(window.lastQueryDays || 7);
+            } else {
+                showToast(`❌ 恢復失敗：${data.message}`, 'error');
+            }
+        } catch (e) {
+            showToast('❌ 伺服器連線失敗', 'error');
+        }
+    };
+
     document.querySelectorAll('.close-modal').forEach(btn => btn.onclick = () => window.closeModal());
 
     function scrollToBottom() {
@@ -1659,6 +1768,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.status === 'success') {
                 if (data.type === 'query_schedule') {
                     renderScheduleCard(data.data, data.date_str);
+                } else if (data.type === 'query_completed_schedule') {
+                    renderCompletedScheduleCard(data.data, data.keyword, data.days);
                 } else if (data.type === 'open_spreadsheet') {
                     appendMessage(data.message);
                     setTimeout(() => window.open(data.url, '_blank'), 1000);

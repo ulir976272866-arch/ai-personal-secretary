@@ -343,6 +343,7 @@ def chat():
         【意圖判斷】：
         - 記帳：type: "expense" (item, amount, category: {cat_list_str}, expense_type: "income" 或 "expense")
         - 行事曆：type: "calendar" (title, start_time, location)
+        - 查詢已完成行程：type: "query_completed_schedule" (keyword: 搜尋關鍵字如離職或 null, days: 過去查詢天數，預設 30)
         - 其他：chat, query_schedule, query_expense_report
         
         【特別規則】：如果是領錢、薪水、進帳、退款、中獎等屬於「收入」，請將 expense_type 設為 "income"。
@@ -401,6 +402,15 @@ def chat():
 
         elif intent_type == "query_schedule":
             return get_schedule_response(parsed_data.get("days", 1))
+
+        elif intent_type == "query_completed_schedule":
+            keyword = parsed_data.get("keyword")
+            days = parsed_data.get("days") or 30
+            try:
+                days = int(days)
+            except:
+                days = 30
+            return get_completed_schedule_response(keyword, days)
 
         elif intent_type == "query_expense_report":
             service = build('sheets', 'v4', credentials=creds)
@@ -581,6 +591,87 @@ def get_schedule_response(days):
     return jsonify({
         "status": "success", "type": "query_schedule",
         "data": schedule_list, "date_str": range_label
+    })
+
+def get_completed_schedule_response(keyword, days):
+    """查詢過去已完成行程的共通回傳格式"""
+    now = datetime.now(TW_TZ)
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        today_end = datetime.combine(now.date(), time.max).isoformat() + '+08:00'
+        past_start = datetime.combine((now - timedelta(days=days)).date(), time.min).isoformat() + '+08:00'
+        
+        events_result = service.events().list(
+            calendarId=CALENDAR_ID, timeMin=past_start, timeMax=today_end,
+            maxResults=150, singleEvents=True, orderBy='startTime'
+        ).execute()
+        events = events_result.get('items', [])
+    except Exception as e:
+        print(f"Error fetching past completed events: {e}")
+        return jsonify({
+            "status": "success",
+            "type": "chat",
+            "message": "⚠️ 讀取行事曆失敗！請確認日曆共用設定。"
+        })
+        
+    completed_list = []
+    for e in events:
+        full_title = e.get('summary', '無標題')
+        is_done = full_title.startswith("✅ ")
+        if not is_done:
+            continue
+            
+        display_title = full_title.replace("✅ ", "", 1)
+        
+        # Keyword filter (case-insensitive)
+        if keyword:
+            keyword_lower = keyword.lower()
+            if keyword_lower not in display_title.lower() and keyword_lower not in e.get('location', '').lower():
+                continue
+                
+        start_str = e['start'].get('dateTime', e['start'].get('date'))
+        try:
+            if 'T' in start_str:
+                dt_obj = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                dt_obj = dt_obj.astimezone(TW_TZ)
+                date_val = dt_obj.strftime('%m/%d')
+                time_val = dt_obj.strftime('%H:%M')
+            else:
+                dt_obj = datetime.strptime(start_str, '%Y-%m-%d')
+                date_val = dt_obj.strftime('%m/%d')
+                time_val = '全天'
+        except Exception as ex:
+            print(f"Error parsing start_str '{start_str}': {ex}")
+            date_val = now.strftime('%m/%d')
+            time_val = '全天'
+            
+        completed_list.append({
+            'id': e['id'], 'time': time_val, 'date': date_val, 'title': display_title,
+            'location': e.get('location', ''), 'start_time': start_str
+        })
+        
+    if not completed_list:
+        k_str = f"關鍵字「{keyword}」" if keyword else ""
+        return jsonify({
+            "status": "success",
+            "type": "chat",
+            "message": f"🔍 過去 {days} 天內，沒有找到任何符合{k_str}的已完成行程喔！"
+        })
+        
+    # Generate direct clean message for LINE / fallback
+    msg = f"🔍 幫您找到過去 {days} 天內已完成的行程：\n\n"
+    for i, item in enumerate(completed_list, 1):
+        time_label = f" ({item['time']})" if item['time'] != '全天' else " (全天)"
+        loc_label = f"\n📍 地址：{item['location']}" if item['location'] else ""
+        msg += f"{i}. [{item['date']}] {item['title']}{time_label}{loc_label}\n"
+        
+    return jsonify({
+        "status": "success",
+        "type": "query_completed_schedule",
+        "data": completed_list,
+        "message": msg,
+        "keyword": keyword,
+        "days": days
     })
 
 @app.route('/api/query_schedule', methods=['POST'])
