@@ -1282,3 +1282,163 @@ select.form-input {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
 }
+
+/* --- V4.0 生理期助理 & AI 訓練室專屬樣式 --- */
+
+/* 健康分頁按鈕 */
+.tab-health.active {
+    background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%) !important;
+    color: #e11d48 !important;
+    border-color: #fecdd3 !important;
+    box-shadow: 0 4px 10px rgba(225, 29, 72, 0.1) !important;
+}
+
+/* 狀態大圖卡 */
+.health-status-card {
+    background: linear-gradient(135deg, #fecdd3 0%, #ffedd5 100%);
+    border-radius: 20px;
+    padding: 25px 20px;
+    text-align: center;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 20px rgba(254, 205, 211, 0.4);
+    position: relative;
+    overflow: hidden;
+}
+
+.health-status-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at top right, rgba(255,255,255,0.4), transparent);
+}
+
+.health-status-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #be123c;
+    margin-bottom: 5px;
+    position: relative;
+}
+
+.health-status-days {
+    font-size: 3.5rem;
+    font-weight: 900;
+    color: #9f1239;
+    line-height: 1;
+    margin-bottom: 5px;
+    text-shadow: 2px 2px 4px rgba(255,255,255,0.5);
+    position: relative;
+}
+
+.health-status-desc {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #e11d48;
+    position: relative;
+}
+
+/* 快速操作區 */
+.health-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+}
+
+.health-action-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 15px 5px;
+    border-radius: 16px;
+    border: none;
+    font-size: 0.85rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #f8fafc;
+    color: #475569;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+}
+
+.health-action-btn .icon {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+}
+
+.health-action-btn:active {
+    transform: scale(0.95);
+}
+
+.health-action-btn.start {
+    background: #fff1f2;
+    color: #e11d48;
+}
+.health-action-btn.start:hover { background: #ffe4e6; }
+
+.health-action-btn.end {
+    background: #f1f5f9;
+    color: #94a3b8; /* 預設為灰色 */
+}
+
+.health-action-btn.symptom {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+.health-action-btn.symptom:hover { background: #dcfce7; }
+
+
+/* 數據統計看板 */
+.health-stat-box {
+    flex: 1;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+}
+
+.health-stat-box .label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 5px;
+}
+
+.health-stat-box .val {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #1e293b;
+}
+
+.health-stat-box .val span {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+/* 歷史紀錄清單 */
+.health-history-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.health-history-item:last-child {
+    border-bottom: none;
+}
+
+.health-history-item .date-range {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.health-history-item .symptoms {
+    font-size: 0.8rem;
+    color: #64748b;
+}

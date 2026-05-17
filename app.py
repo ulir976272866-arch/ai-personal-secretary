@@ -105,6 +105,35 @@ SPREADSHEET_ID = os.getenv("GOOGLE_SHEET_ID")
 # 使用者的日曆 ID (通常是使用者的 Gmail)
 CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID", "primary")
 
+# 記帳分類與 Emoji 映射對照表 (確保雲端與本地端都有超高顏值 Emoji 符號)
+CATEGORY_EMOJI_MAP = {
+    # 支出分類
+    "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "投資": "📈", "公益": "💖", "未分類": "❓",
+    # 收入分類
+    "薪資": "💰", "獎金": "🧧", "投資獲利": "💹", "退款": "🔙", "其他進帳": "🪙"
+}
+
+def format_category_with_emoji(category, is_income=False):
+    if not category:
+        return "❓ 未分類"
+        
+    category_clean = str(category).strip()
+    
+    # 1. 檢查是否已經有任何「圖示 分類」格式的空格分隔符 (例如：🍔 食 或 🐶 寵物)
+    if ' ' in category_clean:
+        parts = category_clean.split(' ', 1)
+        if len(parts) == 2 and len(parts[0]) > 0:
+            return category_clean
+            
+    # 2. 如果是純文字，檢查是否包含預設分類的關鍵字，並主動加上對應 Emoji
+    for cat_name, emoji in CATEGORY_EMOJI_MAP.items():
+        if cat_name in category_clean:
+            return f"{emoji} {cat_name}"
+            
+    # 3. 若是自訂分類但尚未有圖示，則依照收支類型給予預設圖示
+    default_emoji = "💰" if is_income else "📝"
+    return f"{default_emoji} {category_clean}"
+
 def ensure_tz(ts):
     """確保時間字串包含時區偏移量"""
     if 'T' in ts:
@@ -275,16 +304,33 @@ def chat():
     if bypass_data:
         parsed_data = bypass_data
     else:
+        ai_rules_str = ""
         expense_categories = ["食", "衣", "住", "行", "育", "樂", "醫", "投資", "公益"]
         try:
             service_sheets = build('sheets', 'v4', credentials=creds)
+            # 讀取記帳分類
             rows_result = service_sheets.spreadsheets().values().get(
                 spreadsheetId=SPREADSHEET_ID, range='記帳!G:G'
             ).execute()
             existing_cats = set([row[0] for row in rows_result.get('values', [])[1:] if row])
             for ec in existing_cats:
                 if ec not in expense_categories: expense_categories.append(ec)
-        except: pass
+                
+            # 讀取 AI 自訂指令集
+            health_sheet_id = os.getenv('HEALTH_SHEET_ID')
+            if health_sheet_id:
+                rules_result = service_sheets.spreadsheets().values().get(
+                    spreadsheetId=health_sheet_id, range='AI_指令集!A:B'
+                ).execute()
+                rule_rows = rules_result.get('values', [])
+                if len(rule_rows) > 1:
+                    ai_rules_str = "\n        【用戶自訂訓練指令】(最高優先級)：\n"
+                    for r in rule_rows[1:]:
+                        if len(r) >= 2 and r[0].strip():
+                            ai_rules_str += f"        - 當用戶說「{r[0]}」時，你必須執行「{r[1]}」。\n"
+        except Exception as e:
+            print(f"Error loading dynamic context: {e}")
+            
         cat_list_str = "、".join(expense_categories)
 
         prompt = f"""
@@ -300,7 +346,7 @@ def chat():
         - 其他：chat, query_schedule, query_expense_report
         
         【特別規則】：如果是領錢、薪水、進帳、退款、中獎等屬於「收入」，請將 expense_type 設為 "income"。
-        
+        {ai_rules_str}
         請回傳 JSON。
         """
 
@@ -345,7 +391,7 @@ def chat():
                 parsed_data.get('item') if is_income else "", 
                 "" if is_income else parsed_data.get('item'), 
                 parsed_data.get('amount'), 
-                parsed_data.get('category')
+                format_category_with_emoji(parsed_data.get('category'), is_income)
             ]]}
             service.spreadsheets().values().append(spreadsheetId=SPREADSHEET_ID, range='記帳!A:G', valueInputOption='USER_ENTERED', body=body).execute()
             _, cat_report, cat_dict, _ = get_monthly_report(service, now)
@@ -609,7 +655,7 @@ def manual_action():
                 data.get('item') if is_income else "", # 收入項目
                 "" if is_income else data.get('item'), # 支出項目
                 data.get('amount'), 
-                data.get('category')
+                format_category_with_emoji(data.get('category'), is_income)
             ]]
             body = {'values': values}
             service.spreadsheets().values().append(
@@ -1223,6 +1269,303 @@ def add_pocket_item():
     if success:
         return jsonify({"status": "success", "message": "成功存入口袋名單！📍"})
     return jsonify({"status": "error", "message": "存入失敗"})
+
+# --- 🌸 健康與 AI 訓練 API ---
+@app.route('/api/health/info', methods=['GET'])
+def get_health_info():
+    health_id = os.getenv('HEALTH_SHEET_ID')
+    if not health_id:
+         return jsonify({"status": "error", "message": "尚未設定 HEALTH_SHEET_ID"})
+    try:
+        rows = get_sheet_values('生理紀錄', spreadsheet_id=health_id)
+        if not rows or len(rows) < 2:
+            return jsonify({"status": "success", "history": [], "avg_cycle": 28, "avg_length": 5, "days_until_next": 28, "next_date": ""})
+            
+        history = []
+        cycles = []
+        lengths = []
+        
+        for row in rows[1:]:
+             # 0: 年度, 1: 月份, 2: 開始日期, 3: 結束日期, 4: 經期天數, 5: 週期天數, 6: 備註
+             start_d = row[2] if len(row) > 2 else ""
+             end_d = row[3] if len(row) > 3 and row[3].strip() else "進行中"
+             symptoms = row[6] if len(row) > 6 else ""
+             
+             if start_d:
+                 history.append({"start": start_d, "end": end_d, "symptoms": symptoms})
+                 
+             try:
+                 if len(row) > 5 and row[5].strip():
+                     cycles.append(int(row[5]))
+                 if len(row) > 4 and row[4].strip():
+                     lengths.append(int(row[4]))
+             except: pass
+                 
+        avg_cycle = round(sum(cycles)/len(cycles)) if cycles else 31
+        avg_length = round(sum(lengths)/len(lengths)) if lengths else 7
+        
+        days_until_next = 0
+        next_date_str = "未定"
+        
+        if history:
+            latest_start = history[0]["start"] # 最上面那筆是最新
+            try:
+                # datetime 轉換
+                last_dt = datetime.strptime(latest_start, "%Y/%m/%d")
+                next_dt = last_dt + timedelta(days=avg_cycle)
+                # 計算距離今天幾天
+                now = datetime.now()
+                # 去除時間，只比較日期
+                diff = (next_dt.date() - now.date()).days
+                
+                days_until_next = diff if diff >= 0 else 0
+                next_date_str = next_dt.strftime("%Y/%m/%d")
+            except Exception as e:
+                print(f"Date parse error: {e}")
+        
+        return jsonify({
+            "status": "success",
+            "history": history[:3],
+            "avg_cycle": avg_cycle,
+            "avg_length": avg_length,
+            "days_until_next": days_until_next,
+            "next_date": next_date_str
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/health/record_start', methods=['POST'])
+def record_health_start():
+    health_id = os.getenv('HEALTH_SHEET_ID')
+    if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
+    
+    try:
+        service_sheets = build('sheets', 'v4', credentials=creds)
+        rows = get_sheet_values('生理紀錄', spreadsheet_id=health_id)
+        
+        # 1. 檢查是否已經在進行中
+        if len(rows) > 1:
+             latest_end = rows[1][3] if len(rows[1]) > 3 else "進行中"
+             if latest_end == "進行中" or latest_end.strip() == "":
+                 return jsonify({"status": "error", "message": "目前已經有進行中的紀錄囉！"})
+                 
+        # 計算平均天數
+        cycles = []
+        lengths = []
+        for row in rows[1:]:
+             try:
+                 if len(row) > 5 and row[5].strip(): cycles.append(int(row[5]))
+                 if len(row) > 4 and row[4].strip(): lengths.append(int(row[4]))
+             except: pass
+        avg_cycle = round(sum(cycles)/len(cycles)) if cycles else 31
+        avg_length = round(sum(lengths)/len(lengths)) if lengths else 7
+        
+        now = datetime.now(TW_TZ)
+        today_str = now.strftime("%Y/%m/%d")
+        
+        # 計算週期天數 (與上一次的間距)
+        cycle_days = ""
+        if len(rows) > 1 and len(rows[1]) > 2:
+             last_start_str = rows[1][2]
+             try:
+                 last_dt = datetime.strptime(last_start_str, "%Y/%m/%d").replace(tzinfo=TW_TZ)
+                 cycle_days = str((now - last_dt).days)
+             except: pass
+             
+        # 2. 寫入新紀錄到試算表 (插入在第二列)
+        new_row = [now.strftime("%Y"), now.strftime("%m"), today_str, "進行中", "", "", ""]
+        
+        sh = service_sheets.spreadsheets().get(spreadsheetId=health_id).execute()
+        sheet_id = next(s['properties']['sheetId'] for s in sh['sheets'] if s['properties']['title'] == '生理紀錄')
+        
+        # 插入新的一列
+        requests = [{
+            "insertDimension": {
+                "range": {"sheetId": sheet_id, "dimension": "ROWS", "startIndex": 1, "endIndex": 2},
+                "inheritFromBefore": False
+            }
+        }]
+        service_sheets.spreadsheets().batchUpdate(spreadsheetId=health_id, body={"requests": requests}).execute()
+        
+        # 寫入新資料到 A2
+        service_sheets.spreadsheets().values().update(
+            spreadsheetId=health_id, range="生理紀錄!A2",
+            valueInputOption="USER_ENTERED", body={"values": [new_row]}
+        ).execute()
+        
+        # 如果有算出週期天數，更新上一筆 (原本的第2列變成第3列)
+        if cycle_days:
+            service_sheets.spreadsheets().values().update(
+                spreadsheetId=health_id, range="生理紀錄!F3",
+                valueInputOption="USER_ENTERED", body={"values": [[cycle_days]]}
+            ).execute()
+        
+        # 3. 日曆操作
+        service_cal = build('calendar', 'v3', credentials=creds)
+        
+        # 刪除未來所有的 🌸 (預測) 行程
+        time_min = now.isoformat()
+        events_result = service_cal.events().list(calendarId=CALENDAR_ID, timeMin=time_min, q="🌸 (預測)").execute()
+        for event in events_result.get('items', []):
+            if "🌸 (預測)" in event.get('summary', ''):
+                service_cal.events().delete(calendarId=CALENDAR_ID, eventId=event['id']).execute()
+                
+        # 排入本次生理期
+        for i in range(avg_length):
+            day_dt = now + timedelta(days=i)
+            event_body = {
+                'summary': f'🌸 生理期 (第{i+1}天)',
+                'start': {'date': day_dt.strftime("%Y-%m-%d")},
+                'end': {'date': (day_dt + timedelta(days=1)).strftime("%Y-%m-%d")}
+            }
+            service_cal.events().insert(calendarId=CALENDAR_ID, body=event_body).execute()
+            
+        # 排入下次預測
+        next_start_dt = now + timedelta(days=avg_cycle)
+        for i in range(avg_length):
+            day_dt = next_start_dt + timedelta(days=i)
+            event_body = {
+                'summary': f'🌸 (預測) 生理期',
+                'start': {'date': day_dt.strftime("%Y-%m-%d")},
+                'end': {'date': (day_dt + timedelta(days=1)).strftime("%Y-%m-%d")}
+            }
+            service_cal.events().insert(calendarId=CALENDAR_ID, body=event_body).execute()
+            
+        return jsonify({"status": "success", "message": "已記錄開始，並排入日曆與未來預測！🌸"})
+        
+    except Exception as e:
+        print(f"Record start error: {e}")
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/health/record_end', methods=['POST'])
+def record_health_end():
+    health_id = os.getenv('HEALTH_SHEET_ID')
+    if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
+    
+    try:
+        service_sheets = build('sheets', 'v4', credentials=creds)
+        rows = get_sheet_values('生理紀錄', spreadsheet_id=health_id)
+        
+        if len(rows) < 2: return jsonify({"status": "error", "message": "沒有找到紀錄可以結束。"})
+        
+        latest_end = rows[1][3] if len(rows[1]) > 3 else ""
+        if latest_end != "進行中" and latest_end.strip() != "":
+             return jsonify({"status": "error", "message": "最新紀錄已經結束囉！"})
+             
+        start_str = rows[1][2]
+        now = datetime.now(TW_TZ)
+        today_str = now.strftime("%Y/%m/%d")
+        
+        length_days = ""
+        try:
+             start_dt = datetime.strptime(start_str, "%Y/%m/%d").replace(tzinfo=TW_TZ)
+             length_days = str((now - start_dt).days + 1)
+        except: pass
+        
+        body = {"values": [[today_str, length_days]]}
+        service_sheets.spreadsheets().values().update(
+            spreadsheetId=health_id, range="生理紀錄!D2:E2",
+            valueInputOption="USER_ENTERED", body=body
+        ).execute()
+        
+        return jsonify({"status": "success", "message": "已記錄結束，辛苦了！✅"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/health/symptoms/options', methods=['GET', 'POST', 'DELETE'])
+def manage_symptoms_options():
+    health_id = os.getenv('HEALTH_SHEET_ID')
+    if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
+    
+    service = build('sheets', 'v4', credentials=creds)
+    try:
+        if request.method == 'GET':
+            rows = get_sheet_values('症狀選項', spreadsheet_id=health_id)
+            options = [r[0] for r in rows[1:] if len(r) > 0 and r[0].strip()]
+            return jsonify({"status": "success", "data": options})
+            
+        elif request.method == 'POST':
+            new_option = request.json.get('option', '').strip()
+            if not new_option: return jsonify({"status": "error", "message": "選項不能為空"})
+            
+            body = {'values': [[new_option]]}
+            service.spreadsheets().values().append(
+                spreadsheetId=health_id, range="症狀選項!A:A",
+                valueInputOption="USER_ENTERED", body=body
+            ).execute()
+            return jsonify({"status": "success", "message": "已新增選項"})
+            
+        elif request.method == 'DELETE':
+            target_option = request.json.get('option', '').strip()
+            if not target_option: return jsonify({"status": "error", "message": "請指定要刪除的選項"})
+            
+            rows = get_sheet_values('症狀選項', spreadsheet_id=health_id)
+            if not rows: return jsonify({"status": "success"})
+            
+            new_rows = [r for r in rows if len(r) == 0 or r[0].strip() != target_option]
+            
+            # 清空原本範圍
+            service.spreadsheets().values().clear(spreadsheetId=health_id, range="症狀選項!A:A").execute()
+            # 寫回新的
+            service.spreadsheets().values().update(
+                spreadsheetId=health_id, range="症狀選項!A1",
+                valueInputOption="USER_ENTERED", body={"values": new_rows}
+            ).execute()
+            return jsonify({"status": "success", "message": "已刪除選項"})
+            
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/health/symptoms/record', methods=['POST'])
+def record_symptoms():
+    health_id = os.getenv('HEALTH_SHEET_ID')
+    if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
+    
+    selected = request.json.get('symptoms', [])
+    symptoms_str = "、".join(selected)
+    
+    try:
+        # 我們假設寫入最新的一筆 (第二列)
+        service = build('sheets', 'v4', credentials=creds)
+        service.spreadsheets().values().update(
+            spreadsheetId=health_id, range="生理紀錄!G2",
+            valueInputOption="USER_ENTERED", body={"values": [[symptoms_str]]}
+        ).execute()
+        return jsonify({"status": "success", "message": "症狀已記錄！🩺"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/training/rules', methods=['GET'])
+def get_training_rules():
+    health_id = os.getenv('HEALTH_SHEET_ID')
+    if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
+    try:
+        rows = get_sheet_values('AI_指令集', spreadsheet_id=health_id)
+        rules = []
+        if rows and len(rows) > 1:
+            for r in rows[1:]:
+                 if len(r) >= 2 and r[0].strip():
+                     rules.append({"trigger": r[0], "action": r[1]})
+        return jsonify({"status": "success", "data": rules})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/training/add_rule', methods=['POST'])
+def add_training_rule():
+    data = request.json
+    health_id = os.getenv('HEALTH_SHEET_ID')
+    if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
+    trigger = data.get('trigger', '')
+    action = data.get('action', '')
+    if not trigger or not action: return jsonify({"status": "error", "message": "請輸入完整規則"})
+    
+    now = datetime.now(TW_TZ)
+    row = [trigger, action, now.strftime("%Y-%m-%d %H:%M:%S")]
+    try:
+        append_to_sheet('AI_指令集', row, spreadsheet_id=health_id)
+        return jsonify({"status": "success", "message": "訓練指令已寫入大腦！🧠"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))

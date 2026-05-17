@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     updateDynamicDateIcons();
 
-    window.expenseCategories = ["食", "衣", "住", "行", "育", "樂", "醫", "投資", "公益"];
+    window.defaultExpenseCategories = ["食", "衣", "住", "行", "育", "樂", "醫", "投資", "公益"];
     window.incomeCategories = ["薪資", "獎金", "投資獲利", "投資", "退款", "其他進帳"];
 
     // --- 分類選單核心邏輯 (V23.0 完美修復版) ---
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
         select.innerHTML = '';
 
         const deletedCats = JSON.parse(localStorage.getItem('deletedExpenseCats') || '[]');
-        const customCats = (window.customExpenseCategories || []).filter(c => !deletedCats.includes(c));
+        const customCats = window.loadExpenseCategories().filter(c => !deletedCats.includes(c.name));
         
         const incomeMap = { "薪資": "💰", "獎金": "🧧", "投資獲利": "💹", "投資": "📈", "退款": "🔙", "其他進帳": "🪙" };
         const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "投資": "📈", "公益": "💖" };
@@ -37,8 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
             finalCategories = window.incomeCategories.map(cat => ({ name: cat, icon: incomeMap[cat] || "💰" }));
         } else {
             // 支出模式：預設 + 自訂
-            const baseCats = window.expenseCategories.map(cat => ({ name: cat, icon: expenseMap[cat] || "💸" }));
-            const extraCats = customCats.map(cat => ({ name: cat, icon: "📝" }));
+            const baseCats = window.defaultExpenseCategories.map(cat => ({ name: cat, icon: expenseMap[cat] || "💸" }));
+            const extraCats = customCats.map(cat => ({ name: cat, icon: cat.icon || "📝" }));
             finalCategories = [...baseCats, ...extraCats];
         }
 
@@ -56,7 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
             let stored = raw ? JSON.parse(raw) : [];
             if (!Array.isArray(stored)) return [];
             
-            // 強大相容性：將純文字、損壞物件全部轉為正確格式
             return stored.map(c => {
                 if (typeof c === 'string') return { name: c, icon: '💸' };
                 if (c && typeof c === 'object' && c.name) {
@@ -71,39 +70,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.saveExpenseCategories = (cats) => {
         localStorage.setItem('customExpenseCategories', JSON.stringify(cats));
-        window.expenseCategories = cats;
     };
 
     window.updateExpenseDropdown = () => {
-        const select = document.getElementById('manual_expense_category');
-        if (!select) return;
-        
-        select.innerHTML = '';
-        const firstOpt = new Option("請選擇", "");
-        firstOpt.disabled = true;
-        firstOpt.selected = true;
-        select.add(firstOpt);
-
-        const baseCats = [
-            { name: "食", icon: "🍔" }, { name: "衣", icon: "👔" }, { name: "住", icon: "🏠" },
-            { name: "行", icon: "🚗" }, { name: "育", icon: "📚" }, { name: "樂", icon: "🎬" },
-            { name: "醫", icon: "🏥" }, { name: "投資", icon: "📈" }, { name: "公益", icon: "💖" }
-        ];
-
-        baseCats.forEach(cat => {
-            const display = `${cat.icon} ${cat.name}`;
-            select.add(new Option(display, display));
-        });
-
-        // 讀取最新自定義分類
-        window.expenseCategories = window.loadExpenseCategories();
-        window.expenseCategories.forEach(cat => {
-            const display = `${cat.icon} ${cat.name}`;
-            select.add(new Option(display, display));
-        });
-
-        const uncatDisplay = "❓ 未分類";
-        select.add(new Option(uncatDisplay, uncatDisplay));
+        // 直接使用統一的分類下拉選單更新
+        const type = document.getElementById('expense_type')?.value || 'expense';
+        window.updateExpenseCategoryDropdown(type);
     };
 
     window.suggestExpenseEmoji = (text) => {
@@ -179,15 +151,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('expense_manage_list');
         if (!container) return;
         
-        window.expenseCategories = window.loadExpenseCategories();
-        container.innerHTML = window.expenseCategories.map(cat => `
+        const customCats = window.loadExpenseCategories();
+        container.innerHTML = customCats.map(cat => `
             <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 8px;">
                 <div style="font-size: 1rem; font-weight: 600; color: #1e293b;">${cat.icon} ${cat.name}</div>
                 <button onclick="deleteExpenseCategory('${cat.name}')" style="background: #fee2e2; color: #ef4444; border: none; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">刪除</button>
             </div>
         `).join('');
         
-        if (window.expenseCategories.length === 0) {
+        if (customCats.length === 0) {
             container.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 20px;">目前沒有自定義分類。</div>';
         }
         openModal('expenseCatManageModal');
@@ -454,6 +426,32 @@ document.addEventListener('DOMContentLoaded', () => {
             window.selectCategory(''); // 口袋名單開啟時預設空白
             setTimeout(window.initPocketAutocomplete, 300);
             window.loadPocket();
+        }
+        if (id === 'healthModal') {
+            // 重置為加載狀態，避免閃爍舊的或預設數據 (V14.8)
+            const daysEl = document.querySelector('.health-status-days');
+            const descEl = document.querySelector('.health-status-desc');
+            if (daysEl) daysEl.innerHTML = `-- <span style="font-size: 1.2rem;">天</span>`;
+            if (descEl) descEl.innerText = `正在計算預測日期...`;
+            
+            const stats = document.querySelectorAll('.health-stat-box .val');
+            if (stats.length >= 2) {
+                stats[0].innerHTML = `-- <span>天</span>`;
+                stats[1].innerHTML = `-- <span>天</span>`;
+            }
+            
+            const historyList = document.getElementById('health_history_list');
+            if (historyList) {
+                historyList.innerHTML = `<div style="text-align: center; padding: 20px; color: #94a3b8;">⏳ 正在載入歷史紀錄...</div>`;
+            }
+
+            if (window.loadHealthInfo) window.loadHealthInfo();
+        }
+        if (id === 'trainingModal') {
+            if (window.loadTrainingRules) window.loadTrainingRules();
+        }
+        if (id === 'symptomModal') {
+            if (window.loadSymptoms) window.loadSymptoms();
         }
     };
 
@@ -2185,4 +2183,234 @@ document.addEventListener('DOMContentLoaded', () => {
             window.loadPocket();
         }
     };
+
+    // --- 🌸 生理期健康面板邏輯 ---
+    window.loadHealthInfo = async () => {
+        try {
+            const res = await fetch('/api/health/info');
+            const data = await res.json();
+            if (data.status === 'success') {
+                // 更新狀態大圖卡
+                document.querySelector('.health-status-days').innerHTML = `${data.days_until_next} <span style="font-size: 1.2rem;">天</span>`;
+                document.querySelector('.health-status-desc').innerText = `預計 ${data.next_date} 開始`;
+                
+                // 更新統計看板
+                const stats = document.querySelectorAll('.health-stat-box .val');
+                if (stats.length >= 2) {
+                    stats[0].innerHTML = `${data.avg_cycle} <span>天</span>`;
+                    stats[1].innerHTML = `${data.avg_length} <span>天</span>`;
+                }
+
+                // 更新歷史紀錄
+                const historyList = document.getElementById('health_history_list');
+                if (historyList) {
+                    historyList.innerHTML = data.history.map(item => `
+                        <div class="health-history-item">
+                            <div class="date-range">${item.start} - ${item.end}</div>
+                            <div class="symptoms">${item.symptoms || '無特殊症狀'}</div>
+                        </div>
+                    `).join('');
+                }
+            } else {
+                showToast(data.message, 'error');
+            }
+        } catch (e) {
+            console.error('載入健康資料失敗:', e);
+            showToast('載入失敗，請檢查網路連接', 'error');
+        }
+    };
+
+    // 綁定快速操作按鈕事件
+    document.querySelectorAll('.health-action-btn').forEach(btn => {
+        btn.onclick = async function() {
+            const isStart = this.classList.contains('start');
+            const isEnd = this.classList.contains('end');
+            const isSymptom = this.classList.contains('symptom');
+            
+            const originalHtml = this.innerHTML;
+            this.innerHTML = '<div class="icon">⏳</div>處理中...';
+            this.style.opacity = '0.7';
+            
+            try {
+                if (isStart) {
+                    const res = await fetch('/api/health/record_start', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        showToast(data.message, 'success');
+                        window.loadHealthInfo();
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                } else if (isEnd) {
+                    const res = await fetch('/api/health/record_end', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        showToast(data.message, 'success');
+                        window.loadHealthInfo();
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                } else if (isSymptom) {
+                    window.openModal('symptomModal');
+                }
+            } catch (e) {
+                console.error(e);
+                showToast('伺服器連線失敗', 'error');
+            } finally {
+                this.innerHTML = originalHtml;
+                this.style.opacity = '1';
+            }
+        };
+    });
+
+    // --- 🩺 症狀紀錄邏輯 ---
+    window.loadSymptoms = async () => {
+        try {
+            const res = await fetch('/api/health/symptoms/options');
+            const data = await res.json();
+            if (data.status === 'success') {
+                const list = document.getElementById('symptoms_list');
+                list.innerHTML = data.data.map(opt => `
+                    <div style="background: white; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="sym_${opt}" value="${opt}" style="width: 16px; height: 16px; accent-color: #ec4899;">
+                        <label for="sym_${opt}" style="font-size: 0.9rem; color: #334155; user-select: none;">${opt}</label>
+                        <span onclick="window.deleteSymptom('${opt}')" style="color: #94a3b8; font-size: 0.8rem; margin-left: 5px; cursor: pointer;">&times;</span>
+                    </div>
+                `).join('');
+            }
+        } catch (e) {
+            console.error('載入症狀選項失敗:', e);
+        }
+    };
+
+    window.addSymptomOption = async () => {
+        const input = document.getElementById('new_symptom_input');
+        const val = input.value.trim();
+        if (!val) return;
+        
+        try {
+            const res = await fetch('/api/health/symptoms/options', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({option: val})
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                input.value = '';
+                showToast('已新增症狀選項！', 'success');
+                window.loadSymptoms();
+            }
+        } catch (e) {
+            showToast('新增失敗', 'error');
+        }
+    };
+
+    window.deleteSymptom = async (opt) => {
+        if(!confirm(`確定要刪除「${opt}」這個選項嗎？`)) return;
+        try {
+            const res = await fetch('/api/health/symptoms/options', {
+                method: 'DELETE',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({option: opt})
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast('已刪除選項', 'success');
+                window.loadSymptoms();
+            }
+        } catch (e) {
+            showToast('刪除失敗', 'error');
+        }
+    };
+
+    window.saveSymptoms = async () => {
+        const checkboxes = document.querySelectorAll('#symptoms_list input[type="checkbox"]:checked');
+        const selected = Array.from(checkboxes).map(cb => cb.value);
+        
+        if (selected.length === 0) {
+            showToast('請至少勾選一項症狀哦', 'error');
+            return;
+        }
+        
+        try {
+            const res = await fetch('/api/health/symptoms/record', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({symptoms: selected})
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast(data.message, 'success');
+                closeModal('symptomModal');
+                window.loadHealthInfo();
+            } else {
+                showToast(data.message, 'error');
+            }
+        } catch (e) {
+            showToast('儲存失敗', 'error');
+        }
+    };
+
+    // --- ⚙️ AI 訓練室邏輯 ---
+    window.loadTrainingRules = async () => {
+        try {
+            const res = await fetch('/api/training/rules');
+            const data = await res.json();
+            const list = document.getElementById('ai_rules_list');
+            if (data.status === 'success' && list) {
+                if (data.data.length === 0) {
+                    list.innerHTML = `<div style="text-align:center; padding: 20px; color: #94a3b8;">尚未建立任何規則。快來教 AI 吧！</div>`;
+                    return;
+                }
+                list.innerHTML = data.data.map(rule => `
+                    <div style="background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                        <div style="font-weight: 700; color: #1e293b; margin-bottom: 5px;">「${rule.trigger}」</div>
+                        <div style="font-size: 0.85rem; color: #64748b;">➔ ${rule.action}</div>
+                    </div>
+                `).reverse().join(''); // 最新在上
+            }
+        } catch (e) {
+            console.error('載入訓練規則失敗:', e);
+        }
+    };
+
+    // 綁定訓練按鈕事件
+    const trainSubmitBtn = document.querySelector('#trainingModal .submit-btn');
+    if (trainSubmitBtn) {
+        trainSubmitBtn.onclick = async () => {
+            const trigger = document.getElementById('train_trigger').value.trim();
+            const action = document.getElementById('train_action').value.trim();
+            if (!trigger || !action) {
+                showToast('請完整輸入情境與行為喔！');
+                return;
+            }
+            
+            const btn = trainSubmitBtn;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '建立中...';
+            btn.style.opacity = '0.7';
+
+            try {
+                const res = await fetch('/api/training/add_rule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ trigger, action })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(data.message, 'success');
+                    document.getElementById('train_trigger').value = '';
+                    document.getElementById('train_action').value = '';
+                    window.loadTrainingRules();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            } catch (e) {
+                showToast('寫入失敗，請稍後再試', 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.style.opacity = '1';
+            }
+        };
+    }
 });

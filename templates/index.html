@@ -29,6 +29,7 @@
             <button class="tab-btn active" onclick="switchTab('schedule', event)"><span class="dynamic-date-wrapper"><span class="date-top"></span><span class="date-num current-day-val"></span></span> 行程</button>
             <button class="tab-btn" onclick="switchTab('finance', event)">💰 記帳</button>
             <button class="tab-btn" onclick="switchTab('memo', event)">📝 備忘</button>
+            <button class="tab-btn tab-health" onclick="switchTab('health', event)">🌸 經期</button>
         </div>
         
         <!-- 第二層：子功能選單 -->
@@ -52,6 +53,11 @@
                 <button class="sub-btn" onclick="openModal('todoModal')">✅ 待辦</button>
                 <button class="sub-btn" onclick="openModal('pocketModal')">📍 口袋</button>
                 <button class="sub-btn" onclick="openModal('wishlistModal')">🎁 願望</button>
+            </div>
+            <!-- 健康子選單 -->
+            <div id="sub_health" class="sub-menu">
+                <button class="sub-btn" onclick="openModal('healthModal')">🌸 經期看板</button>
+                <button class="sub-btn" onclick="openModal('trainingModal')">⚙️ AI訓練室</button>
             </div>
         </div>
     </div>
@@ -525,6 +531,132 @@
         <div class="scan-text">SCANNING...</div>
         <p style="margin-top: 10px; font-size: 0.8rem; color: rgba(255,255,255,0.6);">正在搜尋 NT$ 金額</p>
     </div>
+    <!-- 健康看板 Modal -->
+    <div id="healthModal" class="modal-backdrop">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" style="color: #e11d48;">🌸 生理期助理</h2>
+                <button class="close-modal" onclick="closeModal('healthModal')">✕</button>
+            </div>
+            <div class="modal-body" style="padding-top: 10px;">
+                <!-- 狀態大圖卡 -->
+                <div class="health-status-card">
+                    <div class="health-status-title">距離下次預測</div>
+                    <div class="health-status-days">-- <span style="font-size: 1.2rem;">天</span></div>
+                    <div class="health-status-desc">正在計算預測日期...</div>
+                </div>
+
+                <!-- 快速操作區 -->
+                <div class="health-actions">
+                    <button class="health-action-btn start" onclick="showToast('已記錄開始！', 'success')">
+                        <div class="icon">🌸</div>
+                        記錄開始
+                    </button>
+                    <button class="health-action-btn end" onclick="showToast('已記錄結束！', 'success')">
+                        <div class="icon">✅</div>
+                        記錄結束
+                    </button>
+                    <button class="health-action-btn symptom" onclick="showToast('即將彈出症狀清單', 'success')">
+                        <div class="icon">🩺</div>
+                        紀錄症狀
+                    </button>
+                </div>
+
+                <!-- 數據統計看板 -->
+                <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+                    <div class="health-stat-box">
+                        <div class="label">平均週期</div>
+                        <div class="val">-- <span>天</span></div>
+                    </div>
+                    <div class="health-stat-box">
+                        <div class="label">平均長度</div>
+                        <div class="val">-- <span>天</span></div>
+                    </div>
+                </div>
+
+                <!-- 歷史紀錄清單 -->
+                <h3 style="font-size: 1rem; color: #475569; margin-bottom: 12px;">📜 最近紀錄</h3>
+                <div id="health_history_list">
+                    <div style="text-align: center; padding: 20px; color: #94a3b8;">⏳ 正在載入歷史紀錄...</div>
+                </div>
+            </div>
+            <div class="modal-footer" style="background: #fff1f2; border-top-color: #ffe4e6;">
+                <button onclick="window.open('https://docs.google.com/spreadsheets/d/1vhvCRQz30JSh8nLSos_vD2QJJtgF-j9L3NLNMKTNqXE/edit', '_blank')" class="sheet-link-btn" style="color: #e11d48; background: #fff; border-color: #fecdd3;">
+                    ☁️ 開啟健康紀錄表
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI 訓練室 Modal -->
+    <div id="trainingModal" class="modal-backdrop">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">⚙️ AI 自訂訓練室</h2>
+                <button class="close-modal" onclick="closeModal('trainingModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="background: #f8fafc; padding: 15px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 15px; line-height: 1.5;">在這裡您可以教導 AI 新的規則。當您說出特定的關鍵字時，AI 就會執行您期望的行為。</p>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label>💬 當我說...</label>
+                        <input type="text" id="train_trigger" class="form-input" placeholder="例如：我累了" style="margin-bottom: 0;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>🤖 AI 該怎麼做...</label>
+                        <textarea id="train_action" class="form-input" rows="2" placeholder="例如：自動排入休息行程，並安慰我" style="margin-bottom: 0;"></textarea>
+                    </div>
+                    <button class="submit-btn" style="background: #3b82f6;" onclick="showToast('即將支援寫入！', 'success')">＋ 建立新規則</button>
+                </div>
+
+                <h3 style="font-size: 1rem; color: #475569; margin-bottom: 12px;">🧠 現有規則</h3>
+                <div id="ai_rules_list">
+                    <div style="background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                        <div style="font-weight: 700; color: #1e293b; margin-bottom: 5px;">「我累了」</div>
+                        <div style="font-size: 0.85rem; color: #64748b;">➔ 自動排入休息行程</div>
+                    </div>
+                    <div style="background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                        <div style="font-weight: 700; color: #1e293b; margin-bottom: 5px;">「心情不好」</div>
+                        <div style="font-size: 0.85rem; color: #64748b;">➔ 回覆一段鼓勵的話</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="window.open('https://docs.google.com/spreadsheets/d/1vhvCRQz30JSh8nLSos_vD2QJJtgF-j9L3NLNMKTNqXE/edit', '_blank')" class="sheet-link-btn">
+                    ☁️ 開啟 AI 指令集
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 症狀紀錄 Modal -->
+    <div id="symptomModal" class="modal-backdrop">
+        <div class="modal-content" style="max-height: 80vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2 class="modal-title" style="color: #ec4899;">🩺 記錄今日症狀</h2>
+                <button class="close-modal" onclick="closeModal('symptomModal')">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 15px;">請勾選您今天感受到的症狀：</p>
+                <div id="symptoms_list" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+                    <!-- Checkboxes will be injected here -->
+                </div>
+                
+                <div style="background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
+                    <div style="font-weight: bold; color: #1e293b; margin-bottom: 10px; font-size: 0.9rem;">➕ 新增自訂選項</div>
+                    <div class="input-group" style="display: flex; gap: 10px;">
+                        <input type="text" id="new_symptom_input" placeholder="輸入新症狀名稱" style="flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                        <button onclick="window.addSymptomOption()" style="padding: 10px 15px; background: #ec4899; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">新增</button>
+                    </div>
+                </div>
+                
+                <button onclick="window.saveSymptoms()" style="width: 100%; padding: 15px; background: #ec4899; color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 6px rgba(236,72,153,0.2);">
+                     儲存紀錄 ✅
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&libraries=places&callback=initMap" async defer></script>
     <script src="/static/js/app.js"></script>
 </body>
