@@ -477,6 +477,14 @@ def toggle_completion():
             "is_completed": is_completed,
             "new_title": event['summary']
         })
+    except HttpError as e:
+        status_code = getattr(e, 'resp', None) and getattr(e.resp, 'status', None) or getattr(e, 'status_code', None)
+        if status_code == 403:
+            return jsonify({
+                "status": "error", 
+                "message": "權限不足！請至 Google 日曆共用設定中，將助理帳號「ulirbooking@booking-calendar-486007.iam.gserviceaccount.com」的權限調整為「做出變更並管理共用」或「做出變更行程」，才能將行程標記為完成喔！"
+            }), 403
+        return jsonify({"status": "error", "message": str(e)}), 500
     except Exception as e:
         print("Toggle Completion Error:", str(e))
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -542,10 +550,17 @@ def get_schedule_response(days):
     for e in events:
         start_str = e['start'].get('dateTime', e['start'].get('date'))
         try:
-            dt_obj = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-            date_val = dt_obj.strftime('%m/%d')
-            time_val = dt_obj.strftime('%H:%M') if 'T' in start_str else '全天'
-        except:
+            if 'T' in start_str:
+                dt_obj = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                dt_obj = dt_obj.astimezone(TW_TZ)
+                date_val = dt_obj.strftime('%m/%d')
+                time_val = dt_obj.strftime('%H:%M')
+            else:
+                dt_obj = datetime.strptime(start_str, '%Y-%m-%d')
+                date_val = dt_obj.strftime('%m/%d')
+                time_val = '全天'
+        except Exception as ex:
+            print(f"Error parsing start_str '{start_str}': {ex}")
             date_val = now.strftime('%m/%d')
             time_val = '全天'
         
@@ -1072,10 +1087,19 @@ def delete_event():
         service.events().delete(calendarId=CALENDAR_ID, eventId=event_id).execute()
         return jsonify({"status": "success", "message": "行程已從日曆刪除 ✕"})
     except HttpError as e:
-        if e.resp.status == 404:
+        status_code = getattr(e, 'resp', None) and getattr(e.resp, 'status', None) or getattr(e, 'status_code', None)
+        if status_code == 404:
             return jsonify({"status": "success", "message": "行程已不存在，已從畫面移除"})
+        elif status_code == 403:
+            return jsonify({
+                "status": "error", 
+                "message": "權限不足！請至 Google 日曆共用設定中，將助理帳號「ulirbooking@booking-calendar-486007.iam.gserviceaccount.com」的權限調整為「做出變更並管理共用」或「做出變更行程」，才能進行刪除喔！"
+            })
         print(f"Calendar API error: {e}")
         return jsonify({"status": "error", "message": f"日曆同步失敗: {str(e)}"})
+    except Exception as e:
+        print(f"Delete event general error: {e}")
+        return jsonify({"status": "error", "message": f"伺服器錯誤: {str(e)}"})
 @app.route('/api/update_event', methods=['POST'])
 def update_event():
     data = request.json
@@ -1249,6 +1273,61 @@ def handle_pocket(action, data=None):
             print(f"Error deleting pocket item: {e}")
             return False
 
+    elif action == 'update_category':
+        try:
+            target_id = data.get('id')
+            new_cat = data.get('category', '常用')
+
+            result = service.spreadsheets().values().get(
+                spreadsheetId=sheet_id, range='A:A').execute()
+            ids = result.get('values', [])
+
+            row_index = -1
+            for i, row in enumerate(ids):
+                if row and row[0] == target_id:
+                    row_index = i + 1
+                    break
+
+            if row_index == -1:
+                return False
+
+            body = {'values': [[new_cat]]}
+            service.spreadsheets().values().update(
+                spreadsheetId=sheet_id, range=f'B{row_index}',
+                valueInputOption='RAW', body=body).execute()
+            return True
+        except Exception as e:
+            print(f"Error updating pocket item category: {e}")
+            return False
+
+    elif action == 'update_note':
+        try:
+            target_id = data.get('id')
+            new_note = data.get('note', '')
+
+            result = service.spreadsheets().values().get(
+                spreadsheetId=sheet_id, range='A:A').execute()
+            ids = result.get('values', [])
+
+            row_index = -1
+            for i, row in enumerate(ids):
+                if row and row[0] == target_id:
+                    row_index = i + 1
+                    break
+
+            if row_index == -1:
+                return False
+
+            # 在 Google Sheet 中，備註對應的是第 6 欄 (Column F，即 'F' + row_index)
+            body = {'values': [[new_note]]}
+            service.spreadsheets().values().update(
+                spreadsheetId=sheet_id, range=f'F{row_index}',
+                valueInputOption='RAW', body=body).execute()
+            return True
+        except Exception as e:
+            print(f"Error updating pocket item note: {e}")
+            return False
+
 @app.route('/api/pocket/delete', methods=['POST'])
 def delete_pocket_item():
     data = request.json
@@ -1256,6 +1335,14 @@ def delete_pocket_item():
     if success:
         return jsonify({"status": "success", "message": "已刪除"})
     return jsonify({"status": "error", "message": "刪除失敗"})
+
+@app.route('/api/pocket/update_note', methods=['POST'])
+def update_pocket_note():
+    data = request.json
+    success = handle_pocket('update_note', data)
+    if success:
+        return jsonify({"status": "success", "message": "已更新自訂稱呼！"})
+    return jsonify({"status": "error", "message": "更新失敗"})
 
 @app.route('/api/pocket/list')
 def get_pocket_list():
@@ -1269,6 +1356,14 @@ def add_pocket_item():
     if success:
         return jsonify({"status": "success", "message": "成功存入口袋名單！📍"})
     return jsonify({"status": "error", "message": "存入失敗"})
+
+@app.route('/api/pocket/update_category', methods=['POST'])
+def update_pocket_category():
+    data = request.json
+    success = handle_pocket('update_category', data)
+    if success:
+        return jsonify({"status": "success", "message": "已成功將景點移入常用地址！📌"})
+    return jsonify({"status": "error", "message": "移入失敗"})
 
 # --- 🌸 健康與 AI 訓練 API ---
 @app.route('/api/health/info', methods=['GET'])
@@ -1306,20 +1401,33 @@ def get_health_info():
         
         days_until_next = 0
         next_date_str = "未定"
+        status_title = "距離下次預測"
+        is_ongoing = False
         
         if history:
             latest_start = history[0]["start"] # 最上面那筆是最新
+            latest_end = history[0]["end"]
             try:
                 # datetime 轉換
                 last_dt = datetime.strptime(latest_start, "%Y/%m/%d")
-                next_dt = last_dt + timedelta(days=avg_cycle)
                 # 計算距離今天幾天
-                now = datetime.now()
-                # 去除時間，只比較日期
-                diff = (next_dt.date() - now.date()).days
+                now = datetime.now(TW_TZ)
                 
-                days_until_next = diff if diff >= 0 else 0
-                next_date_str = next_dt.strftime("%Y/%m/%d")
+                if latest_end == "進行中" or latest_end.strip() == "":
+                    # 進行中：計算目前是經期第幾天 (台灣時區精準計算)
+                    days_in_period = (now.date() - last_dt.date()).days + 1
+                    days_until_next = days_in_period if days_in_period > 0 else 1
+                    status_title = "🌸 經期第"
+                    next_date_str = "進行中..."
+                    is_ongoing = True
+                else:
+                    # 非進行中：計算距離下次預測還有幾天
+                    next_dt = last_dt + timedelta(days=avg_cycle)
+                    diff = (next_dt.date() - now.date()).days
+                    days_until_next = diff if diff >= 0 else 0
+                    status_title = "距離下次預測"
+                    next_date_str = next_dt.strftime("%Y/%m/%d")
+                    is_ongoing = False
             except Exception as e:
                 print(f"Date parse error: {e}")
         
@@ -1329,7 +1437,9 @@ def get_health_info():
             "avg_cycle": avg_cycle,
             "avg_length": avg_length,
             "days_until_next": days_until_next,
-            "next_date": next_date_str
+            "next_date": next_date_str,
+            "status_title": status_title,
+            "is_ongoing": is_ongoing
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})

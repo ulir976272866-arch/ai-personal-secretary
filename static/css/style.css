@@ -1442,3 +1442,62 @@ select.form-input {
     font-size: 0.8rem;
     color: #64748b;
 }
+
+/* ==========================================
+   🧩 Google Maps Autocomplete 彈窗定位與高級樣式修復 (V4.2)
+   ========================================== */
+.pac-container {
+    z-index: 11000 !important; /* 確保高於 Modal 彈窗 */
+    border-radius: 20px !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08) !important;
+    background-color: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: blur(10px) !important;
+    font-family: inherit !important;
+    margin-top: 6px !important;
+    padding: 8px !important;
+    box-sizing: border-box !important;
+}
+
+/* 口袋名單專用的輸入框下方定位 (防止干擾行事曆的 Google 地點推薦選單) */
+.pocket-autocomplete-wrapper .pac-container {
+    position: absolute !important;
+    top: 100% !important;
+    left: 0 !important;
+    width: 100% !important;
+    min-width: 250px !important;
+}
+
+.pac-item {
+    padding: 12px 14px !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+    border-top: 1px solid #f1f5f9 !important;
+    border-radius: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.pac-item:hover {
+    background-color: #f1f5f9 !important;
+    color: #14b8a6 !important;
+}
+
+.pac-item:first-child {
+    border-top: none !important;
+}
+
+.pac-item-query {
+    font-size: 0.9rem !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    padding-right: 5px !important;
+}
+
+.pac-icon {
+    margin-right: 10px !important;
+    filter: hue-rotate(140deg) !important; /* 讓 Google 原生圖標與蒂芬妮綠主題對齊 */
+}

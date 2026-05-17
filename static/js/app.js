@@ -221,11 +221,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 自定義確認彈窗邏輯 ---
     let confirmResolver = null;
-    window.customConfirm = (title, msg, icon = '🗑️') => {
+    window.customConfirm = (title, msg, icon = '🗑️', yesText = '確定刪除') => {
         return new Promise((resolve) => {
             confirmResolver = resolve;
             document.getElementById('confirm_title').innerText = title;
             document.getElementById('confirm_msg').innerText = msg;
+
+            const yesBtn = document.getElementById('confirm_yes_btn');
+            if (yesBtn) {
+                yesBtn.innerText = yesText;
+                if (yesText === '移入常用地址') {
+                    // 琥珀黃色 (Amber Yellow) - 高顏值漸層
+                    yesBtn.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+                    yesBtn.style.boxShadow = '0 4px 15px rgba(217, 119, 6, 0.35)';
+                } else if (yesText === '移回口袋景點') {
+                    // 石板灰 (Slate Grey)
+                    yesBtn.style.background = 'linear-gradient(135deg, #64748b 0%, #475569 100%)';
+                    yesBtn.style.boxShadow = '0 4px 15px rgba(71, 85, 105, 0.35)';
+                } else {
+                    // 確定刪除 (珊瑚紅/經典紅)
+                    yesBtn.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+                    yesBtn.style.boxShadow = '0 4px 15px rgba(220, 38, 38, 0.35)';
+                }
+            }
 
             const svgIcon = document.getElementById('confirm_svg');
             const iconContainer = document.getElementById('confirm_icon_container');
@@ -1143,35 +1161,108 @@ document.addEventListener('DOMContentLoaded', () => {
         window.querySchedule(window.lastQueryDays || 7);
     };
 
-    window.toggleEventDone = async (id) => {
-        const li = document.getElementById(`event_li_${id}`);
-        const btn = li.querySelector('.done-btn');
+    window.pendingCompletionTimers = window.pendingCompletionTimers || {};
 
-        if (!btn.classList.contains('completed')) {
-            btn.classList.add('completed');
-            btn.innerText = '完成';
-        } else {
-            li.classList.add('fade-out');
-            
-            // 1. 同步到後端 (真正修改 Google 日曆標題)
-            try {
-                await fetch('/api/toggle_completion', {
+    window.toggleEventDone = async (id) => {
+        const lis = document.querySelectorAll(`[id="event_li_${id}"]`);
+        if (lis.length === 0) return;
+
+        const firstLi = lis[0];
+        const btn = firstLi.querySelector('.done-btn');
+        const isCompleted = btn.classList.contains('completed');
+
+        // 2秒內再次點擊 ➔ 「撤銷/取消打勾完成」
+        if (window.pendingCompletionTimers[id]) {
+            clearTimeout(window.pendingCompletionTimers[id]);
+            delete window.pendingCompletionTimers[id];
+
+            lis.forEach(li => {
+                const b = li.querySelector('.done-btn');
+                if (b) {
+                    b.classList.remove('completed');
+                    b.innerText = '✓';
+                }
+            });
+            return;
+        }
+
+        if (!isCompleted) {
+            // ==========================================
+            // 情況一：標記完成 (給予 2 秒的「撤銷完成」緩衝時間，防誤觸)
+            // ==========================================
+            lis.forEach(li => {
+                const b = li.querySelector('.done-btn');
+                if (b) {
+                    b.classList.add('completed');
+                    b.innerText = '完成';
+                }
+            });
+
+            // 設定 2 秒後自動執行隱藏與背景 Google Calendar 同步
+            window.pendingCompletionTimers[id] = setTimeout(() => {
+                delete window.pendingCompletionTimers[id];
+
+                // A. 隱藏動畫
+                lis.forEach(li => li.classList.add('fade-out'));
+
+                // B. 立即更新本地快取 (隱藏名單)
+                let hidden = JSON.parse(localStorage.getItem('hiddenPocketEvents') || '[]');
+                if (!hidden.includes(id)) hidden.push(id);
+                localStorage.setItem('hiddenPocketEvents', JSON.stringify(hidden));
+
+                // C. 更新 DOM 中的顯示狀態並觸發查詢
+                setTimeout(() => {
+                    lis.forEach(li => {
+                        li.style.display = 'none';
+                        const card = li.closest('.schedule-card');
+                        if (card) {
+                            const restoreBtn = card.querySelector('.restore-btn-ui');
+                            if (restoreBtn) {
+                                restoreBtn.innerText = `🔄 恢復隱藏(${hidden.length})`;
+                            }
+                        }
+                    });
+                    // 重新載入以維持最新狀態
+                    window.querySchedule(window.lastQueryDays || 7);
+                }, 400);
+
+                // D. 背景非同步向後端同步，標記為完成 (打勾)
+                fetch('/api/toggle_completion', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ event_id: id })
-                });
-            } catch (e) {
-                console.error("Sync Error:", e);
-            }
+                }).catch(e => console.error("Sync Error in background:", e));
 
-            // 2. 本地快取 (雙重保險 + 立即反饋)
+            }, 2000);
+
+        } else {
+            // ==========================================
+            // 情況二：原本已完成且恢復隱藏，點選則「取消完成」
+            // ==========================================
+            lis.forEach(li => {
+                const b = li.querySelector('.done-btn');
+                if (b) {
+                    b.classList.remove('completed');
+                    b.innerText = '✓';
+                }
+            });
+
+            // A. 立即從隱藏名單中移除
             let hidden = JSON.parse(localStorage.getItem('hiddenPocketEvents') || '[]');
-            if (!hidden.includes(id)) hidden.push(id);
+            hidden = hidden.filter(item => item !== id);
             localStorage.setItem('hiddenPocketEvents', JSON.stringify(hidden));
-            
+
+            // B. 重整畫面以立即恢復顯示
             setTimeout(() => {
                 window.querySchedule(window.lastQueryDays || 7);
-            }, 400);
+            }, 100);
+
+            // C. 背景非同步向後端同步，取消完成標記 (去打勾)
+            fetch('/api/toggle_completion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event_id: id })
+            }).catch(e => console.error("Sync Error in background:", e));
         }
     };
 
@@ -2088,6 +2179,120 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    window.currentPocketTab = 'all';
+    window.currentPocketFilter = '全部';
+    window.currentAreaFilter = '全部';
+
+    window.switchPocketTab = (tab) => {
+        window.currentPocketTab = tab;
+        const tabAll = document.getElementById('pocket_tab_all');
+        const tabFav = document.getElementById('pocket_tab_fav');
+        const formCard = document.getElementById('pocket_form_card_container');
+        const filterBar = document.getElementById('pocket_filter_bar_container');
+
+        if (tab === 'fav') {
+            if (tabFav) {
+                tabFav.style.background = 'white';
+                tabFav.style.color = '#e11d48';
+                tabFav.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
+            }
+            if (tabAll) {
+                tabAll.style.background = 'transparent';
+                tabAll.style.color = '#64748b';
+                tabAll.style.boxShadow = 'none';
+            }
+            if (formCard) formCard.style.display = 'none';
+            if (filterBar) filterBar.style.display = 'none';
+        } else {
+            if (tabAll) {
+                tabAll.style.background = 'white';
+                tabAll.style.color = '#14b8a6';
+                tabAll.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
+            }
+            if (tabFav) {
+                tabFav.style.background = 'transparent';
+                tabFav.style.color = '#64748b';
+                tabFav.style.boxShadow = 'none';
+            }
+            if (formCard) formCard.style.display = 'block';
+            if (filterBar) filterBar.style.display = 'flex';
+        }
+
+        window.loadPocket();
+    };
+
+    window.copyAddressText = (location, name) => {
+        navigator.clipboard.writeText(location).then(() => {
+            showToast(`📋 已複製 [${name}] 的地址！`, 'success');
+        }).catch(() => {
+            showToast('複製失敗，請手動複製', 'error');
+        });
+    };
+
+    window.moveToFavorites = async (id, name, targetCategory) => {
+        const isMovingToFav = targetCategory === '常用';
+        const yesText = isMovingToFav ? '移入常用地址' : '移回口袋景點';
+        const confirmed = await window.customConfirm(
+            isMovingToFav ? '移入常用地址？' : '移回口袋景點？',
+            isMovingToFav 
+                ? `您確定要將「${name}」移入常用地址，並從口袋景點中隱藏嗎？` 
+                : `您確定要將「${name}」移回口袋景點嗎？`,
+            '📌',
+            yesText
+        );
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch('/api/pocket/update_category', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, category: targetCategory })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast(isMovingToFav ? `📌 已將「${name}」移入常用地址！` : `↩️ 已將「${name}」移回口袋景點！`, 'success');
+                window.loadPocket();
+            } else {
+                showToast('更新失敗，請重試', 'error');
+            }
+        } catch (e) {
+            showToast('連線失敗，請重試', 'error');
+        }
+    };
+
+    window.editPocketCustomName = (id, currentNote) => {
+        const modal = document.getElementById('pocketCustomNameModal');
+        const input = document.getElementById('custom_pocket_name_input');
+        if (modal && input) {
+            input.value = currentNote;
+            modal.classList.add('show');
+            setTimeout(() => input.focus(), 100);
+
+            window.closePocketCustomNameModal = async (confirmed) => {
+                modal.classList.remove('show');
+                if (!confirmed) return;
+
+                const newName = input.value.trim();
+                try {
+                    const res = await fetch('/api/pocket/update_note', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id, note: newName })
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        showToast('✏️ 自訂稱呼已更新！', 'success');
+                        window.loadPocket();
+                    } else {
+                        showToast('更新失敗，請重試', 'error');
+                    }
+                } catch (e) {
+                    showToast('連線失敗，請重試', 'error');
+                }
+            };
+        }
+    };
+
     window.loadPocket = async () => {
         const list = document.getElementById('pocket_list');
         if (!list) return;
@@ -2103,32 +2308,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderAreaFilterBar([...new Set(rawItems.map(i => i.area).filter(a => a))]);
                 renderCatOptions([...new Set(rawItems.map(i => i.category))]);
 
-                // 2. 多重過濾
+                // 2. 分頁與篩選過濾
                 let items = rawItems;
-                if (window.currentPocketFilter !== '全部') {
-                    items = items.filter(i => i.category === window.currentPocketFilter);
-                }
-                if (window.currentAreaFilter !== '全部') {
-                    items = items.filter(i => i.area === window.currentAreaFilter);
-                }
+                const isFavTab = window.currentPocketTab === 'fav';
 
-                // 3. 排序 (依照分類或距離)
-                let userLoc = null;
-                try {
-                    // 如果目前是需要排序距離，才去抓位置
-                    if (rawItems.some(i => i.lat)) {
-                        // 這裡不強制等待定位，若有定位才排
+                if (isFavTab) {
+                    items = items.filter(i => i.category === '常用');
+                } else {
+                    items = items.filter(i => i.category !== '常用');
+                    if (window.currentPocketFilter !== '全部') {
+                        items = items.filter(i => i.category === window.currentPocketFilter);
                     }
-                } catch (e) { }
+                    if (window.currentAreaFilter !== '全部') {
+                        items = items.filter(i => i.area === window.currentAreaFilter);
+                    }
+                }
 
-                const priorityMap = { '美食': 1, '旅遊': 2, '住宿': 3, '咖啡': 4, '購物': 5, '其他': 6 };
+                // 3. 排序
+                const priorityMap = { '美食': 1, '常用': 2, '旅遊': 3, '住宿': 4, '咖啡': 5, '購物': 6, '其他': 7 };
                 items.sort((a, b) => (priorityMap[a.category] || 99) - (priorityMap[b.category] || 99));
 
                 list.innerHTML = items.map(item => {
                     const mapUrl = getMapUrl(item.location || item.name);
                     const icon = getPocketIcon(item.category);
+                    const isFavCategory = item.category === '常用';
 
-                    // 距離顯示邏輯 (若有座標且有權限)
+                    // 距離顯示邏輯
                     let distHtml = '';
                     if (window.userCoords && item.lat && item.lng) {
                         const d = calculateDistance(window.userCoords.lat, window.userCoords.lng, item.lat, item.lng);
@@ -2136,8 +2341,52 @@ document.addEventListener('DOMContentLoaded', () => {
                         distHtml = `<span style="font-size: 0.7rem; color: #10b981; font-weight: 800; background: #ecfdf5; padding: 2px 8px; border-radius: 6px;">距離約 ${distStr}</span>`;
                     }
 
+                    // 移入/移出與複製按鈕組合
+                    let actionButtonsHtml = '';
+                    if (isFavCategory) {
+                        actionButtonsHtml = `
+                            <span onclick="window.copyAddressText('${(item.location || '').replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')" 
+                                  style="cursor: pointer; background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid #cbd5e1; transition: all 0.2s;">
+                                📋 複製
+                            </span>
+                            <span onclick="window.moveToFavorites('${item.id}', '${item.name.replace(/'/g, "\\'")}', '其他')" 
+                                  style="cursor: pointer; background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid #cbd5e1; transition: all 0.2s;">
+                                ↩️ 移回口袋
+                            </span>
+                        `;
+                    } else {
+                        actionButtonsHtml = `
+                            <span onclick="window.copyAddressText('${(item.location || '').replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')" 
+                                  style="cursor: pointer; background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid #cbd5e1; transition: all 0.2s;">
+                                📋 複製
+                            </span>
+                            <span onclick="window.moveToFavorites('${item.id}', '${item.name.replace(/'/g, "\\'")}', '常用')" 
+                                  style="cursor: pointer; background: #fffbeb; color: #d97706; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid #fde68a; transition: all 0.2s;" 
+                                  class="fav-action-btn">
+                                📌 移入常用
+                            </span>
+                        `;
+                    }
+
+                    // 編輯稱呼按鈕 (僅常用地址有)
+                    const editBtnHtml = isFavCategory ? `
+                        <button onclick="window.editPocketCustomName('${item.id}', '${(item.note || '').replace(/'/g, "\\'")}')" 
+                                style="background: none; border: none; color: #10b981; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 5px; transition: all 0.2s;" 
+                                title="編輯稱呼">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path>
+                            </svg>
+                        </button>
+                    ` : '';
+
                     return `
                         <div style="background: white; border: 1px solid #f1f5f9; padding: 15px; border-radius: 20px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); animation: fadeIn 0.3s ease;">
+                            ${(isFavCategory && item.note) ? `
+                                <div style="font-size: 0.85rem; font-weight: 800; color: #e11d48; margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">
+                                    <span>📌 自訂稱呼：${item.note}</span>
+                                </div>
+                            ` : ''}
                             <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px;">
                                 <span style="font-size: 0.65rem; color: #fff; background: #14b8a6; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${icon} ${item.category}</span>
                                 ${item.area ? `<span style="font-size: 0.65rem; color: #fff; background: #6366f1; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${item.area}</span>` : ''}
@@ -2149,13 +2398,18 @@ document.addEventListener('DOMContentLoaded', () => {
                                         style="background: none; border: none; color: #ef4444; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 5px; transition: all 0.2s;">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                                 </button>
+                                ${editBtnHtml}
                             </div>
                             <div style="padding-left: 2px;">
-                                ${item.location ? `<div style="font-size: 0.75rem; color: #64748b; display: flex; align-items: center; gap: 4px; margin-bottom: 6px;">
-                                    <span>📍</span>
-                                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.location}</span>
-                                </div>` : ''}
-                                ${item.note ? `<div style="font-size: 0.8rem; color: #64748b; font-style: italic; background: #f8fafc; padding: 6px 10px; border-radius: 8px; display: inline-block; width: 100%;">"${item.note}"</div>` : ''}
+                                ${item.location ? `
+                                    <div style="font-size: 0.75rem; color: #64748b; display: flex; align-items: center; gap: 4px; margin-bottom: 6px; justify-content: space-between; width: 100%;">
+                                        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; margin-right: 8px;">📍 ${item.location}</span>
+                                        <div style="display: flex; gap: 4px; flex-shrink: 0;">
+                                            ${actionButtonsHtml}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${(!isFavCategory && item.note) ? `<div style="font-size: 0.8rem; color: #64748b; font-style: italic; background: #f8fafc; padding: 6px 10px; border-radius: 8px; display: inline-block; width: 100%;">"${item.note}"</div>` : ''}
                             </div>
                         </div>
                     `;
