@@ -1305,9 +1305,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.location) {
                 const mapUrl = getMapUrl(event.location);
                 locationHtml = `
-                    <div class="event-address-row">
-                        <div class="event-address-icon">📍</div>
-                        <a href="${mapUrl}" class="location-link" style="color: #94a3b8; text-decoration: none;">${event.location}</a>
+                    <div class="event-address-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px;">
+                        <div style="display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0;">
+                            <div class="event-address-icon" style="flex-shrink: 0;">📍</div>
+                            <a href="${mapUrl}" class="location-link" style="color: #94a3b8; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${event.location}</a>
+                        </div>
+                        <button id="add_fav_btn_${event.id}" onclick="window.addLocationToFavorites('${event.location.replace(/'/g, "\\'")}', '${event.title.replace(/'/g, "\\'")}', 'add_fav_btn_${event.id}')" 
+                                style="cursor: pointer; background: #fffbeb; color: #d97706; border: 1.5px solid #fde68a; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; white-space: nowrap;" 
+                                class="add-fav-loc-btn">
+                            📌 常用
+                        </button>
                     </div>`;
             }
 
@@ -1369,9 +1376,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.location) {
                 const mapUrl = getMapUrl(event.location);
                 locationHtml = `
-                    <div class="event-address-row">
-                        <div class="event-address-icon">📍</div>
-                        <a href="${mapUrl}" class="location-link" style="color: #94a3b8; text-decoration: none;">${event.location}</a>
+                    <div class="event-address-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px;">
+                        <div style="display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0;">
+                            <div class="event-address-icon" style="flex-shrink: 0;">📍</div>
+                            <a href="${mapUrl}" class="location-link" style="color: #94a3b8; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${event.location}</a>
+                        </div>
+                        <button id="add_fav_btn_${event.id}" onclick="window.addLocationToFavorites('${event.location.replace(/'/g, "\\'")}', '${event.title.replace(/'/g, "\\'")}', 'add_fav_btn_${event.id}')" 
+                                style="cursor: pointer; background: #fffbeb; color: #d97706; border: 1.5px solid #fde68a; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; white-space: nowrap;" 
+                                class="add-fav-loc-btn">
+                            📌 常用
+                        </button>
                     </div>`;
             }
 
@@ -1441,6 +1455,74 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.querySchedule(window.lastQueryDays || 7);
             } else {
                 showToast(`❌ 恢復失敗：${data.message}`, 'error');
+            }
+        } catch (e) {
+            showToast('❌ 伺服器連線失敗', 'error');
+        }
+    };
+
+    let addFavAddressResolver = null;
+    window.openAddFavAddressModal = (location, defaultName) => {
+        return new Promise((resolve) => {
+            addFavAddressResolver = resolve;
+            document.getElementById('fav_address_preview').innerText = `📍 地址：${location}`;
+            document.getElementById('fav_address_name_input').value = defaultName;
+            document.getElementById('addFavAddressModal').classList.add('show');
+            setTimeout(() => {
+                const input = document.getElementById('fav_address_name_input');
+                input.focus();
+                input.select(); // 自動全選預設標題，方便直接修改
+            }, 300);
+        });
+    };
+
+    window.closeAddFavAddressModal = (confirmed) => {
+        const name = document.getElementById('fav_address_name_input').value.trim();
+        document.getElementById('addFavAddressModal').classList.remove('show');
+        if (addFavAddressResolver) addFavAddressResolver(confirmed ? name : null);
+    };
+
+    window.addLocationToFavorites = async (location, eventTitle, buttonId) => {
+        // 去除標記完成的 ✅ 符號（如果是已完成的行程）
+        const cleanTitle = eventTitle.replace(/^✅\s*/, '');
+        const name = await window.openAddFavAddressModal(location, cleanTitle);
+        if (!name) return; // 使用者按取消
+
+        showToast(`📍 正在將「${name}」存入常用地址...`, 'info');
+
+        try {
+            const res = await fetch('/api/pocket/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    category: '常用',
+                    name: name,
+                    location: location,
+                    note: '來自日程匯入'
+                })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                showToast(`📌 已成功將「${name}」加入常用地址！`, 'success');
+
+                // A. 尋找畫面中所有同名/同 event 的 設為常用 按鈕並更新視覺
+                const btns = document.querySelectorAll(`[id="${buttonId}"]`);
+                btns.forEach(btn => {
+                    btn.disabled = true;
+                    btn.style.background = '#f1f5f9';
+                    btn.style.border = '1px solid #cbd5e1';
+                    btn.style.color = '#94a3b8';
+                    btn.style.cursor = 'default';
+                    btn.innerHTML = '✓ 已設常用';
+                });
+
+                // B. 主動重整口袋面板
+                if (typeof window.loadPocket === 'function') {
+                    window.loadPocket();
+                }
+            } else {
+                showToast(`❌ 存入失敗：${data.message}`, 'error');
             }
         } catch (e) {
             showToast('❌ 伺服器連線失敗', 'error');
