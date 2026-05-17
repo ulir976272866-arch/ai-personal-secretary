@@ -235,9 +235,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     yesBtn.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
                     yesBtn.style.boxShadow = '0 4px 15px rgba(217, 119, 6, 0.35)';
                 } else if (yesText === '移回口袋景點') {
-                    // 石板灰 (Slate Grey)
-                    yesBtn.style.background = 'linear-gradient(135deg, #64748b 0%, #475569 100%)';
-                    yesBtn.style.boxShadow = '0 4px 15px rgba(71, 85, 105, 0.35)';
+                    // 綠色系 (Emerald Green) - 高顏值漸層
+                    yesBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                    yesBtn.style.boxShadow = '0 4px 15px rgba(5, 150, 105, 0.35)';
                 } else {
                     // 確定刪除 (珊瑚紅/經典紅)
                     yesBtn.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
@@ -2350,7 +2350,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 📋 複製
                             </span>
                             <span onclick="window.moveToFavorites('${item.id}', '${item.name.replace(/'/g, "\\'")}', '其他')" 
-                                  style="cursor: pointer; background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid #cbd5e1; transition: all 0.2s;">
+                                  style="cursor: pointer; background: #f0fdf4; color: #16a34a; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid #bbf7d0; transition: all 0.2s;">
                                 ↩️ 移回口袋
                             </span>
                         `;
