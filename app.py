@@ -619,10 +619,7 @@ def get_completed_schedule_response(keyword, days):
     for e in events:
         full_title = e.get('summary', '無標題')
         is_done = full_title.startswith("✅ ")
-        if not is_done:
-            continue
-            
-        display_title = full_title.replace("✅ ", "", 1)
+        display_title = full_title.replace("✅ ", "", 1) if is_done else full_title
         
         # Keyword filter (case-insensitive)
         if keyword:
@@ -648,7 +645,7 @@ def get_completed_schedule_response(keyword, days):
             
         completed_list.append({
             'id': e['id'], 'time': time_val, 'date': date_val, 'title': display_title,
-            'location': e.get('location', ''), 'start_time': start_str
+            'location': e.get('location', ''), 'start_time': start_str, 'completed': is_done
         })
         
     if not completed_list:
@@ -656,15 +653,16 @@ def get_completed_schedule_response(keyword, days):
         return jsonify({
             "status": "success",
             "type": "chat",
-            "message": f"🔍 過去 {days} 天內，沒有找到任何符合{k_str}的已完成行程喔！"
+            "message": f"🔍 過去 {days} 天內，沒有找到任何符合{k_str}的行程喔！"
         })
         
     # Generate direct clean message for LINE / fallback
-    msg = f"🔍 幫您找到過去 {days} 天內已完成的行程：\n\n"
+    msg = f"🔍 幫您找到過去 {days} 天內的行程：\n\n"
     for i, item in enumerate(completed_list, 1):
+        status_label = " [已完成]" if item['completed'] else " [未完成]"
         time_label = f" ({item['time']})" if item['time'] != '全天' else " (全天)"
         loc_label = f"\n📍 地址：{item['location']}" if item['location'] else ""
-        msg += f"{i}. [{item['date']}] {item['title']}{time_label}{loc_label}\n"
+        msg += f"{i}. [{item['date']}] {item['title']}{status_label}{time_label}{loc_label}\n"
         
     return jsonify({
         "status": "success",

@@ -1352,8 +1352,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const kLabel = keyword ? `關鍵字「${keyword}」` : '所有';
         let headerHtml = `
             <div class="schedule-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid #f1f5f9;">
-                <h3 style="margin:0; font-size: 1rem; color: #10b981;">🔍 已完成行程 (${kLabel})</h3>
-                <span style="font-size: 0.7rem; color: #94a3b8; background: #ecfdf5; padding: 4px 10px; border-radius: 8px; font-weight: 800; border: 1.5px solid #a7f3d0;">
+                <h3 style="margin:0; font-size: 1rem; color: #0f172a;">🔍 歷史行程 (${kLabel})</h3>
+                <span style="font-size: 0.7rem; color: #475569; background: #f1f5f9; padding: 4px 10px; border-radius: 8px; font-weight: 800; border: 1.5px solid #cbd5e1;">
                     過去 ${days} 天
                 </span>
             </div>
@@ -1362,7 +1362,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (events.length === 0) {
             card.innerHTML = headerHtml + `
                 <div style="padding: 30px 15px; text-align: center;">
-                    <p style="color: #64748b; margin:0;">沒有找到任何符合的已完成行程喔！</p>
+                    <p style="color: #64748b; margin:0;">沒有找到任何符合的行程喔！</p>
                 </div>
             `;
             chatHistory.appendChild(card);
@@ -1389,18 +1389,31 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
             }
 
+            let itemBorder = event.completed ? '4px solid #10b981' : '4px solid #f59e0b';
+            let timeColor = event.completed ? '#10b981' : '#f59e0b';
+            let titleHtml = event.completed 
+                ? `<div class="event-title-row" style="text-decoration: line-through; color: #94a3b8;">✅ ${event.title}</div>`
+                : `<div class="event-title-row" style="color: #0f172a; font-weight: 700;">${event.title}</div>`;
+            
+            let actionBtnHtml = event.completed
+                ? `<button onclick="window.restoreCompletedEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')" 
+                                style="cursor: pointer; background: #ecfdf5; border: 1.5px solid #a7f3d0; color: #047857; padding: 4px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; border-radius: 8px;">
+                            ↩️ 恢復
+                        </button>`
+                : `<button onclick="window.completeEventFromSearch('${event.id}', '${event.title.replace(/'/g, "\\'")}')" 
+                                style="cursor: pointer; background: #fffbeb; border: 1.5px solid #fde68a; color: #d97706; padding: 4px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; border-radius: 8px;">
+                            ✔️ 完成
+                        </button>`;
+
             listHtml += `
-                <div id="completed_event_li_${event.id}" class="schedule-item" style="border-left: 4px solid #10b981;">
+                <div id="completed_event_li_${event.id}" class="schedule-item" style="border-left: ${itemBorder};">
                     <div class="event-info" style="flex: 1;">
-                        <div class="event-time-row" style="color: #10b981; font-weight: 800;">[${event.date}] ${event.time}</div>
-                        <div class="event-title-row" style="text-decoration: line-through; color: #94a3b8;">✅ ${event.title}</div>
+                        <div class="event-time-row" style="color: ${timeColor}; font-weight: 800;">[${event.date}] ${event.time}</div>
+                        ${titleHtml}
                         ${locationHtml}
                     </div>
                     <div class="event-actions" style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
-                        <button onclick="window.restoreCompletedEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')" 
-                                style="cursor: pointer; background: #ecfdf5; border: 1.5px solid #a7f3d0; color: #047857; padding: 4px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; border-radius: 8px;">
-                            ↩️ 恢復
-                        </button>
+                        ${actionBtnHtml}
                     </div>
                 </div>
             `;
@@ -1433,21 +1446,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 // C. 將該行卡片項目更新為「已恢復」視覺
                 const li = document.getElementById(`completed_event_li_${id}`);
                 if (li) {
-                    li.style.background = '#f8fafc';
                     li.style.borderLeft = '4px solid #f59e0b';
+                    const timeRow = li.querySelector('.event-time-row');
+                    if (timeRow) timeRow.style.color = '#f59e0b';
+                    
                     const titleRow = li.querySelector('.event-title-row');
                     if (titleRow) {
                         titleRow.style.textDecoration = 'none';
                         titleRow.style.color = '#0f172a';
                         titleRow.innerText = name;
                     }
-                    const btn = li.querySelector('button');
+                    const btn = li.querySelector('.event-actions button');
                     if (btn) {
-                        btn.disabled = true;
-                        btn.style.background = '#f1f5f9';
-                        btn.style.border = '1px solid #cbd5e1';
-                        btn.style.color = '#94a3b8';
-                        btn.innerText = '已恢復至行程';
+                        btn.onclick = () => window.completeEventFromSearch(id, name);
+                        btn.style.background = '#fffbeb';
+                        btn.style.border = '1.5px solid #fde68a';
+                        btn.style.color = '#d97706';
+                        btn.innerHTML = '✔️ 完成';
                     }
                 }
                 
@@ -1455,6 +1470,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.querySchedule(window.lastQueryDays || 7);
             } else {
                 showToast(`❌ 恢復失敗：${data.message}`, 'error');
+            }
+        } catch (e) {
+            showToast('❌ 伺服器連線失敗', 'error');
+        }
+    };
+
+    window.completeEventFromSearch = async (id, name) => {
+        showToast(`🔄 正在將「${name}」標記為已完成...`, 'info');
+        
+        try {
+            // A. 發送 API 請求標記為已完成 (加勾)
+            const res = await fetch('/api/toggle_completion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event_id: id })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                showToast(`✅ 已成功完成「${name}」！`, 'success');
+                
+                // B. 將該行卡片項目更新為「已完成」視覺 (變綠、劃線、變按鈕)
+                const li = document.getElementById(`completed_event_li_${id}`);
+                if (li) {
+                    li.style.borderLeft = '4px solid #10b981';
+                    const timeRow = li.querySelector('.event-time-row');
+                    if (timeRow) timeRow.style.color = '#10b981';
+                    
+                    const titleRow = li.querySelector('.event-title-row');
+                    if (titleRow) {
+                        titleRow.style.textDecoration = 'line-through';
+                        titleRow.style.color = '#94a3b8';
+                        titleRow.innerHTML = `✅ ${name}`;
+                    }
+                    const btn = li.querySelector('.event-actions button');
+                    if (btn) {
+                        // 重新綁定為 restoreCompletedEvent
+                        btn.onclick = () => window.restoreCompletedEvent(id, name);
+                        btn.style.background = '#ecfdf5';
+                        btn.style.border = '1.5px solid #a7f3d0';
+                        btn.style.color = '#047857';
+                        btn.innerHTML = '↩️ 恢復';
+                    }
+                }
+                
+                // C. 重整主畫面行程
+                window.querySchedule(window.lastQueryDays || 7);
+            } else {
+                showToast(`❌ 操作失敗：${data.message}`, 'error');
             }
         } catch (e) {
             showToast('❌ 伺服器連線失敗', 'error');
