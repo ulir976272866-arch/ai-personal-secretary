@@ -103,26 +103,24 @@
                     <input type="text" id="manual_summary" class="form-input" placeholder="要做什麼呢？">
                 </div>
                 <div class="form-group">
-                    <label>地點</label>
-                    <input type="text" id="manual_location" class="form-input" placeholder="在哪裡呢？">
-                    <div id="schedule_fav_addresses_wrapper" style="display: none; margin-top: 8px;">
-                        <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
-                            <span>📌</span> 常用地點一鍵填入：
-                        </div>
-                        <div id="schedule_fav_addresses_list" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; white-space: nowrap; -webkit-overflow-scrolling: touch;">
-                            <!-- Pinned address pills will be injected here -->
-                        </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <label style="margin-bottom: 0;">地點</label>
+                        <button type="button" onclick="window.openImportFavAddressModal()" 
+                                style="cursor: pointer; background: #fff1f2; color: #9f1239; border: 1.5px solid #fecdd3; font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 8px; transition: all 0.2s;">
+                            📌 常用地址帶入
+                        </button>
                     </div>
+                    <input type="text" id="manual_location" class="form-input" placeholder="在哪裡呢？">
                 </div>
                 <div class="form-group">
-                    <label>日期</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <label style="margin-bottom: 0;">日期</label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.8rem; color: #64748b; font-weight: 700; margin-bottom: 0;">
+                            <input type="checkbox" id="manual_all_day" onchange="const d = this.checked ? 'none' : 'block'; document.getElementById('time_input_wrapper').style.display = this.checked ? 'none' : 'flex'; document.getElementById('duration_input_wrapper').style.display = d;"> 
+                            全天行程
+                        </label>
+                    </div>
                     <input type="date" id="manual_date" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: #64748b;">
-                        <input type="checkbox" id="manual_all_day" onchange="const d = this.checked ? 'none' : 'block'; document.getElementById('time_input_wrapper').style.display = this.checked ? 'none' : 'flex'; document.getElementById('duration_input_wrapper').style.display = d;"> 
-                        全天行程
-                    </label>
                 </div>
                 <div id="time_input_wrapper" style="display: flex; gap: 10px; margin-bottom: 20px;">
                         <select id="manual_ampm" class="form-input" style="flex: 1.5; margin-bottom: 0; padding-right: 25px; font-size: 0.9rem;">
@@ -252,6 +250,11 @@
                     <select id="pocket_filter_area" onchange="window.setAreaFilter(this.value)" style="flex: 1; padding: 10px; border-radius: 12px; border: 1.5px solid #f1f5f9; background: #f8fafc; font-size: 0.85rem; font-weight: 600; color: #475569; outline: none; cursor: pointer;">
                         <option value="全部">📍 全部地區</option>
                     </select>
+                </div>
+
+                <!-- 🔍 常用地址模糊查詢搜尋框 (V1.0 Classic Layout) -->
+                <div id="pocket_search_container" style="margin-bottom: 15px; display: none;">
+                    <input type="text" id="pocket_search_input" placeholder="🔍 輸入地標名稱/自訂稱呼搜尋 (例如：宮)..." oninput="window.handlePocketSearch(this.value)" style="width: 100%; padding: 10px 14px; border: 1.5px solid #fecdd3; border-radius: 14px; font-size: 0.9rem; font-weight: 700; color: #9f1239; background: #fff1f2; outline: none; box-sizing: border-box; transition: all 0.2s;">
                 </div>
                 <div id="pocket_list" style="padding-top: 5px;"></div>
             </div>
@@ -498,11 +501,15 @@
     <div id="pocketCustomNameModal" class="modal-backdrop" style="z-index: 2000; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px);">
         <div class="modal-content" style="max-width: 320px; padding: 25px; border-radius: 28px; border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
             <h3 style="font-size: 1.15rem; font-weight: 800; color: #e11d48; margin-bottom: 20px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                <span>✏️</span> 編輯自訂稱呼
+                <span>✏️</span> 編輯常用地標
             </h3>
+            <div class="form-group" style="width: 100%; margin-bottom: 12px;">
+                <label style="font-size: 0.8rem; color: #64748b; margin-bottom: 6px; display: block; font-weight: 700;">🏷️ 自訂稱呼/暱稱：</label>
+                <input type="text" id="custom_pocket_name_input" class="form-input" placeholder="例如：家、公司、小明家..." style="margin-bottom: 0; text-align: left; font-size: 0.95rem; font-weight: 700; border: 1.5px solid #fecdd3; border-radius: 14px; background: #fff1f2; color: #9f1239; padding: 10px; box-sizing: border-box; width: 100%; outline: none;" onkeydown="if(event.key==='Enter') window.closePocketCustomNameModal(true)">
+            </div>
             <div class="form-group" style="width: 100%; margin-bottom: 20px;">
-                <label style="font-size: 0.8rem; color: #64748b; margin-bottom: 8px; display: block; text-align: center;">請輸入此地址的自訂稱呼或暱稱：</label>
-                <input type="text" id="custom_pocket_name_input" class="form-input" placeholder="例如：家、公司、小明家..." style="margin-bottom: 0; text-align: center; font-size: 1.1rem; font-weight: 700; border: 1.5px solid #fecdd3; border-radius: 14px; background: #fff1f2; color: #9f1239; padding: 10px; box-sizing: border-box; width: 100%; outline: none;" onkeydown="if(event.key==='Enter') window.closePocketCustomNameModal(true)">
+                <label style="font-size: 0.8rem; color: #64748b; margin-bottom: 6px; display: block; font-weight: 700;">📍 地址主要名稱：</label>
+                <input type="text" id="custom_pocket_address_title_input" class="form-input" placeholder="例如：池府王爺祝壽、廣福路983號..." style="margin-bottom: 0; text-align: left; font-size: 0.95rem; font-weight: 700; border: 1.5px solid #fecdd3; border-radius: 14px; background: #fff1f2; color: #9f1239; padding: 10px; box-sizing: border-box; width: 100%; outline: none;" onkeydown="if(event.key==='Enter') window.closePocketCustomNameModal(true)">
             </div>
             <div style="display: flex; gap: 10px;">
                 <button onclick="window.closePocketCustomNameModal(false)" style="flex: 1; padding: 12px; border-radius: 16px; border: none; background: #f1f5f9; color: #475569; font-weight: 700; font-size: 0.9rem; cursor: pointer;">取消</button>
@@ -525,6 +532,23 @@
             <div style="display: flex; gap: 10px;">
                 <button onclick="window.closeAddFavAddressModal(false)" style="flex: 1; padding: 12px; border-radius: 16px; border: none; background: #f1f5f9; color: #475569; font-weight: 700; font-size: 0.9rem; cursor: pointer;">取消</button>
                 <button onclick="window.closeAddFavAddressModal(true)" style="flex: 1.2; padding: 12px; border-radius: 16px; border: none; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; font-weight: 700; font-size: 0.9rem; cursor: pointer; box-shadow: 0 4px 15px rgba(217, 119, 6, 0.35);">確認加入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 專屬常用地址選擇彈窗 (V5.0 Premium Rose Theme) -->
+    <div id="importFavAddressModal" class="modal-backdrop" style="z-index: 2000; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px);">
+        <div class="modal-content" style="max-width: 320px; padding: 25px; border-radius: 28px; background: white; text-align: center; animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: #9f1239; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <span>📌</span> 選擇常用地址
+            </h3>
+            <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 18px;">請選擇您要帶入的常用地址：</p>
+            <select id="import_fav_address_select" style="width: 100%; padding: 12px; border: 1.5px solid #fecdd3; border-radius: 14px; font-size: 0.95rem; font-weight: 700; color: #9f1239; background: #fff1f2; outline: none; margin-bottom: 22px;">
+                <!-- 常用地址選單動態注入點 -->
+            </select>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="window.closeImportFavAddressModal(false)" style="flex: 1; padding: 12px; border-radius: 16px; border: none; background: #f1f5f9; color: #475569; font-weight: 700; font-size: 0.9rem; cursor: pointer;">取消</button>
+                <button onclick="window.closeImportFavAddressModal(true)" style="flex: 1.2; padding: 12px; border-radius: 16px; border: none; background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); color: white; font-weight: 700; font-size: 0.9rem; cursor: pointer; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.35);">確認填入</button>
             </div>
         </div>
     </div>

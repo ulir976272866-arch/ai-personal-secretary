@@ -1413,12 +1413,23 @@ def handle_pocket(action, data=None):
             pocket_list = []
             for row in rows:
                 if len(row) >= 3:
+                    loc_val = row[3] if len(row) > 3 else ''
+                    area_val = row[4] if len(row) > 4 else ''
+                    if not area_val and loc_val:
+                        cities = ["台北市", "新北市", "桃園市", "台中市", "台南市", "高雄市", 
+                                  "基隆市", "新竹市", "嘉義市", "新竹縣", "苗栗縣", "彰化縣", "南投縣", 
+                                  "雲林縣", "嘉義縣", "屏東縣", "宜蘭縣", "花蓮縣", "台東縣", "澎湖縣", "金門縣", "連江縣"]
+                        for city in cities:
+                            if city in loc_val:
+                                area_val = city
+                                break
+                                
                     pocket_list.append({
                         'id': row[0],
                         'category': row[1],
                         'name': row[2],
-                        'location': row[3] if len(row) > 3 else '',
-                        'area': row[4] if len(row) > 4 else '',
+                        'location': loc_val,
+                        'area': area_val,
                         'note': row[5] if len(row) > 5 else '',
                         'time': row[6] if len(row) > 6 else '',
                         'lat': row[7] if len(row) > 7 else None,
@@ -1436,6 +1447,17 @@ def handle_pocket(action, data=None):
             name = data.get('name', '')
             location = data.get('location', '')
             area = data.get('area', '')
+            
+            # 智慧解析縣市地區標籤 (從地址字串提取)
+            if not area and location:
+                cities = ["台北市", "新北市", "桃園市", "台中市", "台南市", "高雄市", 
+                          "基隆市", "新竹市", "嘉義市", "新竹縣", "苗栗縣", "彰化縣", "南投縣", 
+                          "雲林縣", "嘉義縣", "屏東縣", "宜蘭縣", "花蓮縣", "台東縣", "澎湖縣", "金門縣", "連江縣"]
+                for city in cities:
+                    if city in location:
+                        area = city
+                        break
+            
             note = data.get('note', '')
             create_time = datetime.now(TW_TZ).strftime('%Y-%m-%d %H:%M')
             
@@ -1526,6 +1548,7 @@ def handle_pocket(action, data=None):
         try:
             target_id = data.get('id')
             new_note = data.get('note', '')
+            new_name = data.get('name')
 
             result = service.spreadsheets().values().get(
                 spreadsheetId=sheet_id, range='A:A').execute()
@@ -1540,14 +1563,22 @@ def handle_pocket(action, data=None):
             if row_index == -1:
                 return False
 
-            # 在 Google Sheet 中，備註對應的是第 6 欄 (Column F，即 'F' + row_index)
-            body = {'values': [[new_note]]}
+            # 更新自訂稱呼 (Column F，即 'F' + row_index)
+            body_note = {'values': [[new_note]]}
             service.spreadsheets().values().update(
                 spreadsheetId=sheet_id, range=f'F{row_index}',
-                valueInputOption='RAW', body=body).execute()
+                valueInputOption='RAW', body=body_note).execute()
+
+            # 若有傳入主要名稱，更新主要名稱 (Column C，即 'C' + row_index)
+            if new_name is not None:
+                body_name = {'values': [[new_name]]}
+                service.spreadsheets().values().update(
+                    spreadsheetId=sheet_id, range=f'C{row_index}',
+                    valueInputOption='RAW', body=body_name).execute()
+
             return True
         except Exception as e:
-            print(f"Error updating pocket item note: {e}")
+            print(f"Error updating pocket item note/name: {e}")
             return False
 
 @app.route('/api/pocket/delete', methods=['POST'])

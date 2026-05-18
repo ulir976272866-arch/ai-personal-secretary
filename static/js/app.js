@@ -1400,17 +1400,28 @@ document.addEventListener('DOMContentLoaded', () => {
             let locationHtml = '';
             if (event.location) {
                 const mapUrl = getMapUrl(event.location);
+                const isAlreadyFav = window.cachedPocketItems && window.cachedPocketItems.some(
+                    i => i.category === '常用' && i.location.trim().toLowerCase() === event.location.trim().toLowerCase()
+                );
                 locationHtml = `
                     <div class="event-address-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px;">
                         <div style="display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0;">
                             <div class="event-address-icon" style="flex-shrink: 0;">📍</div>
                             <a href="${mapUrl}" class="location-link" style="color: #94a3b8; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${event.location}</a>
                         </div>
-                        <button id="add_fav_btn_${event.id}" onclick="window.addLocationToFavorites('${event.location.replace(/'/g, "\\'")}', '${event.title.replace(/'/g, "\\'")}', 'add_fav_btn_${event.id}')" 
-                                style="cursor: pointer; background: #fffbeb; color: #d97706; border: 1.5px solid #fde68a; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; white-space: nowrap;" 
-                                class="add-fav-loc-btn">
-                            📌 常用
-                        </button>
+                        ${isAlreadyFav ? `
+                            <button id="add_fav_btn_${event.id}" disabled
+                                    style="cursor: default; background: #f1f5f9; color: #94a3b8; border: 1.5px solid #cbd5e1; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; white-space: nowrap; pointer-events: none;" 
+                                    class="add-fav-loc-btn">
+                                ✓ 已設常用
+                            </button>
+                        ` : `
+                            <button id="add_fav_btn_${event.id}" onclick="window.addLocationToFavorites('${event.location.replace(/'/g, "\\'")}', '${event.title.replace(/'/g, "\\'")}', 'add_fav_btn_${event.id}')" 
+                                    style="cursor: pointer; background: #fffbeb; color: #d97706; border: 1.5px solid #fde68a; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; white-space: nowrap;" 
+                                    class="add-fav-loc-btn">
+                                📌 常用
+                            </button>
+                        `}
                     </div>`;
             }
 
@@ -1471,17 +1482,28 @@ document.addEventListener('DOMContentLoaded', () => {
             let locationHtml = '';
             if (event.location) {
                 const mapUrl = getMapUrl(event.location);
+                const isAlreadyFav = window.cachedPocketItems && window.cachedPocketItems.some(
+                    i => i.category === '常用' && i.location.trim().toLowerCase() === event.location.trim().toLowerCase()
+                );
                 locationHtml = `
                     <div class="event-address-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px;">
                         <div style="display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0;">
                             <div class="event-address-icon" style="flex-shrink: 0;">📍</div>
                             <a href="${mapUrl}" class="location-link" style="color: #94a3b8; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${event.location}</a>
                         </div>
-                        <button id="add_fav_btn_${event.id}" onclick="window.addLocationToFavorites('${event.location.replace(/'/g, "\\'")}', '${event.title.replace(/'/g, "\\'")}', 'add_fav_btn_${event.id}')" 
-                                style="cursor: pointer; background: #fffbeb; color: #d97706; border: 1.5px solid #fde68a; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; white-space: nowrap;" 
-                                class="add-fav-loc-btn">
-                            📌 常用
-                        </button>
+                        ${isAlreadyFav ? `
+                            <button id="add_fav_btn_${event.id}" disabled
+                                    style="cursor: default; background: #f1f5f9; color: #94a3b8; border: 1.5px solid #cbd5e1; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; white-space: nowrap; pointer-events: none;" 
+                                    class="add-fav-loc-btn">
+                                ✓ 已設常用
+                            </button>
+                        ` : `
+                            <button id="add_fav_btn_${event.id}" onclick="window.addLocationToFavorites('${event.location.replace(/'/g, "\\'")}', '${event.title.replace(/'/g, "\\'")}', 'add_fav_btn_${event.id}')" 
+                                    style="cursor: pointer; background: #fffbeb; color: #d97706; border: 1.5px solid #fde68a; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; white-space: nowrap;" 
+                                    class="add-fav-loc-btn">
+                                📌 常用
+                            </button>
+                        `}
                     </div>`;
             }
 
@@ -2622,6 +2644,12 @@ document.addEventListener('DOMContentLoaded', () => {
     window.currentPocketTab = 'all';
     window.currentPocketFilter = '全部';
     window.currentAreaFilter = '全部';
+    window.currentPocketSearchKeyword = '';
+
+    window.handlePocketSearch = (value) => {
+        window.currentPocketSearchKeyword = value.trim();
+        window.loadPocket();
+    };
 
     window.switchPocketTab = (tab) => {
         window.currentPocketTab = tab;
@@ -2629,6 +2657,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const tabFav = document.getElementById('pocket_tab_fav');
         const formCard = document.getElementById('pocket_form_card_container');
         const filterBar = document.getElementById('pocket_filter_bar_container');
+        const searchBar = document.getElementById('pocket_search_container');
+        const searchInput = document.getElementById('pocket_search_input');
+
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        window.currentPocketSearchKeyword = '';
 
         if (tab === 'fav') {
             if (tabFav) {
@@ -2643,6 +2678,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (formCard) formCard.style.display = 'none';
             if (filterBar) filterBar.style.display = 'none';
+            if (searchBar) searchBar.style.display = 'block';
         } else {
             if (tabAll) {
                 tabAll.style.background = 'white';
@@ -2656,6 +2692,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (formCard) formCard.style.display = 'block';
             if (filterBar) filterBar.style.display = 'flex';
+            if (searchBar) searchBar.style.display = 'none';
         }
 
         window.loadPocket();
@@ -2700,28 +2737,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.editPocketCustomName = (id, currentNote) => {
+    window.editPocketCustomName = (id, currentNote, currentName) => {
         const modal = document.getElementById('pocketCustomNameModal');
-        const input = document.getElementById('custom_pocket_name_input');
-        if (modal && input) {
-            input.value = currentNote;
+        const inputNote = document.getElementById('custom_pocket_name_input');
+        const inputName = document.getElementById('custom_pocket_address_title_input');
+        if (modal && inputNote && inputName) {
+            inputNote.value = currentNote;
+            inputName.value = currentName || '';
             modal.classList.add('show');
-            setTimeout(() => input.focus(), 100);
+            setTimeout(() => inputNote.focus(), 100);
 
             window.closePocketCustomNameModal = async (confirmed) => {
                 modal.classList.remove('show');
                 if (!confirmed) return;
 
-                const newName = input.value.trim();
+                const newNote = inputNote.value.trim();
+                const newName = inputName.value.trim();
                 try {
                     const res = await fetch('/api/pocket/update_note', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id, note: newName })
+                        body: JSON.stringify({ id, note: newNote, name: newName })
                     });
                     const data = await res.json();
                     if (data.status === 'success') {
-                        showToast('✏️ 自訂稱呼已更新！', 'success');
+                        showToast('✏️ 地標資料已成功更新！', 'success');
                         window.loadPocket();
                     } else {
                         showToast('更新失敗，請重試', 'error');
@@ -2733,6 +2773,79 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- 📅 行事曆地點「彈窗式下拉選單」帶入功能與全域同步 (V5.0 Premium) ---
+    window.openImportFavAddressModal = async () => {
+        const modal = document.getElementById('importFavAddressModal');
+        const select = document.getElementById('import_fav_address_select');
+        if (!modal || !select) return;
+
+        // 如果全域快取尚未載入，則異步加載
+        let favs = (window.cachedPocketItems || []).filter(i => i.category === '常用');
+        if (favs.length === 0) {
+            try {
+                const res = await fetch('/api/pocket/list');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    window.cachedPocketItems = data.data || [];
+                    favs = window.cachedPocketItems.filter(i => i.category === '常用');
+                }
+            } catch (e) {
+                console.error("加載常用地址失敗", e);
+            }
+        }
+
+        if (favs.length === 0) {
+            showToast('⚠️ 您目前還沒有設定任何常用地址喔！', 'error');
+            return;
+        }
+
+        // 注入常用地址選項 (自訂備註優先，相容地標名稱)
+        select.innerHTML = favs.map(item => {
+            const displayName = item.note ? `📌 ${item.note}` : `📍 ${item.name}`;
+            return `<option value="${item.location.replace(/"/g, '&quot;')}">${displayName} (${item.location})</option>`;
+        }).join('');
+
+        modal.classList.add('show');
+
+        window.closeImportFavAddressModal = (confirmed) => {
+            modal.classList.remove('show');
+            if (confirmed && select.value) {
+                const input = document.getElementById('manual_location');
+                if (input) {
+                    input.value = select.value;
+                    showToast('📋 已填入常用地址！', 'success');
+                }
+            }
+        };
+    };
+
+    // 掃描日程卡片並即時將重複地址按鈕設為已設常用
+    window.syncEventFavButtons = () => {
+        if (!window.cachedPocketItems) return;
+        const favLocations = new Set(
+            window.cachedPocketItems
+                .filter(i => i.category === '常用')
+                .map(i => i.location.trim().toLowerCase())
+        );
+
+        document.querySelectorAll('.add-fav-loc-btn').forEach(btn => {
+            const onclickAttr = btn.getAttribute('onclick') || '';
+            const match = onclickAttr.match(/window\.addLocationToFavorites\('(.*?)',/);
+            if (match && match[1]) {
+                const loc = match[1].replace(/\\'/g, "'").trim().toLowerCase();
+                if (favLocations.has(loc)) {
+                    btn.disabled = true;
+                    btn.style.background = '#f1f5f9';
+                    btn.style.border = '1.5px solid #cbd5e1';
+                    btn.style.color = '#94a3b8';
+                    btn.style.cursor = 'default';
+                    btn.style.pointerEvents = 'none';
+                    btn.innerHTML = '✓ 已設常用';
+                }
+            }
+        });
+    };
+
     window.loadPocket = async () => {
         const list = document.getElementById('pocket_list');
         if (!list) return;
@@ -2742,6 +2855,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.status === 'success') {
                 const rawItems = data.data || [];
+                window.cachedPocketItems = rawItems; // 🌟 建立全域常用地址快取
+                window.syncEventFavButtons();       // 🌟 掃描日程重複地址並同步狀態
+
 
                 // 1. 生成篩選列
                 renderFilterBar([...new Set(rawItems.map(i => i.category))]);
@@ -2754,6 +2870,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (isFavTab) {
                     items = items.filter(i => i.category === '常用');
+                    
+                    // 常用地址模糊查詢：以自訂名稱 (item.note) 為主要搜尋原則，並相容主要地標名稱 (item.name)
+                    if (window.currentPocketSearchKeyword) {
+                        const kw = window.currentPocketSearchKeyword.toLowerCase();
+                        items = items.filter(item => {
+                            const matchNote = (item.note || '').toLowerCase().includes(kw);
+                            const matchName = (item.name || '').toLowerCase().includes(kw);
+                            return matchNote || matchName;
+                        });
+                    }
                 } else {
                     items = items.filter(i => i.category !== '常用');
                     if (window.currentPocketFilter !== '全部') {
@@ -2765,8 +2891,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // 3. 排序
-                const priorityMap = { '美食': 1, '常用': 2, '旅遊': 3, '住宿': 4, '咖啡': 5, '購物': 6, '其他': 7 };
-                items.sort((a, b) => (priorityMap[a.category] || 99) - (priorityMap[b.category] || 99));
+                if (isFavTab) {
+                    // 常用地址依建立時間降序（最新建立的排在最上面）
+                    // 為了確保時間格式相同（如先前寫入同分秒的舊資料）依然能精準將最新加入的排在最前面，我們加入原始索引降序作為 Secondary Sort
+                    const itemsWithIndex = items.map((item, idx) => ({ item, idx }));
+                    itemsWithIndex.sort((a, b) => {
+                        const timeA = a.item.time || '';
+                        const timeB = b.item.time || '';
+                        const cmp = timeB.localeCompare(timeA);
+                        if (cmp !== 0) return cmp;
+                        return b.idx - a.idx; // 時間相同時，在試算表中靠後面的（新加入的）排在最上面！
+                    });
+                    items = itemsWithIndex.map(x => x.item);
+                } else {
+                    const priorityMap = { '美食': 1, '常用': 2, '旅遊': 3, '住宿': 4, '咖啡': 5, '購物': 6, '其他': 7 };
+                    items.sort((a, b) => (priorityMap[a.category] || 99) - (priorityMap[b.category] || 99));
+                }
 
                 list.innerHTML = items.map(item => {
                     const mapUrl = getMapUrl(item.location || item.name);
@@ -2810,7 +2950,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // 編輯稱呼按鈕 (僅常用地址有)
                     const editBtnHtml = isFavCategory ? `
-                        <button onclick="window.editPocketCustomName('${item.id}', '${(item.note || '').replace(/'/g, "\\'")}')" 
+                        <button onclick="window.editPocketCustomName('${item.id}', '${(item.note || '').replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')" 
                                 style="background: none; border: none; color: #10b981; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 5px; transition: all 0.2s;" 
                                 title="編輯稱呼">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -2824,7 +2964,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div style="background: white; border: 1px solid #f1f5f9; padding: 15px; border-radius: 20px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); animation: fadeIn 0.3s ease;">
                             ${(isFavCategory && item.note) ? `
                                 <div style="font-size: 0.85rem; font-weight: 800; color: #e11d48; margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">
-                                    <span>📌 自訂稱呼：${item.note}</span>
+                                    <span>📌 ${item.note}</span>
                                 </div>
                             ` : ''}
                             <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px;">
@@ -2866,6 +3006,39 @@ document.addEventListener('DOMContentLoaded', () => {
         const category = window.selectedPocketCategory;
 
         if (!name) return;
+
+        // 🛑 核心防呆：判斷手動新增時地址是否已存在於常用地址中 (V7.0 Premium)
+        if (location) {
+            const isDuplicated = (window.cachedPocketItems || []).some(
+                i => i.category === '常用' && i.location.trim().toLowerCase() === location.toLowerCase()
+            );
+            if (isDuplicated) {
+                // 1. 彈出客製化毛玻璃警告對話框
+                await window.customAlert('地址已重複 ⚠️', '新增失敗：此地址已存在於常用地址中囉！', '📍', '我知道了');
+                
+                // 2. 點選「我知道了」後，立刻清空搜尋、地址與備註欄位
+                document.getElementById('pocket_name').value = '';
+                document.getElementById('pocket_location').value = '';
+                document.getElementById('pocket_note').value = '';
+                
+                const areaDisplay = document.getElementById('detected_area_display');
+                if (areaDisplay) {
+                    areaDisplay.style.display = 'none';
+                    document.getElementById('detected_area_val').innerText = '';
+                    document.getElementById('pocket_area').value = '';
+                }
+                
+                // 3. 還原新增按鈕為灰色禁用狀態
+                const btn = document.getElementById('submitPocket');
+                if (btn) {
+                    btn.style.opacity = '0.3';
+                    btn.style.pointerEvents = 'none';
+                }
+                
+                document.getElementById('pocket_name').focus();
+                return; // 直接攔截，完美阻斷新增！
+            }
+        }
 
         const res = await fetch('/api/pocket/add', {
             method: 'POST',
