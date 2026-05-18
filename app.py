@@ -114,6 +114,9 @@ def get_valid_credentials():
     return creds
 
 def get_sheets_service():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        if creds_sa:
+            return build('sheets', 'v4', credentials=creds_sa)
     creds = get_valid_credentials()
     if creds:
         return build('sheets', 'v4', credentials=creds)
@@ -122,6 +125,9 @@ def get_sheets_service():
     return build('sheets', 'v4')
 
 def get_calendar_service():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        if creds_sa:
+            return build('calendar', 'v3', credentials=creds_sa)
     creds = get_valid_credentials()
     if creds:
         return build('calendar', 'v3', credentials=creds)
@@ -130,6 +136,9 @@ def get_calendar_service():
     return build('calendar', 'v3')
 
 def get_drive_service():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        if creds_sa:
+            return build('drive', 'v3', credentials=creds_sa)
     creds = get_valid_credentials()
     if creds:
         return build('drive', 'v3', credentials=creds)
@@ -150,11 +159,15 @@ def get_user_info():
         return None
 
 def get_spreadsheet_id():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return os.getenv("GOOGLE_SHEET_ID")
     if 'spreadsheet_id' in session:
         return session['spreadsheet_id']
     return os.getenv("GOOGLE_SHEET_ID")
 
 def get_calendar_id():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return os.getenv("GOOGLE_CALENDAR_ID", "primary")
     if 'credentials' in session:
         return "primary"
     return os.getenv("GOOGLE_CALENDAR_ID", "primary")
@@ -500,6 +513,18 @@ def index():
     # 優先尋找專用地圖 Key，若無則嘗試共用 Gemini Key
     maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY') or os.getenv('GEMINI_API_KEY')
     
+    # 支援單人模式 (直接使用 Service Account，繞過登入)
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return render_template(
+            'index.html', 
+            maps_api_key=maps_api_key, 
+            logged_in=True, 
+            user_info={
+                "name": "個人秘書系統",
+                "picture": "https://lh3.googleusercontent.com/a/default-user"
+            }
+        )
+        
     logged_in = 'credentials' in session
     user_info = None
     if logged_in:
