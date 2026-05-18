@@ -527,6 +527,8 @@ def login():
         prompt='consent'
     )
     session['state'] = state
+    # 將 PKCE code_verifier 存入 session，以便在 callback 路由中跨請求還原驗證
+    session['code_verifier'] = flow.code_verifier
     return redirect(authorization_url)
 
 @app.route('/callback')
@@ -541,6 +543,10 @@ def callback():
         auth_resp = 'https://' + auth_resp[7:]
 
     flow = get_flow()
+    # 還原 PKCE 的 code_verifier，防止 Google 驗證回報 (invalid_grant) Missing code verifier 錯誤
+    if 'code_verifier' in session:
+        flow.code_verifier = session['code_verifier']
+        
     flow.fetch_token(authorization_response=auth_resp)
     
     # 將 OAuth 金鑰資料保存至 Session 中
