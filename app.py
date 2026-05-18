@@ -1057,9 +1057,9 @@ def get_schedule_response(days):
     now = datetime.now(TW_TZ)
     try:
         service = get_calendar_service()
-        today_start = datetime.combine(now.date(), time.min).isoformat() + '+08:00'
+        today_start = datetime.combine(now.date(), time.min, tzinfo=TW_TZ).isoformat()
         end_date = now + timedelta(days=days-1)
-        today_end = datetime.combine(end_date.date(), time.max).isoformat() + '+08:00'
+        today_end = datetime.combine(end_date.date(), time.max, tzinfo=TW_TZ).isoformat()
         
         events_result = service.events().list(
             calendarId=CALENDAR_ID, timeMin=today_start, timeMax=today_end,
@@ -1067,13 +1067,17 @@ def get_schedule_response(days):
         ).execute()
         events = events_result.get('items', [])
     except Exception as e:
+        print(f"Calendar Fetch Error: {e}")
         if "Not Found" in str(e) or "404" in str(e):
             return jsonify({
                 "status": "success",
                 "type": "chat",
-                "message": "⚠️ 讀取行事曆失敗！請確認日曆共用設定。"
+                "message": "⚠️ 讀取行事曆失敗！請確認日曆共用設定或稍後再試。"
             })
-        events = []
+        return jsonify({
+            "status": "error",
+            "message": f"讀取行事曆失敗，詳細錯誤：{str(e)}。如果您是第一次使用或剛改版，請點選右上角🚪按鈕登出並重新登入以授權 Google 日曆讀寫權限！"
+        })
     
     schedule_list = []
     for e in events:
@@ -1119,8 +1123,8 @@ def get_completed_schedule_response(keyword, days):
     now = datetime.now(TW_TZ)
     try:
         service = get_calendar_service()
-        today_end = datetime.combine(now.date(), time.max).isoformat() + '+08:00'
-        past_start = datetime.combine((now - timedelta(days=days)).date(), time.min).isoformat() + '+08:00'
+        today_end = datetime.combine(now.date(), time.max, tzinfo=TW_TZ).isoformat()
+        past_start = datetime.combine((now - timedelta(days=days)).date(), time.min, tzinfo=TW_TZ).isoformat()
         
         events_result = service.events().list(
             calendarId=CALENDAR_ID, timeMin=past_start, timeMax=today_end,
@@ -1130,9 +1134,8 @@ def get_completed_schedule_response(keyword, days):
     except Exception as e:
         print(f"Error fetching past completed events: {e}")
         return jsonify({
-            "status": "success",
-            "type": "chat",
-            "message": "⚠️ 讀取行事曆失敗！請確認日曆共用設定。"
+            "status": "error",
+            "message": f"讀取歷史行程失敗，詳細錯誤：{str(e)}。如果您是第一次使用或剛改版，請點選右上角🚪按鈕登出並重新登入以授權 Google 日曆讀寫權限！"
         })
         
     completed_list = []
