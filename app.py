@@ -246,6 +246,46 @@ def morning_briefing():
     reply = f"老闆早安！本月已支出 ${int(monthly_total):,}。祝您有美好的一天！"
     return jsonify({"status": "success", "message": reply})
 
+
+def format_event_success_message(title, start_time_str, location, is_all_day=False, is_manual=False, prefix=None):
+    """
+    格式化行程新增成功後的詳細回饋訊息。
+    """
+    # 格式化日期與時間
+    formatted_time_detail = "未定"
+    try:
+        if is_all_day:
+            # 格式：YYYY-MM-DD
+            dt_obj = datetime.strptime(start_time_str[:10], "%Y-%m-%d")
+            formatted_date = dt_obj.strftime("%m月%d日")
+            weekdays = ["週一", "週二", "週三", "週四", "週五", "週六", "週日"]
+            weekday = weekdays[dt_obj.weekday()]
+            formatted_time_detail = f"{formatted_date} ({weekday}) 全天行程"
+        else:
+            # 格式：ISO dateTime
+            clean_str = start_time_str.replace('Z', '+00:00')
+            if 'T' in clean_str and '+' not in clean_str:
+                clean_str += '+08:00'
+            
+            dt_obj = datetime.fromisoformat(clean_str)
+            if dt_obj.tzinfo:
+                dt_obj = dt_obj.astimezone(TW_TZ)
+                
+            formatted_date = dt_obj.strftime("%m月%d日")
+            formatted_time = dt_obj.strftime("%H:%M")
+            weekdays = ["週一", "週二", "週三", "週四", "週五", "週六", "週日"]
+            weekday = weekdays[dt_obj.weekday()]
+            formatted_time_detail = f"{formatted_date} ({weekday}) {formatted_time}"
+    except Exception as e:
+        print(f"Error formatting success time: {e}")
+        formatted_time_detail = start_time_str
+        
+    loc_str = location if location and location.strip() else "(未設定地點)"
+    if not prefix:
+        prefix = "✅ 手動新增行程成功！" if is_manual else "✅ 新增行程成功！"
+    
+    return f"{prefix}\n📅 時間：{formatted_time_detail}\n📍 地點：{loc_str}\n📌 行程：{title}"
+
 @app.route('/')
 def index():
     # 優先尋找專用地圖 Key，若無則嘗試共用 Gemini Key
@@ -396,16 +436,64 @@ def chat():
     try:
         if intent_type == "calendar":
             service = build('calendar', 'v3', credentials=creds)
-            event = {
-                'summary': parsed_data.get('title'),
-                'location': parsed_data.get('location', ''),
-                'start': {'dateTime': parsed_data.get('start_time'), 'timeZone': 'Asia/Taipei'},
-                'end': {'dateTime': parsed_data.get('end_time') or (datetime.fromisoformat(parsed_data.get('start_time')) + timedelta(hours=1)).isoformat(), 'timeZone': 'Asia/Taipei'},
-            }
-            conflict_msg = check_conflicts(service, event['start']['dateTime'], event['end']['dateTime'])
-            if conflict_msg: return jsonify({"status": "error", "message": conflict_msg})
+            
+            start_time_str = parsed_data.get('start_time')
+            if not start_time_str:
+                return jsonify({"status": "error", "message": "❌ AI 解析失敗：遺失開始時間。"})
+            
+            is_all_day = False
+            if len(start_time_str) <= 10 or 'T' not in start_time_str:
+                is_all_day = True
+                start_date = start_time_str[:10]
+                dt = datetime.strptime(start_date, '%Y-%m-%d')
+                end_date = (dt + timedelta(days=1)).strftime('%Y-%m-%d')
+                
+                event = {
+                    'summary': parsed_data.get('title'),
+                    'location': parsed_data.get('location', ''),
+                    'start': { 'date': start_date, 'timeZone': 'Asia/Taipei' },
+                    'end': { 'date': end_date, 'timeZone': 'Asia/Taipei' },
+                }
+            else:
+                is_all_day = False
+                start_str = start_time_str
+                if 'T' in start_str and '+' not in start_str and 'Z' not in start_str:
+                    start_str += '+08:00'
+                start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                
+                end_str = parsed_data.get('end_time')
+                if end_str:
+                    if 'T' in end_str and '+' not in end_str and 'Z' not in end_str:
+                        end_str += '+08:00'
+                    end_dt = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
+                else:
+                    end_dt = start_dt + timedelta(hours=1)
+                
+                event = {
+                    'summary': parsed_data.get('title'),
+                    'location': parsed_data.get('location', ''),
+                    'start': { 'dateTime': start_dt.isoformat(), 'timeZone': 'Asia/Taipei' },
+                    'end': { 'dateTime': end_dt.isoformat(), 'timeZone': 'Asia/Taipei' },
+                }
+                
+            conflict_msg = check_conflicts(
+                service, 
+                event['start'].get('dateTime', event['start'].get('date')), 
+                event['end'].get('dateTime', event['end'].get('date'))
+            )
+            if conflict_msg: 
+                return jsonify({"status": "error", "message": conflict_msg})
+                
             service.events().insert(calendarId=CALENDAR_ID, body=event).execute()
-            return jsonify({"status": "success", "type": "calendar", "message": f"✅ 已排入日曆：{parsed_data.get('title')}"})
+            
+            success_msg = format_event_success_message(
+                title=parsed_data.get('title'),
+                start_time_str=start_time_str,
+                location=parsed_data.get('location', ''),
+                is_all_day=is_all_day,
+                is_manual=False
+            )
+            return jsonify({"status": "success", "type": "calendar", "message": success_msg})
 
         elif intent_type == "expense":
             service = build('sheets', 'v4', credentials=creds)
@@ -771,7 +859,14 @@ def manual_action():
 
             service.events().insert(calendarId=CALENDAR_ID, body=event).execute()
             
-            return jsonify({"status": "success", "message": f"✅ 手動新增行程成功：{data.get('title')}"})
+            success_msg = format_event_success_message(
+                title=data.get('title'),
+                start_time_str=data.get('start_time'),
+                location=data.get('location', ''),
+                is_all_day=is_all_day,
+                is_manual=True
+            )
+            return jsonify({"status": "success", "message": success_msg})
 
         elif action_type == 'expense':
             # 手動記帳
@@ -1275,7 +1370,15 @@ def update_event():
              })
         
         service.events().update(calendarId=CALENDAR_ID, eventId=event_id, body=event).execute()
-        return jsonify({"status": "success", "message": "行程更新成功 ✅"})
+        success_msg = format_event_success_message(
+            title=summary,
+            start_time_str=event['start'].get('dateTime', event['start'].get('date')),
+            location=location,
+            is_all_day=is_all_day,
+            is_manual=True,
+            prefix="✅ 行程更新成功！"
+        )
+        return jsonify({"status": "success", "message": success_msg})
     except Exception as e:
         print(f"Error updating event: {e}")
         return jsonify({"status": "error", "message": f"更新失敗: {str(e)}"})

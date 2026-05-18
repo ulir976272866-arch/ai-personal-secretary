@@ -1901,7 +1901,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.querySchedule = async (days) => {
         window.lastQueryDays = days;
-        const rangeLabel = days === 1 ? '今日' : (days === 7 ? '本週' : '本月');
+        const rangeLabel = days === 1 ? '今日' : (days === 7 ? '本週' : '近30日');
         appendMessage(`查詢${rangeLabel}行程...`, true);
 
         try {
