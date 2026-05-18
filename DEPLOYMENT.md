@@ -21,19 +21,31 @@ gcloud run deploy ai-scheduler-assistant \
   --source . \
   --region asia-east1 \
   --allow-unauthenticated \
-  --set-env-vars="GEMINI_API_KEY=[您的_API_KEY],SPREADSHEET_ID=[您的_SHEET_ID]"
+  --set-env-vars="GEMINI_API_KEY=[您的_API_KEY],GOOGLE_CLIENT_ID=[您的_CLIENT_ID],GOOGLE_CLIENT_SECRET=[您的_CLIENT_SECRET],FLASK_SECRET_KEY=[自訂隨機安全字串]"
 ```
 
-## 3. 重要安全性提醒 (元辰專案模式)
-比照元辰專案，為了安全，請在 Cloud Run 的 **「變數與祕密 (Variables & Secrets)」** 中設定以下內容：
+## 3. Google Cloud Console 憑證設定要點 (最重要)
+由於升級為 **Google OAuth 2.0 安全多用戶架構**，當您的 Cloud Run 部署完成取得網址（例如 `https://ai-scheduler-assistant-xxx.a.run.app`）後，您**必須**回到 Google Cloud Console 設定：
+
+1.  **已授權的 JavaScript 來源 (Authorized JavaScript origins)**：
+    *   `https://ai-scheduler-assistant-xxx.a.run.app`
+2.  **已授權的重新導向 URI (Authorized redirect URIs)**：
+    *   `https://ai-scheduler-assistant-xxx.a.run.app/callback` *(注意：末尾必須為 `/callback`，系統將自動處理登入成功後的資料庫建置！)*
+
+## 4. 重要安全性提醒 (多用戶安全隔離)
+為了保護您和測試好友的隱私，請確保在 Cloud Run 的 **「變數與祕密 (Variables & Secrets)」** 中設定以下內容：
 
 1.  **環境變數 (Environment Variables):**
     *   `GEMINI_API_KEY`: 您的 Google AI API Key。
-    *   `SPREADSHEET_ID`: 您的 Google Sheet ID。
-2.  **服務帳號金鑰 (Credentials):**
-    *   建議將 `service_account.json` 的內容貼到 Cloud Run 的環境變數 `GOOGLE_APPLICATION_CREDENTIALS_JSON` 中（如果程式有支援讀取字串），或是直接將該檔案布署（目前 Dockerfile 已包含，但請注意安全性）。
+    *   `GOOGLE_CLIENT_ID`: 您的 Google OAuth 2.0 用戶端 ID。
+    *   `GOOGLE_CLIENT_SECRET`: 您的 Google OAuth 2.0 用戶端密鑰。
+    *   `FLASK_SECRET_KEY`: 用於加密瀏覽器 Session 的自訂隨機金鑰（例如：`ai_sec_secret_random_9988`）。
+2.  **服務帳號後備金鑰 (可選):**
+    *   如果您仍保留 `service_account.json` 檔案在目錄中，它將自動做為未登入狀態下的「後備開發測試機制」，不會干擾正常用戶的隱私資料庫。
 
-## 4. 更新 PWA 連結
+## 5. 更新 PWA 連結
+布署成功後，gcloud 會給您一個網址（例如 `https://ai-scheduler-assistant-xxx.a.run.app`）。
+請在手機瀏覽器開啟該網址，並重新「加入主畫面」，即可體驗極致安全的 PWA 智慧中控台！
 布署成功後，gcloud 會給您一個網址（例如 `https://ai-scheduler-xxx.a.run.app`）。
 請在手機瀏覽器開啟該網址，並重新「加入主畫面」，即可完成搬家！
 

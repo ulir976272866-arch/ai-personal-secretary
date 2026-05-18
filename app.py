@@ -8,10 +8,13 @@ from PIL import Image
 # 定義台灣時區 (UTC+8)
 TW_TZ = timezone(timedelta(hours=8))
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from dotenv import load_dotenv
 import google.generativeai as genai
-from google.oauth2.service_account import Credentials
+from google.oauth2.service_account import Credentials as SACredentials
+from google.oauth2.credentials import Credentials as OAuthCredentials
+from google_auth_oauthlib.flow import Flow
+from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -19,42 +22,242 @@ from googleapiclient.errors import HttpError
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "ai_personal_secretary_super_secret_key_12345")
 
 # -----------------------------------------------------------------
-# 1. 初始化 Google API (Calendar & Sheets)
+# 1. Google OAuth 2.0 與 Service Account 初始化
 # -----------------------------------------------------------------
 SCOPES = [
     'https://www.googleapis.com/auth/calendar',
-    'https://www.googleapis.com/auth/spreadsheets'
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'https://www.googleapis.com/auth/userinfo.email'
 ]
-# 使用相對路徑確保搬家後也能讀到金鑰
-SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(__file__), 'service_account.json')
 
-creds = None
-# 1. 優先嘗試從環境變數讀取 JSON 字串 (正式環境常用)
+# 載入 Service Account (做為沒有登入時的後備機制)
+SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(__file__), 'service_account.json')
+creds_sa = None
 sa_json = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
 if sa_json:
     try:
-        creds = Credentials.from_service_account_info(json.loads(sa_json), scopes=SCOPES)
-        print("Success: Loaded credentials from GOOGLE_SERVICE_ACCOUNT_JSON")
+        creds_sa = SACredentials.from_service_account_info(json.loads(sa_json), scopes=SCOPES)
+        print("Success: Loaded backup credentials from GOOGLE_SERVICE_ACCOUNT_JSON")
     except Exception as e:
-        print(f"Error loading credentials from env: {e}")
+        print(f"Error loading backup credentials from env: {e}")
 
-# 2. 如果環境變數沒有，嘗試讀取實體檔案 (本地環境常用)
-if not creds and os.path.exists(SERVICE_ACCOUNT_FILE):
-    creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-    print("Success: Loaded credentials from service_account.json")
+if not creds_sa and os.path.exists(SERVICE_ACCOUNT_FILE):
+    try:
+        creds_sa = SACredentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        print("Success: Loaded backup credentials from service_account.json")
+    except Exception as e:
+        print(f"Error loading backup credentials from file: {e}")
+
+# --- OAuth 憑證輔助函數 ---
+CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+
+def get_client_config():
+    return {
+        "web": {
+            "client_id": CLIENT_ID,
+            "client_secret": CLIENT_SECRET,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs"
+        }
+    }
+
+def get_flow():
+    redirect_uri = request.url_root.rstrip('/') + '/callback'
+    # 確保 Cloud Run 生產環境下使用 https 重新導向，防止 http 混合內容報錯
+    if 'localhost' not in redirect_uri and '127.0.0.1' not in redirect_uri:
+        if redirect_uri.startswith('http://'):
+            redirect_uri = 'https://' + redirect_uri[7:]
+    
+    return Flow.from_client_config(
+        get_client_config(),
+        scopes=SCOPES,
+        redirect_uri=redirect_uri
+    )
+
+def get_valid_credentials():
+    if 'credentials' not in session:
+        return None
+    creds_data = session['credentials']
+    creds = OAuthCredentials(
+        token=creds_data.get('token'),
+        refresh_token=creds_data.get('refresh_token'),
+        token_uri=creds_data.get('token_uri'),
+        client_id=creds_data.get('client_id'),
+        client_secret=creds_data.get('client_secret'),
+        scopes=creds_data.get('scopes')
+    )
+    if creds.expired and creds.refresh_token:
+        try:
+            creds.refresh(Request())
+            session['credentials'] = {
+                'token': creds.token,
+                'refresh_token': creds.refresh_token,
+                'token_uri': creds.token_uri,
+                'client_id': creds.client_id,
+                'client_secret': creds.client_secret,
+                'scopes': creds.scopes
+            }
+        except Exception as e:
+            print(f"Error refreshing OAuth credentials: {e}")
+            return None
+    return creds
 
 def get_sheets_service():
+    creds = get_valid_credentials()
+    if creds:
+        return build('sheets', 'v4', credentials=creds)
+    if creds_sa:
+        return build('sheets', 'v4', credentials=creds_sa)
+    return build('sheets', 'v4')
+
+def get_calendar_service():
+    creds = get_valid_credentials()
+    if creds:
+        return build('calendar', 'v3', credentials=creds)
+    if creds_sa:
+        return build('calendar', 'v3', credentials=creds_sa)
+    return build('calendar', 'v3')
+
+def get_drive_service():
+    creds = get_valid_credentials()
+    if creds:
+        return build('drive', 'v3', credentials=creds)
+    if creds_sa:
+        return build('drive', 'v3', credentials=creds_sa)
+    return build('drive', 'v3')
+
+def get_user_info():
+    creds = get_valid_credentials()
     if not creds:
-        # 如果都沒有憑證，嘗試使用 ADC (Cloud Run 預設身份)
-        return build('sheets', 'v4')
-    return build('sheets', 'v4', credentials=creds)
+        return None
+    try:
+        oauth2_service = build('oauth2', 'v2', credentials=creds)
+        user_info = oauth2_service.userinfo().get().execute()
+        return user_info
+    except Exception as e:
+        print(f"Error getting user info: {e}")
+        return None
+
+def get_spreadsheet_id():
+    if 'spreadsheet_id' in session:
+        return session['spreadsheet_id']
+    return os.getenv("GOOGLE_SHEET_ID")
+
+def get_calendar_id():
+    if 'credentials' in session:
+        return "primary"
+    return os.getenv("GOOGLE_CALENDAR_ID", "primary")
+
+from werkzeug.local import LocalProxy
+SPREADSHEET_ID = LocalProxy(lambda: get_spreadsheet_id())
+CALENDAR_ID = LocalProxy(lambda: get_calendar_id())
+
+def ensure_user_spreadsheet():
+    """
+    檢查使用者雲端硬碟是否有 AI_Personal_Secretary_Data。
+    若無則自動在使用者個人雲端硬碟建立一組全新的資料表並初始化所有欄位。
+    """
+    if 'spreadsheet_id' in session:
+        return session['spreadsheet_id']
+        
+    creds = get_valid_credentials()
+    if not creds:
+        return os.getenv("GOOGLE_SHEET_ID")
+        
+    try:
+        drive_service = get_drive_service()
+        sheets_service = get_sheets_service()
+        
+        spreadsheet_name = "AI_Personal_Secretary_Data"
+        query = f"name = '{spreadsheet_name}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+        results = drive_service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+        files = results.get('files', [])
+        
+        if files:
+            spreadsheet_id = files[0]['id']
+            session['spreadsheet_id'] = spreadsheet_id
+            print(f"Found existing spreadsheet in user drive: {spreadsheet_id}")
+            return spreadsheet_id
+            
+        print("Spreadsheet not found in user drive. Creating and initializing a brand new one...")
+        spreadsheet_metadata = {
+            'properties': {
+                'title': spreadsheet_name
+            }
+        }
+        spreadsheet = sheets_service.spreadsheets().create(
+            body=spreadsheet_metadata,
+            fields='spreadsheetId'
+        ).execute()
+        spreadsheet_id = spreadsheet.get('spreadsheetId')
+        
+        # 取得預設建立的 sheet ID 並進行多表初始化
+        sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        default_sheet_id = sheet_meta['sheets'][0]['properties']['sheetId']
+        
+        requests_list = [
+            {'addSheet': {'properties': {'title': '記帳'}}},
+            {'addSheet': {'properties': {'title': '待辦'}}},
+            {'addSheet': {'properties': {'title': '日記'}}},
+            {'addSheet': {'properties': {'title': '願望'}}},
+            {'addSheet': {'properties': {'title': '生理紀錄'}}},
+            {'addSheet': {'properties': {'title': 'AI_指令集'}}},
+            {'deleteSheet': {'sheetId': default_sheet_id}}
+        ]
+        
+        sheets_service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body={'requests': requests_list}
+        ).execute()
+        
+        headers = {
+            '記帳!A1:G1': [['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別']],
+            '待辦!A1:F1': [['唯一 ID', '事項/內容', '優先級', '分類', '狀態', '建立時間']],
+            '日記!A1:D1': [['日期', '心情', '天氣', '內容']],
+            '願望!A1:F1': [['唯一 ID', '願望名稱', '預算', '狀態', '實際花費', '建立時間']],
+            '生理紀錄!A1:F1': [['年度', '月份', '日期', '動作', '症狀/心情', '備註']],
+            'AI_指令集!A1:B1': [['觸發語句', '執行動作']]
+        }
+        
+        for range_name, values in headers.items():
+            sheets_service.spreadsheets().values().update(
+                spreadsheetId=spreadsheet_id,
+                range=range_name,
+                valueInputOption='USER_ENTERED',
+                body={'values': values}
+            ).execute()
+            
+        # 寫入預設指令以訓練小秘書
+        default_instructions = [
+            ['當我說「累了」，排入一小時「放鬆休息」行程', '排入行程: 放鬆休息, 時間: 1小時'],
+            ['當我說「吃大餐」，記帳支出「🍔 大餐」金額 500 元', '記帳支出: 🍔 大餐, 金額: 500元, 類別: 食']
+        ]
+        sheets_service.spreadsheets().values().append(
+            spreadsheetId=spreadsheet_id,
+            range='AI_指令集!A2:B',
+            valueInputOption='USER_ENTERED',
+            body={'values': default_instructions}
+        ).execute()
+        
+        session['spreadsheet_id'] = spreadsheet_id
+        print(f"Created and initialized new spreadsheet in user drive: {spreadsheet_id}")
+        return spreadsheet_id
+        
+    except Exception as e:
+        print(f"Error in ensure_user_spreadsheet: {e}")
+        return os.getenv("GOOGLE_SHEET_ID")
 
 # --- Sheets 輔助函數 ---
 def append_to_sheet(range_name, values, spreadsheet_id=None):
     if not spreadsheet_id:
-        spreadsheet_id = os.getenv('GOOGLE_SHEET_ID')
+        spreadsheet_id = get_spreadsheet_id()
     service = get_sheets_service()
     body = {'values': [values]}
     service.spreadsheets().values().append(
@@ -66,7 +269,7 @@ def append_to_sheet(range_name, values, spreadsheet_id=None):
 
 def get_sheet_values(range_name, spreadsheet_id=None):
     if not spreadsheet_id:
-        spreadsheet_id = os.getenv('GOOGLE_SHEET_ID')
+        spreadsheet_id = get_spreadsheet_id()
     service = get_sheets_service()
     result = service.spreadsheets().values().get(
         spreadsheetId=spreadsheet_id,
@@ -100,10 +303,13 @@ if GEMINI_API_KEY:
 else:
     print("Warning: GEMINI_API_KEY not found in environment.")
 
-# 試算表 ID (從 .env 取得)
-SPREADSHEET_ID = os.getenv("GOOGLE_SHEET_ID")
-# 使用者的日曆 ID (通常是使用者的 Gmail)
-CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID", "primary")
+# 試算表與日曆 ID 的動態模組屬性代理 (多用戶執行緒安全隔離)
+def __getattr__(name):
+    if name == "SPREADSHEET_ID":
+        return get_spreadsheet_id()
+    if name == "CALENDAR_ID":
+        return get_calendar_id()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 # 記帳分類與 Emoji 映射對照表 (確保雲端與本地端都有超高顏值 Emoji 符號)
 CATEGORY_EMOJI_MAP = {
@@ -237,7 +443,7 @@ def check_conflicts(service, start_time, end_time, exclude_id=None):
 def morning_briefing():
     """生成每日早晨簡報"""
     now = datetime.now(TW_TZ)
-    service_sheets = build('sheets', 'v4', credentials=creds)
+    service_sheets = get_sheets_service()
     
     # 抓取本月支出
     monthly_total, _, _, _ = get_monthly_report(service_sheets, now)
@@ -290,7 +496,62 @@ def format_event_success_message(title, start_time_str, location, is_all_day=Fal
 def index():
     # 優先尋找專用地圖 Key，若無則嘗試共用 Gemini Key
     maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY') or os.getenv('GEMINI_API_KEY')
-    return render_template('index.html', maps_api_key=maps_api_key)
+    
+    logged_in = True
+    user_info = {
+        "name": "專屬主人",
+        "email": os.getenv("GOOGLE_CALENDAR_ID", "ulir976272866@gmail.com"),
+        "picture": "/static/icons/icon.png"
+    }
+            
+    return render_template(
+        'index.html', 
+        maps_api_key=maps_api_key, 
+        logged_in=logged_in, 
+        user_info=user_info
+    )
+
+@app.route('/login')
+def login():
+    # 請求 offline 權限以取得 refresh_token，並強制要求 consent 彈窗確認
+    flow = get_flow()
+    authorization_url, state = flow.authorization_url(
+        access_type='offline',
+        include_granted_scopes='true',
+        prompt='consent'
+    )
+    session['state'] = state
+    return redirect(authorization_url)
+
+@app.route('/callback')
+def callback():
+    # 嚴格的 CSRF 狀態比對驗證
+    if request.args.get('state') != session.get('state'):
+        return "安全性驗證失敗 (CSRF State Mismatch)！請返回首頁重登試試看。", 400
+        
+    flow = get_flow()
+    flow.fetch_token(authorization_response=request.url)
+    
+    # 將 OAuth 金鑰資料保存至 Session 中
+    creds = flow.credentials
+    session['credentials'] = {
+        'token': creds.token,
+        'refresh_token': creds.refresh_token,
+        'token_uri': creds.token_uri,
+        'client_id': creds.client_id,
+        'client_secret': creds.client_secret,
+        'scopes': creds.scopes
+    }
+    
+    # 背景自動初始化或檢查試算表資料庫
+    ensure_user_spreadsheet()
+    
+    return redirect(url_for('index'))
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('index'))
 
 @app.route('/chat', methods=['POST'])
 @app.route('/api/chat', methods=['POST'])
@@ -313,8 +574,9 @@ def chat():
     if not GEMINI_API_KEY:
         return jsonify({"status": "error", "message": "尚未設定 API Key"}), 400
 
-    if not creds:
-        return jsonify({"status": "error", "message": "找不到 service_account.json"}), 400
+    creds = get_valid_credentials()
+    if not creds and not creds_sa:
+        return jsonify({"status": "error", "message": "找不到任何有效的 Google 憑證 (請先登入或設定 service_account.json)"}), 400
 
     now = datetime.now(TW_TZ)
     bypass_data = None
@@ -347,7 +609,7 @@ def chat():
         ai_rules_str = ""
         expense_categories = ["食", "衣", "住", "行", "育", "樂", "醫", "投資", "公益"]
         try:
-            service_sheets = build('sheets', 'v4', credentials=creds)
+            service_sheets = get_sheets_service()
             # 讀取記帳分類
             rows_result = service_sheets.spreadsheets().values().get(
                 spreadsheetId=SPREADSHEET_ID, range='記帳!G:G'
@@ -428,14 +690,36 @@ def chat():
             
             data = json.loads(text)
             parsed_data = data[0] if isinstance(data, list) and len(data) > 0 else data
+            print(f"Parsed AI response: {parsed_data}")
         except Exception as e:
             print(f"Gemini AI Error: {e}")
             return jsonify({"status": "error", "message": "AI 處理失敗，請稍後再試。"})
 
-    intent_type = parsed_data.get("type")
+    ai_response_message = None
+    if isinstance(parsed_data, dict):
+        if "response" in parsed_data:
+            ai_response_message = parsed_data.pop("response", None)
+        elif "reply" in parsed_data:
+            ai_response_message = parsed_data.pop("reply", None)
+        elif "message" in parsed_data:
+            ai_response_message = parsed_data.pop("message", None)
+            
+        if "data" in parsed_data and isinstance(parsed_data["data"], dict):
+            # If there's a nested 'data' key, merge its keys back or use it, and preserve the greeting
+            nested_data = parsed_data["data"]
+            if isinstance(nested_data, dict):
+                if "response" in nested_data and not ai_response_message:
+                    ai_response_message = nested_data.pop("response", None)
+                if "reply" in nested_data and not ai_response_message:
+                    ai_response_message = nested_data.pop("reply", None)
+                if "message" in nested_data and not ai_response_message:
+                    ai_response_message = nested_data.pop("message", None)
+                parsed_data = nested_data
+
+    intent_type = parsed_data.get("type") if isinstance(parsed_data, dict) else None
     try:
         if intent_type == "calendar":
-            service = build('calendar', 'v3', credentials=creds)
+            service = get_calendar_service()
             
             start_time_str = parsed_data.get('start_time')
             if not start_time_str:
@@ -493,10 +777,12 @@ def chat():
                 is_all_day=is_all_day,
                 is_manual=False
             )
+            if ai_response_message:
+                success_msg = f"{ai_response_message}\n\n{success_msg}"
             return jsonify({"status": "success", "type": "calendar", "message": success_msg})
 
         elif intent_type == "expense":
-            service = build('sheets', 'v4', credentials=creds)
+            service = get_sheets_service()
             # 欄位順序：年度(A), 月份(B), 日期(C), 收入(D), 支出(E), 金額(F), 類別(G)
             is_income = parsed_data.get('expense_type') == 'income'
             body = {'values': [[
@@ -512,7 +798,10 @@ def chat():
             _, cat_report, cat_dict, _ = get_monthly_report(service, now)
             emoji = "💰" if is_income else "💸"
             label = "收入" if is_income else "支出"
-            return jsonify({"status": "success", "type": "expense", "message": f"{emoji} 已記{label}：{parsed_data.get('item')} ${parsed_data.get('amount')}\n\n{cat_report}", "chart_data": cat_dict})
+            msg = f"{emoji} 已記{label}：{parsed_data.get('item')} ${parsed_data.get('amount')}\n\n{cat_report}"
+            if ai_response_message:
+                msg = f"{ai_response_message}\n\n{msg}"
+            return jsonify({"status": "success", "type": "expense", "message": msg, "chart_data": cat_dict})
 
         elif intent_type == "query_schedule":
             return get_schedule_response(parsed_data.get("days", 1))
@@ -527,12 +816,12 @@ def chat():
             return get_completed_schedule_response(keyword, days)
 
         elif intent_type == "query_expense_report":
-            service = build('sheets', 'v4', credentials=creds)
+            service = get_sheets_service()
             _, cat_report, cat_dict, _ = get_monthly_report(service, now)
             return jsonify({"status": "success", "type": "expense_report", "message": f"📊 本月結算：\n\n{cat_report}", "chart_data": cat_dict})
 
         elif intent_type == "delete_last_expense":
-            service = build('sheets', 'v4', credentials=creds)
+            service = get_sheets_service()
             res = service.spreadsheets().values().get(spreadsheetId=SPREADSHEET_ID, range='記帳!A:F').execute()
             rows = res.get('values', [])
             last_row_index = len(rows)
@@ -578,10 +867,11 @@ def toggle_completion():
         if not event_id:
             return jsonify({"status": "error", "message": "未提供 event_id"}), 400
             
-        if not creds:
+        creds = get_valid_credentials()
+        if not creds and not creds_sa:
              return jsonify({"status": "error", "message": "尚未設定 Google 憑證"}), 500
              
-        service = build('calendar', 'v3', credentials=creds)
+        service = get_calendar_service()
         
         # 取得現有活動
         event = service.events().get(calendarId=CALENDAR_ID, eventId=event_id).execute()
@@ -636,7 +926,7 @@ def get_memos():
 def direct_query_finance():
     now = datetime.now(TW_TZ)
     try:
-        service_sheets = build('sheets', 'v4', credentials=creds)
+        service_sheets = get_sheets_service()
         _, cat_report, _, _ = get_monthly_report(service_sheets, now)
         
         msg = f"📊 {now.year}年{now.month}月 記帳小結：\n\n"
@@ -648,10 +938,10 @@ def direct_query_finance():
         return jsonify({"status": "error", "message": f"計算失敗：{str(e)}"})
 
 def get_schedule_response(days):
-    """取得行事曆行程的共通回傳格式"""
+    """查詢當前與未來行程的共通回傳格式"""
     now = datetime.now(TW_TZ)
     try:
-        service = build('calendar', 'v3', credentials=creds)
+        service = get_calendar_service()
         today_start = datetime.combine(now.date(), time.min).isoformat() + '+08:00'
         end_date = now + timedelta(days=days-1)
         today_end = datetime.combine(end_date.date(), time.max).isoformat() + '+08:00'
@@ -713,7 +1003,7 @@ def get_completed_schedule_response(keyword, days):
     """查詢過去已完成行程的共通回傳格式"""
     now = datetime.now(TW_TZ)
     try:
-        service = build('calendar', 'v3', credentials=creds)
+        service = get_calendar_service()
         today_end = datetime.combine(now.date(), time.max).isoformat() + '+08:00'
         past_start = datetime.combine((now - timedelta(days=days)).date(), time.min).isoformat() + '+08:00'
         
@@ -806,7 +1096,7 @@ def manual_action():
     try:
         if action_type == 'calendar':
             # 手動新增行程
-            service = build('calendar', 'v3', credentials=creds)
+            service = get_calendar_service()
             is_all_day = data.get('is_all_day', False)
             
             if is_all_day:
@@ -873,7 +1163,7 @@ def manual_action():
             if not SPREADSHEET_ID:
                 return jsonify({"status": "error", "message": "尚未設定 GOOGLE_SHEET_ID"}), 400
                 
-            service = build('sheets', 'v4', credentials=creds)
+            service = get_sheets_service()
             # A:Year, B:Month, C:Date, D:IncomeItem, E:ExpenseItem, F:Amount, G:Category
             is_income = data.get('expense_type') == 'income'
             values = [[
@@ -1295,7 +1585,7 @@ def delete_event():
         return jsonify({"status": "error", "message": "遺失行程 ID"})
 
     try:
-        service = build('calendar', 'v3', credentials=creds)
+        service = get_calendar_service()
         # 使用全域變數 CALENDAR_ID 確保刪除的是正確的日曆
         service.events().delete(calendarId=CALENDAR_ID, eventId=event_id).execute()
         return jsonify({"status": "success", "message": "行程已從日曆刪除 ✕"})
@@ -1321,7 +1611,7 @@ def update_event():
         return jsonify({"status": "error", "message": "遺失行程 ID"})
 
     try:
-        service = build('calendar', 'v3', credentials=creds)
+        service = get_calendar_service()
         
         is_all_day = data.get('is_all_day', False)
         summary = data.get('title')
@@ -1403,7 +1693,7 @@ def handle_pocket(action, data=None):
     處理口袋名單的 CRUD 操作。
     """
     sheet_id = os.getenv('POCKET_SHEET_ID')
-    service = build('sheets', 'v4', credentials=creds)
+    service = get_sheets_service()
 
     if action == 'list':
         try:
@@ -1787,7 +2077,7 @@ def record_health_start():
     if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
     
     try:
-        service_sheets = build('sheets', 'v4', credentials=creds)
+        service_sheets = get_sheets_service()
         rows = get_sheet_values('生理紀錄', spreadsheet_id=health_id)
         
         # 1. 檢查是否已經在進行中
@@ -1848,7 +2138,7 @@ def record_health_start():
             ).execute()
         
         # 3. 日曆操作
-        service_cal = build('calendar', 'v3', credentials=creds)
+        service_cal = get_calendar_service()
         
         # 刪除未來所有的 🌸 (預測) 行程
         time_min = now.isoformat()
@@ -1890,7 +2180,7 @@ def record_health_end():
     if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
     
     try:
-        service_sheets = build('sheets', 'v4', credentials=creds)
+        service_sheets = get_sheets_service()
         rows = get_sheet_values('生理紀錄', spreadsheet_id=health_id)
         
         if len(rows) < 2: return jsonify({"status": "error", "message": "沒有找到紀錄可以結束。"})
@@ -1924,7 +2214,7 @@ def manage_symptoms_options():
     health_id = os.getenv('HEALTH_SHEET_ID')
     if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
     
-    service = build('sheets', 'v4', credentials=creds)
+    service = get_sheets_service()
     try:
         if request.method == 'GET':
             rows = get_sheet_values('症狀選項', spreadsheet_id=health_id)
@@ -1973,7 +2263,7 @@ def record_symptoms():
     
     try:
         # 我們假設寫入最新的一筆 (第二列)
-        service = build('sheets', 'v4', credentials=creds)
+        service = get_sheets_service()
         service.spreadsheets().values().update(
             spreadsheetId=health_id, range="生理紀錄!G2",
             valueInputOption="USER_ENTERED", body={"values": [[symptoms_str]]}

@@ -15,9 +15,21 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <script>
+        window.USER_EMAIL = "{{ user_info.email if user_info else '' }}";
+    </script>
+    <!-- 登入成功後的主介面 -->
     <div id="app-container">
         <!-- Header -->
         <div class="header">
+            <div class="user-profile-badge">
+                <img src="{{ user_info.picture if user_info and user_info.picture else '/static/icons/icon.png' }}" alt="avatar" class="user-avatar">
+                <div class="user-text-info">
+                    <span class="user-name">{{ user_info.name if user_info else '使用者' }}</span>
+                    <span class="user-email">{{ user_info.email if user_info else '' }}</span>
+                </div>
+                <a href="/logout" class="logout-link-btn" title="登出系統">🚪</a>
+            </div>
             <h1>AI 專屬秘書</h1>
             <p>您的個人智慧管家</p>
         </div>

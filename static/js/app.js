@@ -3,6 +3,78 @@ window.initMap = () => {
     if (window.initAutocomplete) window.initAutocomplete();
 };
 
+// =================================================================
+// Google OAuth 2.0 登入頁面與安全機制互動邏輯
+// =================================================================
+window.toggleLoginButton = (checked) => {
+    const btn = document.getElementById('google-login-btn');
+    if (!btn) return;
+    if (checked) {
+        btn.classList.remove('disabled');
+    } else {
+        btn.classList.add('disabled');
+    }
+};
+
+window.handleLoginClick = (e) => {
+    const btn = document.getElementById('google-login-btn');
+    if (btn && btn.classList.contains('disabled')) {
+        e.preventDefault();
+    }
+};
+
+window.openNdaModal = (e) => {
+    if (e) e.preventDefault();
+    const modal = document.getElementById('loginNdaModal');
+    if (modal) modal.style.display = 'flex';
+};
+
+window.closeLoginNdaModal = () => {
+    const modal = document.getElementById('loginNdaModal');
+    if (modal) modal.style.display = 'none';
+};
+
+// --- 自動防偽動態 Email 浮水印系統 (雙重安全保險鎖) ---
+function generateWatermark() {
+    if (!window.USER_EMAIL) return;
+    
+    // 檢查是否已建立過浮水印
+    if (document.getElementById('confidential-watermark-overlay')) return;
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'confidential-watermark-overlay';
+    overlay.className = 'confidential-watermark';
+    
+    // 計算螢幕上需要填滿的浮水印數量
+    const totalItems = 40; // 填滿大螢幕與手機板
+    for (let i = 0; i < totalItems; i++) {
+        const item = document.createElement('div');
+        item.className = 'watermark-item';
+        
+        const textSpan1 = document.createElement('span');
+        textSpan1.innerText = 'CONFIDENTIAL';
+        textSpan1.style.letterSpacing = '1px';
+        textSpan1.style.fontSize = '10px';
+        textSpan1.style.fontWeight = 'bold';
+        
+        const textSpan2 = document.createElement('span');
+        textSpan2.innerText = window.USER_EMAIL;
+        textSpan2.style.fontSize = '9px';
+        textSpan2.style.marginTop = '2px';
+        
+        item.appendChild(textSpan1);
+        item.appendChild(textSpan2);
+        overlay.appendChild(item);
+    }
+    
+    document.body.appendChild(overlay);
+}
+
+// 在 DOM 加載後立刻啟動浮水印
+document.addEventListener('DOMContentLoaded', () => {
+    generateWatermark();
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     window.editingEventId = null;
 
