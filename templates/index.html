@@ -169,7 +169,7 @@
             <div id="sub_finance" class="sub-menu">
                 <button class="sub-btn" onclick="queryFinanceSummary()">📊 本月合計</button>
                 <button class="sub-btn" onclick="openModal('expenseModal')">💰 我要記帳</button>
-                <button class="sub-btn" onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}', '_blank')">☁️ 雲端帳簿</button>
+                <button class="sub-btn" onclick="window.open('{{ finance_sheet_url }}', '_blank')">☁️ 雲端帳簿</button>
             </div>
             <!-- 備忘子選單 -->
             <div id="sub_memo" class="sub-menu">
@@ -322,7 +322,7 @@
                 <div id="todo_list" style="padding: 5px;"></div>
             </div>
             <div class="modal-footer">
-                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}/edit', '_blank')" class="sheet-link-btn">
+                <button onclick="window.open('{{ todo_sheet_url }}', '_blank')" class="sheet-link-btn">
                     ☁️ 打開雲端試算表
                 </button>
             </div>
@@ -383,7 +383,7 @@
                 <div id="pocket_list" style="padding-top: 5px;"></div>
             </div>
             <div class="modal-footer">
-                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}', '_blank')" class="sheet-link-btn">
+                <button onclick="window.open('{{ pocket_sheet_url }}', '_blank')" class="sheet-link-btn">
                     ☁️ 打開雲端試算表
                 </button>
             </div>
@@ -430,7 +430,7 @@
                 <div id="memo_list" style="border-top: 1px solid #f1f5f9; padding-top: 15px;"></div>
             </div>
             <div class="modal-footer">
-                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}/edit', '_blank')" class="sheet-link-btn">
+                <button onclick="window.open('{{ diary_sheet_url }}', '_blank')" class="sheet-link-btn">
                     ☁️ 打開雲端試算表
                 </button>
             </div>
@@ -473,7 +473,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}/edit', '_blank')" class="sheet-link-btn">
+                <button onclick="window.open('{{ wish_sheet_url }}', '_blank')" class="sheet-link-btn">
                     ☁️ 打開雲端試算表
                 </button>
             </div>
@@ -569,7 +569,7 @@
                 <button id="submitExpense" class="submit-btn btn-expense">確認支出記帳 💸</button>
             </div>
             <div class="modal-footer">
-                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}', '_blank')" class="sheet-link-btn">
+                <button onclick="window.open('{{ finance_sheet_url }}', '_blank')" class="sheet-link-btn">
                     ☁️ 打開雲端試算表
                 </button>
             </div>
@@ -809,7 +809,7 @@
                 </div>
             </div>
             <div class="modal-footer" style="background: #fff1f2; border-top-color: #ffe4e6;">
-                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}/edit', '_blank')" class="sheet-link-btn" style="color: #e11d48; background: #fff; border-color: #fecdd3;">
+                <button onclick="window.open('{{ health_sheet_url }}', '_blank')" class="sheet-link-btn" style="color: #e11d48; background: #fff; border-color: #fecdd3;">
                     ☁️ 開啟健康紀錄表
                 </button>
             </div>
@@ -850,7 +850,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}/edit', '_blank')" class="sheet-link-btn">
+                <button onclick="window.open('{{ training_sheet_url }}', '_blank')" class="sheet-link-btn">
                     ☁️ 開啟 AI 指令集
                 </button>
             </div>

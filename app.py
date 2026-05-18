@@ -205,6 +205,115 @@ def get_calendar_id():
 from werkzeug.local import LocalProxy
 SPREADSHEET_ID = LocalProxy(lambda: get_spreadsheet_id())
 CALENDAR_ID = LocalProxy(lambda: get_calendar_id())
+
+def get_diary_sheet_id():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return os.getenv("DIARY_SHEET_ID")
+    try:
+        user_info = get_user_info()
+        if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
+            return os.getenv("DIARY_SHEET_ID")
+    except Exception:
+        pass
+    return session.get('spreadsheet_id') or os.getenv("DIARY_SHEET_ID")
+
+def get_todo_sheet_id():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return os.getenv("TODO_SHEET_ID")
+    try:
+        user_info = get_user_info()
+        if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
+            return os.getenv("TODO_SHEET_ID")
+    except Exception:
+        pass
+    return session.get('spreadsheet_id') or os.getenv("TODO_SHEET_ID")
+
+def get_wish_sheet_id():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return os.getenv("WISH_SHEET_ID")
+    try:
+        user_info = get_user_info()
+        if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
+            return os.getenv("WISH_SHEET_ID")
+    except Exception:
+        pass
+    return session.get('spreadsheet_id') or os.getenv("WISH_SHEET_ID")
+
+def get_pocket_sheet_id():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return os.getenv("POCKET_SHEET_ID")
+    try:
+        user_info = get_user_info()
+        if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
+            return os.getenv("POCKET_SHEET_ID")
+    except Exception:
+        pass
+    return session.get('spreadsheet_id') or os.getenv("POCKET_SHEET_ID")
+
+def get_health_sheet_id():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return os.getenv("HEALTH_SHEET_ID")
+    try:
+        user_info = get_user_info()
+        if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
+            return os.getenv("HEALTH_SHEET_ID")
+    except Exception:
+        pass
+    return session.get('spreadsheet_id') or os.getenv("HEALTH_SHEET_ID")
+
+def get_sheet_urls():
+    is_owner = False
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        is_owner = True
+    else:
+        try:
+            user_info = get_user_info()
+            if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
+                is_owner = True
+        except Exception:
+            pass
+            
+    if is_owner:
+        return {
+            "finance_sheet_url": f"https://docs.google.com/spreadsheets/d/{os.getenv('GOOGLE_SHEET_ID')}",
+            "diary_sheet_url": f"https://docs.google.com/spreadsheets/d/{os.getenv('DIARY_SHEET_ID')}",
+            "todo_sheet_url": f"https://docs.google.com/spreadsheets/d/{os.getenv('TODO_SHEET_ID')}",
+            "wish_sheet_url": f"https://docs.google.com/spreadsheets/d/{os.getenv('WISH_SHEET_ID')}",
+            "pocket_sheet_url": f"https://docs.google.com/spreadsheets/d/{os.getenv('POCKET_SHEET_ID')}",
+            "health_sheet_url": f"https://docs.google.com/spreadsheets/d/{os.getenv('HEALTH_SHEET_ID')}",
+            "training_sheet_url": f"https://docs.google.com/spreadsheets/d/{os.getenv('HEALTH_SHEET_ID')}"
+        }
+    else:
+        spreadsheet_id = ensure_user_spreadsheet()
+        gids = session.get('sheet_gids', {})
+        
+        if not gids and spreadsheet_id:
+            try:
+                sheets_service = get_sheets_service()
+                sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+                gids = {}
+                for s in sheet_meta.get('sheets', []):
+                    title = s['properties']['title']
+                    gids[title] = s['properties']['sheetId']
+                session['sheet_gids'] = gids
+            except Exception as e:
+                print(f"Error fetching GIDs for index: {e}")
+                
+        def get_url_with_gid(title):
+            gid = gids.get(title)
+            if gid is not None:
+                return f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit#gid={gid}"
+            return f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit"
+            
+        return {
+            "finance_sheet_url": get_url_with_gid('記帳'),
+            "diary_sheet_url": get_url_with_gid('日記'),
+            "todo_sheet_url": get_url_with_gid('待辦'),
+            "wish_sheet_url": get_url_with_gid('願望'),
+            "pocket_sheet_url": get_url_with_gid('口袋'),
+            "health_sheet_url": get_url_with_gid('生理紀錄'),
+            "training_sheet_url": get_url_with_gid('AI_指令集')
+        }
 def ensure_user_spreadsheet():
     """
     檢查使用者雲端硬碟是否有 AI_Personal_Secretary_Data。
@@ -240,6 +349,18 @@ def ensure_user_spreadsheet():
             spreadsheet_id = files[0]['id']
             session['spreadsheet_id'] = spreadsheet_id
             print(f"Found existing spreadsheet in user drive: {spreadsheet_id}")
+            # 確保 session 中有 gids
+            if 'sheet_gids' not in session:
+                try:
+                    sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+                    gids = {}
+                    for s in sheet_meta.get('sheets', []):
+                        title = s['properties']['title']
+                        gids[title] = s['properties']['sheetId']
+                    session['sheet_gids'] = gids
+                    print(f"Restored existing GIDs into session: {gids}")
+                except Exception as ex:
+                    print(f"Error restoring GIDs: {ex}")
             return spreadsheet_id
             
         print("Spreadsheet not found in user drive. Creating and initializing a brand new one...")
@@ -264,6 +385,7 @@ def ensure_user_spreadsheet():
             {'addSheet': {'properties': {'title': '日記'}}},
             {'addSheet': {'properties': {'title': '願望'}}},
             {'addSheet': {'properties': {'title': '生理紀錄'}}},
+            {'addSheet': {'properties': {'title': '口袋'}}},
             {'addSheet': {'properties': {'title': 'AI_指令集'}}},
             {'deleteSheet': {'sheetId': default_sheet_id}}
         ]
@@ -279,6 +401,7 @@ def ensure_user_spreadsheet():
             '日記!A1:D1': [['日期', '心情', '天氣', '內容']],
             '願望!A1:F1': [['唯一 ID', '願望名稱', '預算', '狀態', '實際花費', '建立時間']],
             '生理紀錄!A1:F1': [['年度', '月份', '日期', '動作', '症狀/心情', '備註']],
+            '口袋!A1:E1': [['店名', '地址', '分類', '緯度', '經度']],
             'AI_指令集!A1:B1': [['觸發語句', '執行動作']]
         }
         
@@ -301,6 +424,15 @@ def ensure_user_spreadsheet():
             valueInputOption='USER_ENTERED',
             body={'values': default_instructions}
         ).execute()
+        
+        # 取得新建試算表中所有分頁的唯一 GID 並寫入 session
+        sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        gids = {}
+        for s in sheet_meta.get('sheets', []):
+            title = s['properties']['title']
+            gids[title] = s['properties']['sheetId']
+        session['sheet_gids'] = gids
+        print(f"Created new spreadsheet. Stored sheet GIDs in session: {gids}")
         
         session['spreadsheet_id'] = spreadsheet_id
         print(f"Created and initialized new spreadsheet in user drive: {spreadsheet_id}")
@@ -555,6 +687,7 @@ def index():
     
     # 支援單人模式 (直接使用 Service Account，繞過登入)
     if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        urls = get_sheet_urls()
         return render_template(
             'index.html', 
             maps_api_key=maps_api_key, 
@@ -563,25 +696,31 @@ def index():
                 "name": "個人秘書系統",
                 "picture": "https://lh3.googleusercontent.com/a/default-user"
             },
-            spreadsheet_id=SPREADSHEET_ID
+            spreadsheet_id=SPREADSHEET_ID,
+            **urls
         )
         
     logged_in = 'credentials' in session
     user_info = None
+    urls = {}
     if logged_in:
         user_info = get_user_info()
         # 若憑證過期或失效導致無法獲取 user_info，則強制登出以防畫面異常
         if not user_info:
             session.pop('credentials', None)
             session.pop('spreadsheet_id', None)
+            session.pop('sheet_gids', None)
             logged_in = False
+        else:
+            urls = get_sheet_urls()
             
     return render_template(
         'index.html', 
         maps_api_key=maps_api_key, 
         logged_in=logged_in, 
         user_info=user_info,
-        spreadsheet_id=SPREADSHEET_ID
+        spreadsheet_id=SPREADSHEET_ID,
+        **urls
     )
 
 @app.route('/login')
@@ -723,7 +862,7 @@ def chat():
                 if ec not in expense_categories: expense_categories.append(ec)
                 
             # 讀取 AI 自訂指令集
-            health_sheet_id = os.getenv('HEALTH_SHEET_ID')
+            health_sheet_id = get_health_sheet_id()
             if health_sheet_id:
                 rules_result = service_sheets.spreadsheets().values().get(
                     spreadsheetId=health_sheet_id, range='AI_指令集!A:B'
@@ -1320,7 +1459,7 @@ def manual_action():
 @app.route('/api/memo', methods=['GET', 'POST'])
 def handle_memo():
     now = datetime.now(TW_TZ)
-    diary_id = os.getenv('DIARY_SHEET_ID')
+    diary_id = get_diary_sheet_id()
     if request.method == 'POST':
         data = request.json
         # 欄位順序：建立日期, 今天記事, 天氣, 心情, 儲存時間
@@ -1336,9 +1475,7 @@ def handle_memo():
 
 @app.route('/api/wishlist', methods=['GET', 'POST'])
 def handle_wishlist():
-    wish_id = os.getenv('WISH_SHEET_ID')
-    if not wish_id:
-        wish_id = os.getenv('GOOGLE_SHEET_ID') # 回退到主表 ID
+    wish_id = get_wish_sheet_id()
         
     if request.method == 'POST':
         data = request.json
@@ -1386,7 +1523,7 @@ def fulfill_wish():
     item_id = str(data.get('id', ''))
     title = data.get('title', '')
     actual_price = data.get('actual_price', '0')
-    wish_id = os.getenv('WISH_SHEET_ID')
+    wish_id = get_wish_sheet_id()
     
     rows = get_sheet_values('願望清單', spreadsheet_id=wish_id)
     if not rows: return jsonify({"status": "error", "message": "找不到資料"})
@@ -1426,7 +1563,7 @@ def delete_wish():
     data = request.json
     item_id = str(data.get('id', ''))
     title = data.get('title', '')
-    wish_id = os.getenv('WISH_SHEET_ID')
+    wish_id = get_wish_sheet_id()
     
     rows = get_sheet_values('願望清單', spreadsheet_id=wish_id)
     if not rows: return jsonify({"status": "error", "message": "找不到資料"})
@@ -1466,9 +1603,7 @@ def delete_wish():
 
 @app.route('/api/todo', methods=['GET', 'POST'])
 def handle_todo():
-    todo_id = os.getenv('TODO_SHEET_ID')
-    if not todo_id:
-        todo_id = os.getenv('GOOGLE_SHEET_ID')
+    todo_id = get_todo_sheet_id()
         
     if request.method == 'POST':
         data = request.json
@@ -1529,7 +1664,7 @@ def toggle_todo():
     data = request.json
     item_id = str(data.get('id', ''))
     is_completed = data.get('completed')
-    todo_id = os.getenv('TODO_SHEET_ID')
+    todo_id = get_todo_sheet_id()
     
     rows = get_sheet_values('待辦', spreadsheet_id=todo_id)
     if not rows: return jsonify({"status": "error", "message": "找不到資料"})
@@ -1575,7 +1710,7 @@ def delete_todo():
     data = request.json
     item_id = str(data.get('id', ''))
     title = data.get('title', '')
-    todo_id = os.getenv('TODO_SHEET_ID')
+    todo_id = get_todo_sheet_id()
     
     rows = get_sheet_values('待辦', spreadsheet_id=todo_id)
     if not rows: return jsonify({"status": "error", "message": "找不到資料"})
@@ -1614,7 +1749,7 @@ def update_wish():
     price = data.get('price', '')
     note = data.get('note', '')
     category = data.get('category', '')
-    wish_id = os.getenv('WISH_SHEET_ID')
+    wish_id = get_wish_sheet_id()
     
     rows = get_sheet_values('願望清單', spreadsheet_id=wish_id)
     if not rows: return jsonify({"status": "error", "message": "找不到資料"})
@@ -1659,7 +1794,7 @@ def update_wish():
 def update_todo():
     data = request.json
     item_id = str(data.get('id', ''))
-    todo_id = os.getenv('TODO_SHEET_ID')
+    todo_id = get_todo_sheet_id()
     
     rows = get_sheet_values('待辦', spreadsheet_id=todo_id)
     if not rows: return jsonify({"status": "error", "message": "找不到資料"})
@@ -1810,7 +1945,7 @@ def handle_pocket(action, data=None):
     """
     處理口袋名單的 CRUD 操作。
     """
-    sheet_id = os.getenv('POCKET_SHEET_ID')
+    sheet_id = get_pocket_sheet_id()
     service = get_sheets_service()
 
     if action == 'list':
@@ -2029,7 +2164,7 @@ def update_pocket_category():
 # --- 🌸 健康與 AI 訓練 API ---
 def get_current_cycle_status():
     """計算生理週期狀態、排卵期與生理四階段的核心輔助函數"""
-    health_id = os.getenv('HEALTH_SHEET_ID')
+    health_id = get_health_sheet_id()
     if not health_id:
         return None
     try:
@@ -2164,7 +2299,7 @@ def get_current_cycle_status():
 # --- 🌸 健康與 AI 訓練 API ---
 @app.route('/api/health/info', methods=['GET'])
 def get_health_info():
-    health_id = os.getenv('HEALTH_SHEET_ID')
+    health_id = get_health_sheet_id()
     if not health_id:
          return jsonify({"status": "error", "message": "尚未設定 HEALTH_SHEET_ID"})
     try:
@@ -2191,7 +2326,7 @@ def get_health_info():
 
 @app.route('/api/health/record_start', methods=['POST'])
 def record_health_start():
-    health_id = os.getenv('HEALTH_SHEET_ID')
+    health_id = get_health_sheet_id()
     if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
     
     try:
@@ -2294,7 +2429,7 @@ def record_health_start():
 
 @app.route('/api/health/record_end', methods=['POST'])
 def record_health_end():
-    health_id = os.getenv('HEALTH_SHEET_ID')
+    health_id = get_health_sheet_id()
     if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
     
     try:
@@ -2329,7 +2464,7 @@ def record_health_end():
 
 @app.route('/api/health/symptoms/options', methods=['GET', 'POST', 'DELETE'])
 def manage_symptoms_options():
-    health_id = os.getenv('HEALTH_SHEET_ID')
+    health_id = get_health_sheet_id()
     if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
     
     service = get_sheets_service()
@@ -2373,7 +2508,7 @@ def manage_symptoms_options():
 
 @app.route('/api/health/symptoms/record', methods=['POST'])
 def record_symptoms():
-    health_id = os.getenv('HEALTH_SHEET_ID')
+    health_id = get_health_sheet_id()
     if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
     
     selected = request.json.get('symptoms', [])
@@ -2392,7 +2527,7 @@ def record_symptoms():
 
 @app.route('/api/training/rules', methods=['GET'])
 def get_training_rules():
-    health_id = os.getenv('HEALTH_SHEET_ID')
+    health_id = get_health_sheet_id()
     if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
     try:
         rows = get_sheet_values('AI_指令集', spreadsheet_id=health_id)
@@ -2408,7 +2543,7 @@ def get_training_rules():
 @app.route('/api/training/add_rule', methods=['POST'])
 def add_training_rule():
     data = request.json
-    health_id = os.getenv('HEALTH_SHEET_ID')
+    health_id = get_health_sheet_id()
     if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
     trigger = data.get('trigger', '')
     action = data.get('action', '')
