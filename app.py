@@ -580,11 +580,13 @@ def get_schedule_response(days):
         display_title = full_title.replace("✅ ", "", 1) if is_done else full_title
         final_title = f"[{date_val}] {display_title}" if days > 1 else display_title
         is_all_day = 'date' in e['start']
+        end_str = e['end'].get('dateTime', e['end'].get('date'))
         
         schedule_list.append({
             'id': e['id'], 'time': time_val, 'title': display_title,
             'display_title': final_title, 'completed': is_done,
             'location': e.get('location', ''), 'start_time': start_str,
+            'end_time': end_str,
             'is_all_day': is_all_day
         })
         
@@ -715,7 +717,8 @@ def manual_action():
                     start_str += '+08:00'
                 
                 start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-                end_dt = start_dt + timedelta(hours=1)
+                duration = int(data.get('duration', 60))
+                end_dt = start_dt + timedelta(minutes=duration)
                 
                 event = {
                     'summary': data.get('title'),
@@ -1228,7 +1231,8 @@ def update_event():
                 start_str += '+08:00'
             
             start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-            end_dt = start_dt + timedelta(hours=1)
+            duration = int(data.get('duration', 60))
+            end_dt = start_dt + timedelta(minutes=duration)
             
             event['start'] = { 'dateTime': start_dt.isoformat(), 'timeZone': 'Asia/Taipei' }
             event['end'] = { 'dateTime': end_dt.isoformat(), 'timeZone': 'Asia/Taipei' }

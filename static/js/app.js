@@ -219,13 +219,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return R * c;
     }
 
-    // --- 自定義確認彈窗邏輯 ---
+    // --- 自定義確認彈窗與警告彈窗邏輯 ---
     let confirmResolver = null;
     window.customConfirm = (title, msg, icon = '🗑️', yesText = '確定刪除') => {
         return new Promise((resolve) => {
             confirmResolver = resolve;
             document.getElementById('confirm_title').innerText = title;
             document.getElementById('confirm_msg').innerText = msg;
+
+            // 確保取消按鈕顯示
+            const cancelBtn = document.getElementById('confirm_cancel_btn');
+            if (cancelBtn) cancelBtn.style.display = 'block';
 
             const yesBtn = document.getElementById('confirm_yes_btn');
             if (yesBtn) {
@@ -262,6 +266,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 emojiEl.innerText = icon;
             }
+
+            document.getElementById('confirmModal').classList.add('show');
+        });
+    };
+
+    window.customAlert = (title, msg, icon = '⚠️', okText = '好的') => {
+        return new Promise((resolve) => {
+            confirmResolver = resolve;
+            document.getElementById('confirm_title').innerText = title;
+            document.getElementById('confirm_msg').innerText = msg;
+
+            // 隱藏取消按鈕
+            const cancelBtn = document.getElementById('confirm_cancel_btn');
+            if (cancelBtn) cancelBtn.style.display = 'none';
+
+            const yesBtn = document.getElementById('confirm_yes_btn');
+            if (yesBtn) {
+                yesBtn.innerText = okText;
+                // 使用優雅的灰色/暗色漸層作為 Alert 確認按鈕
+                yesBtn.style.background = 'linear-gradient(135deg, #475569 0%, #334155 100%)';
+                yesBtn.style.boxShadow = '0 4px 15px rgba(51, 65, 85, 0.35)';
+            }
+
+            const svgIcon = document.getElementById('confirm_svg');
+            const iconContainer = document.getElementById('confirm_icon_container');
+            svgIcon.style.display = 'none';
+
+            let emojiEl = iconContainer.querySelector('.emoji-icon');
+            if (!emojiEl) {
+                emojiEl = document.createElement('div');
+                emojiEl.className = 'emoji-icon';
+                emojiEl.style.fontSize = '2.5rem';
+                iconContainer.appendChild(emojiEl);
+            }
+            emojiEl.innerText = icon;
 
             document.getElementById('confirmModal').classList.add('show');
         });
@@ -424,6 +463,15 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('manual_date').value = localDate.toISOString().split('T')[0];
             document.getElementById('manual_all_day').checked = false;
             document.getElementById('time_input_wrapper').style.display = 'flex';
+            document.getElementById('duration_input_wrapper').style.display = 'block';
+
+            // 重置所有時間與預估時間選單為未填寫狀態（防呆必選）
+            document.getElementById('manual_ampm').value = '';
+            if (window.updateHourOptions) window.updateHourOptions('');
+            document.getElementById('manual_hour').value = '';
+            document.getElementById('manual_minute').value = '';
+            document.getElementById('manual_duration').value = '';
+
             const submitBtn = document.getElementById('submitSchedule');
             if (submitBtn) {
                 submitBtn.innerText = '確認加入日曆';
@@ -1378,7 +1426,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="action-link delete" onclick="window.deleteEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                             </span>
-                            <span class="action-link edit" onclick="window.editEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}', '${(event.location || "").replace(/'/g, "\\'")}', '${event.start_time}', ${event.is_all_day})">
+                            <span class="action-link edit" onclick="window.editEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}', '${(event.location || "").replace(/'/g, "\\'")}', '${event.start_time}', '${event.end_time || ""}', ${event.is_all_day})">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                             </span>
                         </div>
@@ -1662,7 +1710,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.editEvent = (id, title, location, startTime, isAllDay) => {
+    window.editEvent = (id, title, location, startTime, endTime, isAllDay) => {
         window.editingEventId = id;
         document.getElementById('manual_summary').value = title;
         document.getElementById('manual_location').value = location;
@@ -1670,11 +1718,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const dateInput = document.getElementById('manual_date');
         const allDayCheckbox = document.getElementById('manual_all_day');
         const timeWrapper = document.getElementById('time_input_wrapper');
+        const durationWrapper = document.getElementById('duration_input_wrapper');
 
         if (isAllDay) {
             dateInput.value = startTime;
             allDayCheckbox.checked = true;
             timeWrapper.style.display = 'none';
+            if (durationWrapper) durationWrapper.style.display = 'none';
         } else {
             // startTime format: YYYY-MM-DDTHH:MM:SS+08:00 or YYYY-MM-DDTHH:MM:SSZ
             const dt = new Date(startTime);
@@ -1685,6 +1735,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             allDayCheckbox.checked = false;
             timeWrapper.style.display = 'flex';
+            if (durationWrapper) durationWrapper.style.display = 'block';
 
             let hours = dt.getHours();
             const minutes = dt.getMinutes();
@@ -1692,10 +1743,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (hours > 12) hours -= 12;
             if (hours === 0) hours = 12;
+            const hoursStr = String(hours).padStart(2, '0');
 
             document.getElementById('manual_ampm').value = ampm;
-            document.getElementById('manual_hour').value = hours;
+            if (window.updateHourOptions) {
+                window.updateHourOptions(ampm, hoursStr);
+            } else {
+                document.getElementById('manual_hour').value = hoursStr;
+            }
             document.getElementById('manual_minute').value = String(minutes).padStart(2, '0');
+
+            if (startTime && endTime) {
+                const durationMin = Math.round((new Date(endTime) - new Date(startTime)) / 60000);
+                document.getElementById('manual_duration').value = String(durationMin);
+            } else {
+                document.getElementById('manual_duration').value = '';
+            }
         }
 
         // 修改按鈕 UI
@@ -1978,6 +2041,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('manual_date').valueAsDate = new Date();
 
+    // --- 方案 A：AM/PM 上下午智慧重排排序與補零 ---
+    window.updateHourOptions = (selectedAmpm, selectedHourValue = '') => {
+        const hourSelect = document.getElementById('manual_hour');
+        if (!hourSelect) return;
+
+        hourSelect.innerHTML = '<option value="" selected>時</option>';
+
+        let hours = [];
+        if (selectedAmpm === 'AM') {
+            // 上午: 06, 07, 08, 09, 10, 11, 12, 01, 02, 03, 04, 05
+            hours = ['06', '07', '08', '09', '10', '11', '12', '01', '02', '03', '04', '05'];
+        } else if (selectedAmpm === 'PM') {
+            // 下午: 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12
+            hours = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+        } else {
+            // 未選: 01 ~ 12 順序
+            hours = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+        }
+
+        hours.forEach(h => {
+            const opt = document.createElement('option');
+            opt.value = h;
+            opt.innerText = h;
+            if (h === selectedHourValue) {
+                opt.selected = true;
+            }
+            hourSelect.appendChild(opt);
+        });
+
+        if (selectedHourValue) {
+            hourSelect.value = selectedHourValue;
+        } else {
+            hourSelect.value = '';
+        }
+    };
+
+    // 綁定上下午變更事件以智慧排序小時
+    const ampmEl = document.getElementById('manual_ampm');
+    if (ampmEl) {
+        ampmEl.addEventListener('change', (e) => {
+            window.updateHourOptions(e.target.value);
+        });
+    }
+
     const sModal = document.getElementById('scheduleModal');
     if (sModal) sModal.onclick = (e) => { if (e.target === sModal) window.closeModal('scheduleModal'); };
     const eModal = document.getElementById('expenseModal');
@@ -1991,13 +2098,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const h = document.getElementById('manual_hour').value;
         const m = document.getElementById('manual_minute').value;
         const ampm = document.getElementById('manual_ampm').value;
+        const duration = document.getElementById('manual_duration').value;
         const location = document.getElementById('manual_location') ? document.getElementById('manual_location').value : '';
         const isAllDayCheckbox = document.getElementById('manual_all_day');
         const isAllDay = isAllDayCheckbox ? isAllDayCheckbox.checked : false;
 
         if (!title || !date) {
-            alert('請填寫完整資訊！');
+            window.customAlert('欄位未滿 ⚠️', '請填寫行程名稱與日期！', '📝');
             return;
+        }
+
+        // 防呆驗證：若非全天，強制要求選擇時間與預估時間
+        if (!isAllDay) {
+            if (!ampm || !h || !m) {
+                window.customAlert('時間未選 ⚠️', '請選擇行程的具體時間（上下午、時、分）！', '🕒');
+                return;
+            }
+            if (!duration) {
+                window.customAlert('預估時間未選 ⚠️', '請選擇預估行程需要多久時間！', '⏳');
+                return;
+            }
         }
 
         let startTime = date;
@@ -2013,6 +2133,15 @@ document.addEventListener('DOMContentLoaded', () => {
             finalIsAllDay = false;
         }
 
+        // 恢復按鈕 UI 用的 Helper
+        const resetBtnUI = () => {
+            const submitBtn = document.getElementById('submitSchedule');
+            if (submitBtn) {
+                submitBtn.innerText = window.editingEventId ? '💾 儲存修改' : '確認加入日曆';
+                submitBtn.style.background = window.editingEventId ? '#10b981' : '';
+            }
+        };
+
         if (window.editingEventId) {
             appendMessage(`正在更新行程：${title}...`, true);
             const res = await fetch('/api/update_event', {
@@ -2022,18 +2151,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     event_id: window.editingEventId,
                     title,
                     start_time: startTime,
+                    duration: isAllDay ? 0 : parseInt(duration), // 傳送預估時間
                     location,
                     is_all_day: finalIsAllDay
                 })
             });
             const result = await res.json();
-            appendMessage(result.message);
-            window.closeModal('scheduleModal'); // 移動到這裡
-            // 恢復按鈕 UI
-            const submitBtn = document.getElementById('submitSchedule');
-            if (submitBtn) {
-                submitBtn.innerText = '確認加入日曆';
-                submitBtn.style.background = '';
+            
+            if (result.status === 'error') {
+                // 原地高質感警示彈窗提示衝突！
+                window.customAlert('行程衝突 ⚠️', result.message, '🚫');
+                resetBtnUI();
+            } else {
+                appendMessage(result.message);
+                window.closeModal('scheduleModal');
             }
         } else {
             appendMessage(`新增行程：${title}`, true);
@@ -2041,12 +2172,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    type: 'calendar', title, start_time: startTime, location, is_all_day: finalIsAllDay
+                    type: 'calendar', 
+                    title, 
+                    start_time: startTime, 
+                    duration: isAllDay ? 0 : parseInt(duration), // 傳送預估時間
+                    location, 
+                    is_all_day: finalIsAllDay
                 })
             });
             const result = await res.json();
-            appendMessage(result.message);
-            if (result.status === 'success') {
+            
+            if (result.status === 'error') {
+                // 原地高質感警示彈窗提示衝突！
+                window.customAlert('行程衝突 ⚠️', result.message, '🚫');
+                resetBtnUI();
+            } else {
+                appendMessage(result.message);
                 window.closeModal('scheduleModal');
             }
         }

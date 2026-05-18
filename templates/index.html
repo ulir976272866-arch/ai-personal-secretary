@@ -120,28 +120,40 @@
                 </div>
                 <div class="form-group">
                     <label style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: #64748b;">
-                        <input type="checkbox" id="manual_all_day" onchange="document.getElementById('time_input_wrapper').style.display = this.checked ? 'none' : 'flex'"> 
+                        <input type="checkbox" id="manual_all_day" onchange="const d = this.checked ? 'none' : 'block'; document.getElementById('time_input_wrapper').style.display = this.checked ? 'none' : 'flex'; document.getElementById('duration_input_wrapper').style.display = d;"> 
                         全天行程
                     </label>
                 </div>
                 <div id="time_input_wrapper" style="display: flex; gap: 10px; margin-bottom: 20px;">
                         <select id="manual_ampm" class="form-input" style="flex: 1.5; margin-bottom: 0; padding-right: 25px; font-size: 0.9rem;">
+                            <option value="" selected>上下午</option>
                             <option value="AM">上午 AM</option>
-                            <option value="PM" selected>下午 PM</option>
+                            <option value="PM">下午 PM</option>
                         </select>
                         <select id="manual_hour" class="form-input" style="flex: 1; margin-bottom: 0; padding-right: 20px; text-align: center;">
-                            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-                            <option value="4">4</option><option value="5">5</option><option value="6">6</option>
-                            <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-                            <option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                            <option value="" selected>時</option>
                         </select>
                         <span style="font-weight: 700; color: #94a3b8;">:</span>
                         <select id="manual_minute" class="form-input" style="flex: 1; margin-bottom: 0; padding-right: 20px; text-align: center;">
+                            <option value="" selected>分</option>
                             <option value="00">00</option>
                             <option value="15">15</option>
                             <option value="30">30</option>
                             <option value="45">45</option>
                         </select>
+                </div>
+                <div id="duration_input_wrapper" class="form-group" style="margin-bottom: 20px;">
+                    <label style="font-weight: 700; color: #64748b;">⏳ 預估行程需要多久？</label>
+                    <select id="manual_duration" class="form-input" style="width: 100%; border-radius: 12px; font-size: 0.95rem; padding-right: 25px;">
+                        <option value="" selected>請選擇預估時間</option>
+                        <option value="30">30 分鐘</option>
+                        <option value="60">1 小時 (60 分鐘)</option>
+                        <option value="90">1.5 小時 (90 分鐘)</option>
+                        <option value="120">2 小時 (120 分鐘)</option>
+                        <option value="180">3 小時 (180 分鐘)</option>
+                        <option value="240">4 小時 (240 分鐘)</option>
+                        <option value="480">8 小時 (480 分鐘)</option>
+                    </select>
                 </div>
                 <button id="submitSchedule" class="submit-btn btn-schedule">確認加入日曆</button>
             </div>
@@ -454,7 +466,7 @@
                 <p id="confirm_msg" style="font-size: 0.9rem; color: #64748b; line-height: 1.6; margin: 0;"></p>
             </div>
             <div class="modal-footer" style="gap: 10px; background: #f8fafc; padding: 15px 25px;">
-                <button onclick="closeConfirm(false)" style="flex: 1; padding: 12px; border-radius: 14px; border: none; background: #fff; color: #64748b; font-weight: 700; font-size: 0.9rem; cursor: pointer; border: 1px solid #e2e8f0;">取消</button>
+                <button id="confirm_cancel_btn" onclick="closeConfirm(false)" style="flex: 1; padding: 12px; border-radius: 14px; border: none; background: #fff; color: #64748b; font-weight: 700; font-size: 0.9rem; cursor: pointer; border: 1px solid #e2e8f0;">取消</button>
                 <button id="confirm_yes_btn" style="flex: 1.2; padding: 12px; border-radius: 14px; border: none; background: #ef4444; color: white; font-weight: 700; font-size: 0.9rem; cursor: pointer; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);">確定刪除</button>
             </div>
         </div>
