@@ -9,8 +9,38 @@ import requests
 from datetime import datetime, time, timedelta, timezone
 from PIL import Image
 
-# 定義台灣時區 (UTC+8)
-TW_TZ = timezone(timedelta(hours=8))
+# 定義台灣時區 (UTC+8) 的動態時區委託代理 (Dynamic Timezone Proxy)
+# 當處於 Web 請求 context 時，自動依據使用者當前的 session 時區調整；
+# 非請求 context（如啟動初始化）或未設定時，預設為台北時間 (UTC+8)
+from datetime import tzinfo
+class DynamicTimezone(tzinfo):
+    def get_inner_tz(self):
+        try:
+            from flask import has_request_context, session
+            if has_request_context() and 'timezone' in session:
+                tz_name = session['timezone']
+                import pytz
+                return pytz.timezone(tz_name)
+        except Exception as e:
+            print(f"DynamicTimezone parsing error: {e}")
+        return timezone(timedelta(hours=8))
+
+    def utcoffset(self, dt):
+        return self.get_inner_tz().utcoffset(dt)
+        
+    def tzname(self, dt):
+        return self.get_inner_tz().tzname(dt)
+        
+    def dst(self, dt):
+        return self.get_inner_tz().dst(dt)
+        
+    def fromutc(self, dt):
+        inner_tz = self.get_inner_tz()
+        dt_inner = dt.replace(tzinfo=inner_tz)
+        res_inner = inner_tz.fromutc(dt_inner)
+        return res_inner.replace(tzinfo=self)
+
+TW_TZ = DynamicTimezone()
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from dotenv import load_dotenv
@@ -607,6 +637,26 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 
+@app.route('/api/sync_profile', methods=['POST'])
+def sync_profile():
+    """同步前端設定的性別、生理期啟用狀態與時區"""
+    data = request.json or {}
+    gender = data.get('gender', 'girl')
+    enable_period = data.get('enable_period', True)
+    timezone_str = data.get('timezone', 'Asia/Taipei')
+    
+    session['user_gender'] = gender
+    session['enable_period'] = enable_period
+    session['timezone'] = timezone_str
+    
+    print(f"Profile synced: gender={gender}, enable_period={enable_period}, timezone={timezone_str}")
+    return jsonify({
+        "status": "success",
+        "gender": gender,
+        "enable_period": enable_period,
+        "timezone": timezone_str
+    })
+
 @app.route('/chat', methods=['POST'])
 @app.route('/api/chat', methods=['POST'])
 def chat():
@@ -691,10 +741,21 @@ def chat():
 
         # 讀取生理期助理狀態以動態調整 AI 對話關懷人格
         cycle_info_str = ""
-        try:
-            cycle_status = get_current_cycle_status()
-            if cycle_status:
-                cycle_info_str = f"""
+        is_boy = session.get('user_gender') == 'boy'
+        enable_period = session.get('enable_period') != False
+
+        if is_boy or not enable_period:
+            cycle_info_str = """
+        【極重要人設與內容限制】：
+        - 當前使用者為「男性」或已「停用生理健康追蹤」。
+        - 在所有行程安排、日記分析、財務問答以及日常對話中，你『絕對禁止』提及任何生理期、月經、經痛、黑糖薑茶、女性調養等話題。
+        - 當使用者說「我累了」、「身體不舒服」、「肚子痛」等，請完全從工作疲勞、消化不良、感冒受涼等大眾化角度進行溫馨體貼的問候與叮嚀，絕對不要聯想到任何經期或女性生理方面。
+"""
+        else:
+            try:
+                cycle_status = get_current_cycle_status()
+                if cycle_status:
+                    cycle_info_str = f"""
         【女性生理週期秘書感知】(當前用戶生理狀態)：
         - 今天是週期的第 {cycle_status['days_in_cycle']} 天。
         - 當前生理階段：{cycle_status['current_phase']} ({cycle_status['phase_icon']})
@@ -707,11 +768,11 @@ def chat():
         - 根據當前生理階段給予「主動」且「自然」的貼心問候與叮嚀：
           * 當前為「生理期」：說話極致溫柔，主動提醒多喝熱水、黑糖薑茶，叮嚀不要喝冷飲，不要勉強自己，展現最高限度的呵護與寵溺。
           * 當前為「安全期 (濾泡期)」：語氣充滿朝氣與活力，多給予正面肯定，鼓勵她大膽嘗試新事物或安排運動。
-          * 當前為「排卵期 (黃體前期)」：主動讚美她這幾天氣色很好、散發光芒與魅力，適合多出門走走、約會或社交。
+          * 當前為「排卵期 (黃體前期)」：主動讚美她這幾天氣色很好、散發光芒與魅力，適合多出門走走、約會或社交.
           * 當前為「黃體期 (經前期)」：理解她可能容易水腫、疲憊、經前不適或情緒浮躁，用最令人安心的溫柔語氣主動安撫、聆聽，建議她深度放鬆，陪伴她度過波動期。
 """
-        except Exception as e:
-            print(f"Error loading cycle status for prompt: {e}")
+            except Exception as e:
+                print(f"Error loading cycle status for prompt: {e}")
 
         prompt = f"""
         你是一個精明的數位秘書，現在時間是 {now.strftime('%Y-%m-%d %H:%M:%S')}。

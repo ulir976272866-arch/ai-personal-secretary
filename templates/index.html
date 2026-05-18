@@ -138,6 +138,8 @@
                     <span class="user-name">{{ user_info.name if user_info else '使用者' }}</span>
                     <span class="user-email">{{ user_info.email if user_info else '' }}</span>
                 </div>
+                <!-- 系統偏好設定按鈕 -->
+                <a href="javascript:void(0)" onclick="openModal('settingsModal')" class="settings-link-btn" title="系統設定" style="margin-right: 12px; font-size: 1.2rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">⚙️</a>
                 <a href="/logout" class="logout-link-btn" title="登出系統">🚪</a>
             </div>
             <h1>AI 專屬秘書</h1>
@@ -885,6 +887,250 @@
 
     <script src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&libraries=places&callback=initMap" async defer></script>
     <script src="/static/js/app.js?v=2.0"></script>
+
+    <!-- 系統設定 Modal (V15.0) -->
+    <div id="settingsModal" class="modal-backdrop">
+        <div class="modal-content" style="max-width: 360px; border-radius: 28px; padding: 25px;">
+            <div class="modal-header" style="border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 15px;">
+                <h2 class="modal-title" style="font-size: 1.25rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">⚙️ 系統偏好設定</h2>
+                <button class="close-modal" onclick="closeModal('settingsModal')">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 0;">
+                <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 20px; line-height: 1.5; text-align: left;">請選擇您想在主畫面中啟用的個人化偏好與功能模組：</p>
+                <div style="display: flex; flex-direction: column; gap: 18px; margin-bottom: 25px; text-align: left;">
+                    <!-- 性別選取 -->
+                    <div>
+                        <label style="font-weight: 700; color: #334155; font-size: 0.9rem; display: block; margin-bottom: 8px;">⚧️ 性別偏好</label>
+                        <select id="setting_gender_select" onchange="handleSettingGenderChange(this.value)" style="width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 12px; font-size: 0.9rem; font-weight: 600; color: #334155; background: white; outline: none; cursor: pointer;">
+                            <option value="girl">👧 女生</option>
+                            <option value="boy">👦 男生</option>
+                        </select>
+                    </div>
+                    <!-- 模組開關 -->
+                    <div>
+                        <label style="font-weight: 700; color: #334155; font-size: 0.9rem; display: block; margin-bottom: 8px;">🛠️ 模組開關</label>
+                        <label class="setting-checkbox-label" style="display: flex; align-items: center; cursor: pointer; font-size: 0.88rem; color: #475569; padding: 6px 0;">
+                            <input type="checkbox" id="setting_enable_period" checked style="width: 18px; height: 18px; cursor: pointer;">
+                            <span style="margin-left: 8px; font-weight: 600;">🌸 啟用「女性生理健康」追蹤功能</span>
+                        </label>
+                    </div>
+                </div>
+                <button onclick="saveSystemSettings()" style="width: 100%; padding: 14px; border-radius: 16px; border: none; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; font-weight: 700; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35); transition: all 0.3s ease;">儲存設定 💾</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 首登迎新精靈 Modal (V15.0 Glassmorphism) -->
+    <div id="onboardingModal" class="modal-backdrop" style="z-index: 9998; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(10px);">
+        <div class="modal-content" style="max-width: 380px; border-radius: 28px; padding: 30px; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+            <div style="text-align: center; margin-bottom: 25px;">
+                <span style="font-size: 3.5rem; display: block; margin-bottom: 10px; animation: bounce 2s infinite;">✨</span>
+                <h2 style="font-size: 1.45rem; color: #0f172a; font-weight: 800; margin: 0; line-height: 1.4;">歡迎來到您的 AI 專屬秘書！</h2>
+                <p style="color: #64748b; font-size: 0.85rem; margin: 8px 0 0 0; line-height: 1.5;">為了給您最貼心的極致客製化體驗，請花 3 秒鐘告訴我們您的偏好：</p>
+            </div>
+            
+            <div class="modal-body" style="padding: 0;">
+                <!-- 性別二選一的精美卡片按鈕 -->
+                <div style="display: flex; gap: 15px; margin-bottom: 25px; justify-content: center;">
+                    <div id="gender_boy_btn" class="gender-card" onclick="selectOnboardingGender('boy')" style="flex: 1; text-align: center; padding: 18px 10px; border: 2px solid #e2e8f0; border-radius: 20px; cursor: pointer; transition: all 0.3s ease; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                        <span style="font-size: 2.2rem; display: block; margin-bottom: 5px;">👦</span>
+                        <span style="font-weight: 700; font-size: 0.95rem; color: #475569;">我是男生</span>
+                    </div>
+                    <div id="gender_girl_btn" class="gender-card" onclick="selectOnboardingGender('girl')" style="flex: 1; text-align: center; padding: 18px 10px; border: 2px solid #e2e8f0; border-radius: 20px; cursor: pointer; transition: all 0.3s ease; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                        <span style="font-size: 2.2rem; display: block; margin-bottom: 5px;">👧</span>
+                        <span style="font-weight: 700; font-size: 0.95rem; color: #475569;">我是女生</span>
+                    </div>
+                </div>
+                
+                <!-- 高級選項：模組自訂 -->
+                <div style="border-top: 1.5px dashed #e2e8f0; padding-top: 20px; margin-bottom: 25px; text-align: left;">
+                    <h4 style="font-size: 0.85rem; color: #475569; margin: 0 0 12px 0; font-weight: 700; display: flex; align-items: center; gap: 4px;">🛠️ 自訂啟用模組：</h4>
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <label style="display: flex; align-items: center; cursor: pointer; font-size: 0.85rem; color: #475569; user-select: none;">
+                            <input type="checkbox" id="onboard_enable_period" checked style="width: 16px; height: 16px; cursor: pointer;">
+                            <span style="margin-left: 8px; font-weight: 600;">🌸 啟用「生理健康」追蹤功能</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <button onclick="completeOnboarding()" style="width: 100%; border-radius: 16px; padding: 15px; background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; font-weight: 800; border: none; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.25); font-size: 1rem; cursor: pointer; transition: all 0.3s ease;">
+                    開啟我的智慧助理 🚀
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 迎新精靈與設定專屬樣式 (Custom styles) -->
+    <style>
+        .gender-card {
+            border: 2px solid #e2e8f0 !important;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        .gender-card:hover {
+            transform: translateY(-2px);
+            border-color: #cbd5e1 !important;
+        }
+        .gender-card.active {
+            border-color: #6366f1 !important;
+            background: #e0e7ff !important;
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.15) !important;
+        }
+        .gender-card.active span {
+            color: #4f46e5 !important;
+        }
+        .settings-link-btn {
+            transition: transform 0.3s ease !important;
+        }
+        .settings-link-btn:hover {
+            transform: rotate(45deg) scale(1.1) !important;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+    </style>
+
+    <!-- 迎新導引與時區核心互動腳本 (Onboarding & Timezone Script) -->
+    <script>
+        let onboardingSelectedGender = null;
+
+        window.selectOnboardingGender = (gender) => {
+            onboardingSelectedGender = gender;
+            const boyCard = document.getElementById('gender_boy_btn');
+            const girlCard = document.getElementById('gender_girl_btn');
+            const periodCheckbox = document.getElementById('onboard_enable_period');
+            
+            if (gender === 'boy') {
+                boyCard.classList.add('active');
+                girlCard.classList.remove('active');
+                periodCheckbox.checked = false;
+            } else {
+                girlCard.classList.add('active');
+                boyCard.classList.remove('active');
+                periodCheckbox.checked = true;
+            }
+        };
+
+        window.completeOnboarding = () => {
+            if (!onboardingSelectedGender) {
+                alert('請先選擇您的性別偏好喔！👦👧');
+                return;
+            }
+            
+            const enablePeriod = document.getElementById('onboard_enable_period').checked;
+            
+            localStorage.setItem('user_gender', onboardingSelectedGender);
+            localStorage.setItem('enable_period_tracking', enablePeriod);
+            localStorage.setItem('user_profile_configured', 'true');
+            
+            // 同步給後台時區與性別設定
+            window.syncOnboardingToBackend(onboardingSelectedGender, enablePeriod);
+            
+            window.applySystemSettings();
+            window.closeModal('onboardingModal');
+        };
+
+        window.syncOnboardingToBackend = (gender, enablePeriod) => {
+            const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            fetch('/api/sync_profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    gender: gender,
+                    enable_period: enablePeriod,
+                    timezone: userTimezone
+                })
+            }).then(res => res.json())
+              .then(data => {
+                  console.log("Profile and timezone synced successfully:", data);
+              }).catch(err => {
+                  console.error("Error syncing profile:", err);
+              });
+        };
+
+        window.handleSettingGenderChange = (gender) => {
+            const periodCheckbox = document.getElementById('setting_enable_period');
+            if (gender === 'boy') {
+                periodCheckbox.checked = false;
+            } else {
+                periodCheckbox.checked = true;
+            }
+        };
+
+        window.saveSystemSettings = () => {
+            const gender = document.getElementById('setting_gender_select').value;
+            const enablePeriod = document.getElementById('setting_enable_period').checked;
+            
+            localStorage.setItem('user_gender', gender);
+            localStorage.setItem('enable_period_tracking', enablePeriod);
+            localStorage.setItem('user_profile_configured', 'true');
+            
+            window.syncOnboardingToBackend(gender, enablePeriod);
+            window.applySystemSettings();
+            window.closeModal('settingsModal');
+            alert('系統偏好設定已儲存！💾');
+        };
+
+        window.applySystemSettings = () => {
+            const gender = localStorage.getItem('user_gender') || 'girl';
+            const enablePeriod = localStorage.getItem('enable_period_tracking') !== 'false';
+            
+            // 更新設定選單選項
+            const genderSelect = document.getElementById('setting_gender_select');
+            if (genderSelect) genderSelect.value = gender;
+            
+            const periodCheckbox = document.getElementById('setting_enable_period');
+            if (periodCheckbox) periodCheckbox.checked = enablePeriod;
+            
+            // 隱藏/顯示「經期」頁籤按鈕
+            const periodTab = document.querySelector('.tab-health');
+            if (periodTab) {
+                if (enablePeriod) {
+                    periodTab.style.display = 'block';
+                } else {
+                    periodTab.style.display = 'none';
+                    // 若當前在健康頁面，自動切換到行程頁面
+                    if (periodTab.classList.contains('active')) {
+                        const scheduleTab = document.querySelector('.parent-tabs button:first-child');
+                        if (scheduleTab) scheduleTab.click();
+                    }
+                }
+            }
+        };
+
+        // 自動背景同步時區（給老使用者直接抓時區）
+        window.autoSyncTimezone = () => {
+            const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const gender = localStorage.getItem('user_gender') || 'girl';
+            const enablePeriod = localStorage.getItem('enable_period_tracking') !== 'false';
+            fetch('/api/sync_profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    gender: gender,
+                    enable_period: enablePeriod,
+                    timezone: userTimezone
+                })
+            });
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 自動應用偏好設定
+            window.applySystemSettings();
+            
+            // 檢查是否首登
+            const isConfigured = localStorage.getItem('user_profile_configured') === 'true';
+            if (!isConfigured) {
+                setTimeout(() => {
+                    window.openModal('onboardingModal');
+                    window.selectOnboardingGender('girl');
+                }, 500);
+            } else {
+                // 如果已經設定過，在背景靜默同步時區給後端
+                setTimeout(window.autoSyncTimezone, 1000);
+            }
+        });
+    </script>
     {% endif %}
 </body>
 </html>
