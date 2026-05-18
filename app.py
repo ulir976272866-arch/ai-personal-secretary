@@ -183,6 +183,16 @@ def ensure_user_spreadsheet():
     if 'spreadsheet_id' in session:
         return session['spreadsheet_id']
         
+    # 如果是創作者本人的 Email 登入，直接回傳最原始的歷史資料表，避免新建空白表！
+    try:
+        user_info = get_user_info()
+        if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
+            session['spreadsheet_id'] = os.getenv("GOOGLE_SHEET_ID")
+            print(f"Owner logged in. Reusing existing original spreadsheet: {os.getenv('GOOGLE_SHEET_ID')}")
+            return os.getenv("GOOGLE_SHEET_ID")
+    except Exception as e:
+        print(f"Error checking owner email in ensure_user_spreadsheet: {e}")
+        
     creds = get_valid_credentials()
     if not creds:
         return os.getenv("GOOGLE_SHEET_ID")
