@@ -114,6 +114,9 @@ def get_valid_credentials():
     return creds
 
 def get_sheets_service():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        if creds_sa:
+            return build('sheets', 'v4', credentials=creds_sa)
     creds = get_valid_credentials()
     if creds:
         return build('sheets', 'v4', credentials=creds)
@@ -122,6 +125,9 @@ def get_sheets_service():
     return build('sheets', 'v4')
 
 def get_calendar_service():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        if creds_sa:
+            return build('calendar', 'v3', credentials=creds_sa)
     creds = get_valid_credentials()
     if creds:
         return build('calendar', 'v3', credentials=creds)
@@ -130,6 +136,9 @@ def get_calendar_service():
     return build('calendar', 'v3')
 
 def get_drive_service():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        if creds_sa:
+            return build('drive', 'v3', credentials=creds_sa)
     creds = get_valid_credentials()
     if creds:
         return build('drive', 'v3', credentials=creds)
@@ -150,11 +159,15 @@ def get_user_info():
         return None
 
 def get_spreadsheet_id():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return os.getenv("GOOGLE_SHEET_ID")
     if 'spreadsheet_id' in session:
         return session['spreadsheet_id']
     return os.getenv("GOOGLE_SHEET_ID")
 
 def get_calendar_id():
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return os.getenv("GOOGLE_CALENDAR_ID", "primary")
     if 'credentials' in session:
         return "primary"
     return os.getenv("GOOGLE_CALENDAR_ID", "primary")
@@ -162,7 +175,6 @@ def get_calendar_id():
 from werkzeug.local import LocalProxy
 SPREADSHEET_ID = LocalProxy(lambda: get_spreadsheet_id())
 CALENDAR_ID = LocalProxy(lambda: get_calendar_id())
-
 def ensure_user_spreadsheet():
     """
     檢查使用者雲端硬碟是否有 AI_Personal_Secretary_Data。
