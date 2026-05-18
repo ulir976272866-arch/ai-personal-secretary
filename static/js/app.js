@@ -1465,9 +1465,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         btn.innerHTML = '✔️ 完成';
                     }
                 }
-                
-                // D. 重整主畫面行程
-                window.querySchedule(window.lastQueryDays || 7);
             } else {
                 showToast(`❌ 恢復失敗：${data.message}`, 'error');
             }
@@ -1514,9 +1511,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         btn.innerHTML = '↩️ 恢復';
                     }
                 }
-                
-                // C. 重整主畫面行程
-                window.querySchedule(window.lastQueryDays || 7);
             } else {
                 showToast(`❌ 操作失敗：${data.message}`, 'error');
             }
