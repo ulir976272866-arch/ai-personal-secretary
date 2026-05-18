@@ -1,4 +1,8 @@
 import os
+# 本地開發允許使用 HTTP 進行 OAuth 驗證 (防止 InsecureTransportError)
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+# 允許 OAuth Token 範圍變更 (防止 Scope has changed Warning 導致崩潰)
+os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 import json
 import uuid
 import requests
@@ -158,7 +162,6 @@ def get_calendar_id():
 from werkzeug.local import LocalProxy
 SPREADSHEET_ID = LocalProxy(lambda: get_spreadsheet_id())
 CALENDAR_ID = LocalProxy(lambda: get_calendar_id())
-
 def ensure_user_spreadsheet():
     """
     檢查使用者雲端硬碟是否有 AI_Personal_Secretary_Data。
@@ -497,12 +500,15 @@ def index():
     # 優先尋找專用地圖 Key，若無則嘗試共用 Gemini Key
     maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY') or os.getenv('GEMINI_API_KEY')
     
-    logged_in = True
-    user_info = {
-        "name": "專屬主人",
-        "email": os.getenv("GOOGLE_CALENDAR_ID", "ulir976272866@gmail.com"),
-        "picture": "/static/icons/icon.png"
-    }
+    logged_in = 'credentials' in session
+    user_info = None
+    if logged_in:
+        user_info = get_user_info()
+        # 若憑證過期或失效導致無法獲取 user_info，則強制登出以防畫面異常
+        if not user_info:
+            session.pop('credentials', None)
+            session.pop('spreadsheet_id', None)
+            logged_in = False
             
     return render_template(
         'index.html', 
@@ -529,8 +535,13 @@ def callback():
     if request.args.get('state') != session.get('state'):
         return "安全性驗證失敗 (CSRF State Mismatch)！請返回首頁重登試試看。", 400
         
+    # 確保 authorization_response 的 URL 協定為 https，以繞過 oauthlib 的 InsecureTransportError
+    auth_resp = request.url
+    if auth_resp.startswith('http://'):
+        auth_resp = 'https://' + auth_resp[7:]
+
     flow = get_flow()
-    flow.fetch_token(authorization_response=request.url)
+    flow.fetch_token(authorization_response=auth_resp)
     
     # 將 OAuth 金鑰資料保存至 Session 中
     creds = flow.credentials
