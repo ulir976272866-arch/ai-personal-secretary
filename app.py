@@ -532,7 +532,8 @@ def index():
             user_info={
                 "name": "個人秘書系統",
                 "picture": "https://lh3.googleusercontent.com/a/default-user"
-            }
+            },
+            spreadsheet_id=SPREADSHEET_ID
         )
         
     logged_in = 'credentials' in session
@@ -549,7 +550,8 @@ def index():
         'index.html', 
         maps_api_key=maps_api_key, 
         logged_in=logged_in, 
-        user_info=user_info
+        user_info=user_info,
+        spreadsheet_id=SPREADSHEET_ID
     )
 
 @app.route('/login')
