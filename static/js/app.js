@@ -853,6 +853,27 @@ document.addEventListener('DOMContentLoaded', () => {
             let totalBudget = 0;
             const activeWishes = data.filter(i => i.狀態 === '想買');
 
+            // 💡 雙重條件排序：1. 必買 > 可買 > 可不買 2. 同分類依建立時間從小到大（早到晚）排序
+            const getCategoryWeight = (cat) => {
+                if (!cat) return 4;
+                const c = cat.trim();
+                if (c.includes('必買')) return 1;
+                if (c.includes('可買') || c.includes('家用') || c.includes('送禮')) return 2;
+                if (c.includes('可不買') || c.includes('靈感')) return 3;
+                return 4;
+            };
+
+            activeWishes.sort((a, b) => {
+                const weightA = getCategoryWeight(a.分類);
+                const weightB = getCategoryWeight(b.分類);
+                if (weightA !== weightB) {
+                    return weightA - weightB;
+                }
+                const idA = parseInt(a['唯一 ID'] || a.id) || 0;
+                const idB = parseInt(b['唯一 ID'] || b.id) || 0;
+                return idA - idB;
+            });
+
             if (activeWishes.length === 0) {
                 list.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 40px 20px;">目前沒有正在進行的願望 ✨<br><small style="opacity: 0.7;">點擊上方 + 按鈕開始許願吧！</small></div>';
                 if (summary) summary.innerHTML = '';
