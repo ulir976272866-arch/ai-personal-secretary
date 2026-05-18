@@ -1,4 +1,8 @@
 import os
+# 本地開發允許使用 HTTP 進行 OAuth 驗證 (防止 InsecureTransportError)
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+# 允許 OAuth Token 範圍變更 (防止 Scope has changed Warning 導致崩潰)
+os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 import json
 import uuid
 import requests
@@ -521,6 +525,8 @@ def login():
         prompt='consent'
     )
     session['state'] = state
+    # 將 PKCE code_verifier 存入 session，以便在 callback 路由中跨請求還原驗證
+    session['code_verifier'] = flow.code_verifier
     return redirect(authorization_url)
 
 @app.route('/callback')
@@ -529,8 +535,17 @@ def callback():
     if request.args.get('state') != session.get('state'):
         return "安全性驗證失敗 (CSRF State Mismatch)！請返回首頁重登試試看。", 400
         
+    # 確保 authorization_response 的 URL 協定為 https，以繞過 oauthlib 的 InsecureTransportError
+    auth_resp = request.url
+    if auth_resp.startswith('http://'):
+        auth_resp = 'https://' + auth_resp[7:]
+
     flow = get_flow()
-    flow.fetch_token(authorization_response=request.url)
+    # 還原 PKCE 的 code_verifier，防止 Google 驗證回報 (invalid_grant) Missing code verifier 錯誤
+    if 'code_verifier' in session:
+        flow.code_verifier = session['code_verifier']
+        
+    flow.fetch_token(authorization_response=auth_resp)
     
     # 將 OAuth 金鑰資料保存至 Session 中
     creds = flow.credentials
