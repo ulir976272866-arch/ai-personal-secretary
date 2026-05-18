@@ -603,9 +603,8 @@ def check_conflicts(service, start_time, end_time, exclude_id=None):
         t_min = ensure_tz(start_time)
         t_max = ensure_tz(end_time)
         
-        current_cal_id = session.get('calendar_id', 'primary')
         events_result = service.events().list(
-            calendarId=current_cal_id,
+            calendarId=CALENDAR_ID,
             timeMin=t_min,
             timeMax=t_max,
             singleEvents=True,
@@ -1201,27 +1200,22 @@ def get_schedule_response(days):
         end_date = now + timedelta(days=days-1)
         today_end = datetime.combine(end_date.date(), time.max, tzinfo=TW_TZ).isoformat()
         
-        current_cal_id = session.get('calendar_id', 'primary')
-
         events_result = service.events().list(
-            calendarId=current_cal_id, timeMin=today_start, timeMax=today_end,
+            calendarId=CALENDAR_ID, timeMin=today_start, timeMax=today_end,
             maxResults=50, singleEvents=True, orderBy='startTime'
         ).execute()
         events = events_result.get('items', [])
     except Exception as e:
         print(f"Calendar Fetch Error: {e}")
-        # 👈 關鍵就在這一行，把角括號換掉，前端才不會變空白
-        safe_msg = str(e).replace("<", "[").replace(">", "]")
-        
         if "Not Found" in str(e) or "404" in str(e):
             return jsonify({
                 "status": "success",
                 "type": "chat",
-                "message": "⚠️ 讀取行程失敗！請確認日曆共用設定或稍後再試。"
+                "message": "⚠️ 讀取行事曆失敗！請確認日曆共用設定或稍後再試。"
             })
         return jsonify({
             "status": "error",
-            "message": f"讀取行事曆失敗，詳細錯誤：{safe_msg}。如果您是第一次使用或剛改版，請點選右上角🚪按鈕登出並重新登入以授權 Google 日曆讀寫權限！"
+            "message": f"讀取行事曆失敗，詳細錯誤：{str(e)}。如果您是第一次使用或剛改版，請點選右上角🚪按鈕登出並重新登入以授權 Google 日曆讀寫權限！"
         })
     
     schedule_list = []
