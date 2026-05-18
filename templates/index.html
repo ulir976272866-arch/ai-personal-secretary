@@ -610,11 +610,20 @@
                 <button class="close-modal" onclick="closeModal('healthModal')">✕</button>
             </div>
             <div class="modal-body" style="padding-top: 10px;">
-                <!-- 狀態大圖卡 -->
-                <div class="health-status-card">
-                    <div class="health-status-title">距離下次預測</div>
-                    <div class="health-status-days">-- <span style="font-size: 1.2rem;">天</span></div>
-                    <div class="health-status-desc">正在計算預測日期...</div>
+                <!-- 狀態大圖卡 (V4.0 生理週期與排卵期動態圖卡) -->
+                <div class="health-status-card" id="health_card_gradient" style="transition: all 0.5s ease;">
+                    <div class="health-status-title" id="health_status_title">距離下次預測</div>
+                    <div class="health-status-days" id="health_status_days">-- <span style="font-size: 1.2rem;">天</span></div>
+                    <div class="health-status-desc" id="health_status_desc">正在計算預測日期...</div>
+                    <div id="health_phase_wrapper" style="margin-top: 14px; display: none; animation: popIn 0.3s ease; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                        <span id="health_phase_badge" style="background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); padding: 6px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 800; color: #be123c; border: 1px solid rgba(255, 255, 255, 0.5); display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">🟢 安全期 (濾泡期)</span>
+                        <span id="health_pregnancy_badge" style="background: rgba(255, 255, 255, 0.55); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); padding: 4px 14px; border-radius: 12px; font-size: 0.75rem; font-weight: 800; color: #475569; border: 1px dashed rgba(255, 255, 255, 0.6); display: inline-flex; align-items: center; gap: 4px;">🍀 不易懷孕 (安全期)</span>
+                    </div>
+                </div>
+
+                <!-- 💡 貼心閨蜜小叮嚀 (V4.0) -->
+                <div id="health_tips_card" style="background: rgba(255, 241, 242, 0.8); border: 1.5px dashed #fecdd3; border-radius: 16px; padding: 14px 16px; margin-bottom: 20px; font-size: 0.85rem; color: #be123c; font-weight: 700; line-height: 1.6; display: none; animation: slideUp 0.3s ease; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.02);">
+                    💡 正在加載閨蜜專屬叮嚀...
                 </div>
 
                 <!-- 快速操作區 -->

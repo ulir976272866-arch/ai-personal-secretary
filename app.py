@@ -333,8 +333,33 @@ def chat():
             
         cat_list_str = "、".join(expense_categories)
 
+        # 讀取生理期助理狀態以動態調整 AI 對話關懷人格
+        cycle_info_str = ""
+        try:
+            cycle_status = get_current_cycle_status()
+            if cycle_status:
+                cycle_info_str = f"""
+        【女性生理週期秘書感知】(當前用戶生理狀態)：
+        - 今天是週期的第 {cycle_status['days_in_cycle']} 天。
+        - 當前生理階段：{cycle_status['current_phase']} ({cycle_status['phase_icon']})
+        - 懷孕機率備註：{cycle_status['pregnancy_probability']}
+        - 貼心叮嚀與特徵：{cycle_status['phase_desc']}
+        - 當前預測說明：{cycle_status['status_title']}{cycle_status['days_until_next']}天 (預測日期為 {cycle_status['next_date']})。
+        
+        【AI 暖心語氣調整指引】：
+        - 請對使用者展現極致溫柔、體貼、包容且有溫度的語氣，像一位最懂她、陪伴在她身邊的好閨蜜。
+        - 根據當前生理階段給予「主動」且「自然」的貼心問候與叮嚀：
+          * 當前為「生理期」：說話極致溫柔，主動提醒多喝熱水、黑糖薑茶，叮嚀不要喝冷飲，不要勉強自己，展現最高限度的呵護與寵溺。
+          * 當前為「安全期 (濾泡期)」：語氣充滿朝氣與活力，多給予正面肯定，鼓勵她大膽嘗試新事物或安排運動。
+          * 當前為「排卵期 (黃體前期)」：主動讚美她這幾天氣色很好、散發光芒與魅力，適合多出門走走、約會或社交。
+          * 當前為「黃體期 (經前期)」：理解她可能容易水腫、疲憊、經前不適或情緒浮躁，用最令人安心的溫柔語氣主動安撫、聆聽，建議她深度放鬆，陪伴她度過波動期。
+"""
+        except Exception as e:
+            print(f"Error loading cycle status for prompt: {e}")
+
         prompt = f"""
         你是一個精明的數位秘書，現在時間是 {now.strftime('%Y-%m-%d %H:%M:%S')}。
+        {cycle_info_str}
         
         【視覺掃描規則】：
         - 如果是收據：優先尋找「NT$」後的金額。
@@ -1460,15 +1485,15 @@ def update_pocket_category():
     return jsonify({"status": "error", "message": "移入失敗"})
 
 # --- 🌸 健康與 AI 訓練 API ---
-@app.route('/api/health/info', methods=['GET'])
-def get_health_info():
+def get_current_cycle_status():
+    """計算生理週期狀態、排卵期與生理四階段的核心輔助函數"""
     health_id = os.getenv('HEALTH_SHEET_ID')
     if not health_id:
-         return jsonify({"status": "error", "message": "尚未設定 HEALTH_SHEET_ID"})
+        return None
     try:
         rows = get_sheet_values('生理紀錄', spreadsheet_id=health_id)
         if not rows or len(rows) < 2:
-            return jsonify({"status": "success", "history": [], "avg_cycle": 28, "avg_length": 5, "days_until_next": 28, "next_date": ""})
+            return None
             
         history = []
         cycles = []
@@ -1498,42 +1523,126 @@ def get_health_info():
         status_title = "距離下次預測"
         is_ongoing = False
         
+        # 預設週期四階段
+        current_phase = "安全期 (濾泡期)"
+        phase_desc = "代謝極佳、思緒敏捷。精力充沛、皮膚狀況極佳，適合衝刺事業與高強度鍛鍊！"
+        phase_icon = "🟢"
+        days_in_cycle = 0
+        days_until_ovulation = 0
+        
         if history:
             latest_start = history[0]["start"] # 最上面那筆是最新
             latest_end = history[0]["end"]
             try:
                 # datetime 轉換
                 last_dt = datetime.strptime(latest_start, "%Y/%m/%d")
-                # 計算距離今天幾天
                 now = datetime.now(TW_TZ)
                 
+                # 計算今天是週期第幾天
+                days_in_cycle = (now.date() - last_dt.date()).days + 1
+                if days_in_cycle < 1: days_in_cycle = 1
+                
+                # 預估下次經期日期
+                next_dt = last_dt + timedelta(days=avg_cycle)
+                next_date_str = next_dt.strftime("%Y/%m/%d")
+                
+                # 預算排卵日 (下次月經來潮前 14 天)
+                ovulation_dt = next_dt - timedelta(days=14)
+                ovulation_start_dt = ovulation_dt - timedelta(days=5)
+                ovulation_end_dt = ovulation_dt + timedelta(days=1)
+                
                 if latest_end == "進行中" or latest_end.strip() == "":
-                    # 進行中：計算目前是經期第幾天 (台灣時區精準計算)
+                    # 進行中
                     days_in_period = (now.date() - last_dt.date()).days + 1
                     days_until_next = days_in_period if days_in_period > 0 else 1
                     status_title = "🌸 經期第"
                     next_date_str = "進行中..."
                     is_ongoing = True
+                    current_phase = "生理期"
+                    phase_desc = "身體最脆弱，容易疲憊、經痛。建議溫熱呵護，多喝溫水，避免劇烈運動及生冷食物。"
+                    phase_icon = "🩸"
                 else:
-                    # 非進行中：計算距離下次預測還有幾天
-                    next_dt = last_dt + timedelta(days=avg_cycle)
+                    # 非進行中
                     diff = (next_dt.date() - now.date()).days
                     days_until_next = diff if diff >= 0 else 0
                     status_title = "距離下次預測"
-                    next_date_str = next_dt.strftime("%Y/%m/%d")
                     is_ongoing = False
+                    
+                    # 依日期判定所屬生理階段
+                    today_date = now.date()
+                    if ovulation_start_dt.date() <= today_date <= ovulation_end_dt.date():
+                        current_phase = "排卵期 (黃體前期)"
+                        phase_desc = "荷爾蒙散發魅力，皮膚最彈潤，心情最開朗的黃金週。適合安排約會、社交活動！"
+                        phase_icon = "🍑"
+                    elif today_date > ovulation_end_dt.date() and today_date < next_dt.date():
+                        current_phase = "黃體期 (經前期)"
+                        phase_desc = "容易水腫、易累、情緒波動。建議深度放鬆，做些溫和伸展，可喝洋甘菊茶舒緩。"
+                        phase_icon = "💜"
+                    else:
+                        current_phase = "安全期 (濾泡期)"
+                        phase_desc = "代謝極佳、思緒敏捷。精力充沛、皮膚狀況極佳，適合衝刺事業與高強度鍛鍊！"
+                        phase_icon = "🟢"
+                
+                # 計算距離排卵期起點還有幾天
+                days_to_ov = (ovulation_start_dt.date() - now.date()).days
+                days_until_ovulation = days_to_ov if days_to_ov > 0 else 0
+                
             except Exception as e:
-                print(f"Date parse error: {e}")
-        
-        return jsonify({
-            "status": "success",
-            "history": history[:3],
+                print(f"Cycle helper date parse error: {e}")
+                
+        # 計算懷孕機率 (易孕或不易懷孕)
+        pregnancy_probability = "🍀 不易懷孕 (安全期)"
+        if current_phase == "生理期":
+            pregnancy_probability = "❄️ 不易懷孕 (經期)"
+        elif "排卵期" in current_phase:
+            pregnancy_probability = "🔥 易懷孕 (黃金受孕期)"
+        elif "黃體期" in current_phase:
+            pregnancy_probability = "🍀 不易懷孕 (安全期)"
+        else:
+            pregnancy_probability = "🍀 不易懷孕 (安全期)"
+
+        return {
             "avg_cycle": avg_cycle,
             "avg_length": avg_length,
             "days_until_next": days_until_next,
             "next_date": next_date_str,
             "status_title": status_title,
-            "is_ongoing": is_ongoing
+            "is_ongoing": is_ongoing,
+            "current_phase": current_phase,
+            "phase_desc": phase_desc,
+            "phase_icon": phase_icon,
+            "days_in_cycle": days_in_cycle,
+            "days_until_ovulation": days_until_ovulation,
+            "pregnancy_probability": pregnancy_probability
+        }
+    except Exception as e:
+        print(f"Cycle helper error: {e}")
+        return None
+
+# --- 🌸 健康與 AI 訓練 API ---
+@app.route('/api/health/info', methods=['GET'])
+def get_health_info():
+    health_id = os.getenv('HEALTH_SHEET_ID')
+    if not health_id:
+         return jsonify({"status": "error", "message": "尚未設定 HEALTH_SHEET_ID"})
+    try:
+        status = get_current_cycle_status()
+        if not status:
+            return jsonify({"status": "success", "history": [], "avg_cycle": 28, "avg_length": 5, "days_until_next": 28, "next_date": "", "current_phase": "安全期 (濾泡期)", "phase_desc": "代謝極佳、思緒敏捷。"})
+            
+        rows = get_sheet_values('生理紀錄', spreadsheet_id=health_id)
+        history = []
+        for row in rows[1:]:
+             start_d = row[2] if len(row) > 2 else ""
+             end_d = row[3] if len(row) > 3 and row[3].strip() else "進行中"
+             symptoms = row[6] if len(row) > 6 else ""
+             if start_d:
+                 history.append({"start": start_d, "end": end_d, "symptoms": symptoms})
+                 
+        return jsonify({
+            "status": "success",
+            "history": history[:3],
+            **status
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})

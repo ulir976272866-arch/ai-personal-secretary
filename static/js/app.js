@@ -2885,8 +2885,111 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.status === 'success') {
                 // 更新狀態大圖卡
-                document.querySelector('.health-status-days').innerHTML = `${data.days_until_next} <span style="font-size: 1.2rem;">天</span>`;
-                document.querySelector('.health-status-desc').innerText = `預計 ${data.next_date} 開始`;
+                const statusTitleEl = document.getElementById('health_status_title');
+                const statusDaysEl = document.getElementById('health_status_days');
+                const statusDescEl = document.getElementById('health_status_desc');
+                const cardGradientEl = document.getElementById('health_card_gradient');
+                const phaseWrapperEl = document.getElementById('health_phase_wrapper');
+                const phaseBadgeEl = document.getElementById('health_phase_badge');
+                const pregnancyBadgeEl = document.getElementById('health_pregnancy_badge');
+                const tipsCardEl = document.getElementById('health_tips_card');
+
+                if (statusTitleEl) statusTitleEl.innerText = data.status_title || '距離下次預測';
+                
+                if (statusDaysEl) {
+                    if (data.is_ongoing) {
+                        statusDaysEl.innerHTML = `${data.days_until_next} <span style="font-size: 1.2rem;">天</span>`;
+                    } else {
+                        statusDaysEl.innerHTML = `${data.days_until_next} <span style="font-size: 1.2rem;">天</span>`;
+                    }
+                }
+                
+                if (statusDescEl) {
+                    if (data.is_ongoing) {
+                        statusDescEl.innerText = `生理週期進行中...`;
+                    } else {
+                        statusDescEl.innerText = `預計 ${data.next_date} 開始`;
+                    }
+                }
+
+                // 根據當前生理階段進行動態漸層渲染
+                if (data.current_phase && cardGradientEl) {
+                    let gradient = '';
+                    let shadow = '';
+                    let textColor = '';
+                    let badgeBg = '';
+                    let badgeBorder = '';
+                    let tipsBg = '';
+                    let tipsBorder = '';
+                    let tipsTextColor = '';
+
+                    if (data.current_phase === '生理期') {
+                        gradient = 'linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%)';
+                        shadow = '0 8px 25px rgba(251, 113, 133, 0.4)';
+                        textColor = '#9f1239';
+                        badgeBg = 'rgba(255, 255, 255, 0.7)';
+                        badgeBorder = 'rgba(251, 113, 133, 0.4)';
+                        tipsBg = 'rgba(255, 241, 242, 0.8)';
+                        tipsBorder = '#fecdd3';
+                        tipsTextColor = '#be123c';
+                    } else if (data.current_phase === '安全期 (濾泡期)' || data.current_phase === '濾泡期 (安全期)') {
+                        gradient = 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)';
+                        shadow = '0 8px 25px rgba(74, 222, 128, 0.3)';
+                        textColor = '#14532d';
+                        badgeBg = 'rgba(255, 255, 255, 0.7)';
+                        badgeBorder = 'rgba(74, 222, 128, 0.4)';
+                        tipsBg = 'rgba(240, 253, 244, 0.8)';
+                        tipsBorder = '#bbf7d0';
+                        tipsTextColor = '#15803d';
+                    } else if (data.current_phase.includes('排卵期')) {
+                        gradient = 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)';
+                        shadow = '0 8px 25px rgba(251, 146, 60, 0.3)';
+                        textColor = '#7c2d12';
+                        badgeBg = 'rgba(255, 255, 255, 0.7)';
+                        badgeBorder = 'rgba(251, 146, 60, 0.4)';
+                        tipsBg = 'rgba(255, 247, 237, 0.8)';
+                        tipsBorder = '#fed7aa';
+                        tipsTextColor = '#c2410c';
+                    } else if (data.current_phase.includes('黃體期')) {
+                        gradient = 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)';
+                        shadow = '0 8px 25px rgba(192, 132, 252, 0.3)';
+                        textColor = '#581c87';
+                        badgeBg = 'rgba(255, 255, 255, 0.7)';
+                        badgeBorder = 'rgba(192, 132, 252, 0.4)';
+                        tipsBg = 'rgba(250, 245, 255, 0.8)';
+                        tipsBorder = '#e9d5ff';
+                        tipsTextColor = '#6b21a8';
+                    }
+
+                    cardGradientEl.style.background = gradient;
+                    cardGradientEl.style.boxShadow = shadow;
+                    if (statusTitleEl) statusTitleEl.style.color = textColor;
+                    if (statusDaysEl) statusDaysEl.style.color = textColor;
+                    if (statusDescEl) statusDescEl.style.color = textColor;
+
+                    if (phaseWrapperEl && phaseBadgeEl) {
+                        phaseBadgeEl.innerHTML = `${data.phase_icon || '🌸'} ${data.current_phase}`;
+                        phaseBadgeEl.style.color = textColor;
+                        phaseBadgeEl.style.background = badgeBg;
+                        phaseBadgeEl.style.borderColor = badgeBorder;
+                        
+                        if (pregnancyBadgeEl) {
+                            pregnancyBadgeEl.innerHTML = data.pregnancy_probability || '🍀 不易懷孕 (安全期)';
+                            pregnancyBadgeEl.style.color = textColor;
+                            pregnancyBadgeEl.style.borderColor = badgeBorder;
+                        }
+                        
+                        phaseWrapperEl.style.display = 'flex';
+                    }
+
+                    if (tipsCardEl) {
+                        tipsCardEl.innerHTML = `💡 <b>當前階段特徵：</b><br>${data.phase_desc}`;
+                        tipsCardEl.style.background = tipsBg;
+                        tipsCardEl.style.borderColor = tipsBorder;
+                        tipsCardEl.style.color = tipsTextColor;
+                        tipsCardEl.style.display = 'block';
+                    }
+                }
                 
                 // 更新統計看板
                 const stats = document.querySelectorAll('.health-stat-box .val');
