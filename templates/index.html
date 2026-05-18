@@ -309,7 +309,11 @@
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <input type="text" id="wish_name" class="form-input" placeholder="您想要什麼？" style="flex: 2; margin-bottom: 0;">
                     <input type="number" id="wish_price" class="form-input" placeholder="價格" style="flex: 1.2; margin-bottom: 0;">
-                    <button onclick="saveWish()" style="background: #f97316; color: white; border: none; width: 45px; height: 45px; border-radius: 14px; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3);">＋</button>
+                    <button id="saveWishBtn" onclick="saveWish()" style="background: #f97316; color: white; border: none; width: 45px; height: 45px; border-radius: 14px; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3);">＋</button>
+                </div>
+                <!-- 🌟 新增：第二行網址/備註輸入框 -->
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <input type="text" id="wish_note" class="form-input" placeholder="🛒 貼上購買網址 (蝦皮/momo...) 或填寫備註" style="flex: 1; margin-bottom: 0; font-size: 0.85rem; padding: 10px 14px; border-radius: 12px;">
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
                     <div class="wish-tags" style="display: flex; gap: 6px; flex-wrap: wrap; flex: 1;">
@@ -322,7 +326,6 @@
             </div>
             <div class="modal-body" style="padding: 15px 20px 25px;">
                 <input type="hidden" id="wish_category" value="必買">
-                <input type="hidden" id="wish_note" value="">
                 <div id="wish_list">
                     <div style="text-align: center; padding: 30px; color: #94a3b8;">
                         <div class="loading-spinner" style="margin-bottom: 10px;">⌛</div>

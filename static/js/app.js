@@ -879,10 +879,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     cardStyle = 'background: #f3e8ff; border: 1px solid #d8b4fe; color: #7e22ce;';
                 }
 
+                let linkHtml = '';
+                const noteVal = (item['備註/連結'] || '').trim();
+                if (noteVal) {
+                    if (noteVal.startsWith('http://') || noteVal.startsWith('https://')) {
+                        // 偵測是否為手機端
+                        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                        
+                        // 辨識平台
+                        if (noteVal.includes('shopee') || noteVal.includes('蝦皮')) {
+                            // 手機端編譯為強制開啟蝦皮 App 的 Deep Link！
+                            const targetUrl = isMobile ? `shopeetw://urls?url=${encodeURIComponent(noteVal)}` : noteVal;
+                            linkHtml = `<a href="${targetUrl}" target="_blank" style="text-decoration: none; margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 10px; background: linear-gradient(135deg, #ff5722 0%, #ff7043 100%); color: white; font-size: 0.75rem; font-weight: 800; box-shadow: 0 2px 6px rgba(255, 87, 34, 0.2);"><span style="font-size:0.9rem;">🧡</span> 蝦皮商城 ${isMobile ? '📲' : ''}</a>`;
+                        } else if (noteVal.includes('momo')) {
+                            linkHtml = `<a href="${noteVal}" target="_blank" style="text-decoration: none; margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 10px; background: linear-gradient(135deg, #d81b60 0%, #ec407a 100%); color: white; font-size: 0.75rem; font-weight: 800; box-shadow: 0 2px 6px rgba(216, 27, 96, 0.2);"><span style="font-size:0.9rem;">💖</span> momo 購物</a>`;
+                        } else {
+                            linkHtml = `<a href="${noteVal}" target="_blank" style="text-decoration: none; margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 10px; background: linear-gradient(135deg, #475569 0%, #64748b 100%); color: white; font-size: 0.75rem; font-weight: 800; box-shadow: 0 2px 6px rgba(71, 85, 105, 0.15);"><span style="font-size:0.9rem;">🔗</span> 前往購買</a>`;
+                        }
+                    } else {
+                        // 純文字備註
+                        linkHtml = `<div style="font-size: 0.8rem; opacity: 0.8; margin-top: 8px; font-weight: 500; display: flex; align-items: center; gap: 4px;">📝 ${noteVal}</div>`;
+                    }
+                }
+
                 return `
                     <div style="${cardStyle} padding: 18px; border-radius: 18px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); transition: transform 0.2s;" onactive="this.style.transform='scale(0.98)'">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                            <div style="font-weight: 800; font-size: 1.1rem; flex: 1;">${item.商品名稱}</div>
+                            <div style="font-weight: 800; font-size: 1.1rem; flex: 1;">
+                                ${item.商品名稱}
+                                ${linkHtml ? `<div style="margin-top: 5px;">${linkHtml}</div>` : ''}
+                            </div>
                             <div style="font-weight: 900; font-size: 1.2rem; margin-left: 10px;">$${price.toLocaleString()}</div>
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
@@ -894,7 +920,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                                 </button>
-                                <button onclick="window.editWish('${itemID}', '${item.商品名稱.replace(/'/g, "\\'")}', '${item.預估價格}', '', '${item.分類}')" 
+                                <button onclick="window.editWish('${itemID}', '${item.商品名稱.replace(/'/g, "\\'")}', '${item.預估價格}', '${noteVal.replace(/'/g, "\\'")}', '${item.分類}')" 
                                         style="background: none; color: #3b82f6; border: none; padding: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                                 </button>
@@ -1092,7 +1118,7 @@ document.addEventListener('DOMContentLoaded', () => {
             noteInput.value = '';
             window.editingWishId = null;
 
-            const submitBtn = document.querySelector('#wishlistModal .modal-content button[onclick="saveWish()"]');
+            const submitBtn = document.getElementById('saveWishBtn');
             if (submitBtn) {
                 submitBtn.innerHTML = '＋';
                 submitBtn.style.background = '#f97316';
@@ -1105,6 +1131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.editWish = (id, name, price, note, category) => {
         document.getElementById('wish_name').value = name;
         document.getElementById('wish_price').value = price;
+        document.getElementById('wish_note').value = note; // 👈 載入網址或備註！
         window.editingWishId = id;
 
         // 映射舊標籤到新標籤
@@ -1122,12 +1149,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // 修改按鈕 UI
-        const submitBtn = document.querySelector('#wishlistModal .modal-content button[onclick="saveWish()"]');
+        // 修改按鈕 UI 為統一的勾勾圖標，並保持正方形
+        const submitBtn = document.getElementById('saveWishBtn');
         if (submitBtn) {
-            submitBtn.innerHTML = '💾 儲存';
+            submitBtn.innerHTML = '✓';
             submitBtn.style.background = '#10b981';
-            submitBtn.style.width = '80px';
+            submitBtn.style.width = '45px';
         }
     };
 
