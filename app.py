@@ -171,6 +171,16 @@ def ensure_user_spreadsheet():
     if 'spreadsheet_id' in session:
         return session['spreadsheet_id']
         
+    # 如果是創作者本人的 Email 登入，直接回傳最原始的歷史資料表，避免新建空白表！
+    try:
+        user_info = get_user_info()
+        if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
+            session['spreadsheet_id'] = os.getenv("GOOGLE_SHEET_ID")
+            print(f"Owner logged in. Reusing existing original spreadsheet: {os.getenv('GOOGLE_SHEET_ID')}")
+            return os.getenv("GOOGLE_SHEET_ID")
+    except Exception as e:
+        print(f"Error checking owner email in ensure_user_spreadsheet: {e}")
+        
     creds = get_valid_credentials()
     if not creds:
         return os.getenv("GOOGLE_SHEET_ID")
@@ -501,18 +511,35 @@ def index():
     # 優先尋找專用地圖 Key，若無則嘗試共用 Gemini Key
     maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY') or os.getenv('GEMINI_API_KEY')
     
-    logged_in = True
-    user_info = {
-        "name": "專屬主人",
-        "email": os.getenv("GOOGLE_CALENDAR_ID", "ulir976272866@gmail.com"),
-        "picture": "/static/icons/icon.png"
-    }
+    # 支援單人模式 (直接使用 Service Account，繞過登入)
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return render_template(
+            'index.html', 
+            maps_api_key=maps_api_key, 
+            logged_in=True, 
+            user_info={
+                "name": "個人秘書系統",
+                "picture": "https://lh3.googleusercontent.com/a/default-user"
+            },
+            spreadsheet_id=SPREADSHEET_ID
+        )
+        
+    logged_in = 'credentials' in session
+    user_info = None
+    if logged_in:
+        user_info = get_user_info()
+        # 若憑證過期或失效導致無法獲取 user_info，則強制登出以防畫面異常
+        if not user_info:
+            session.pop('credentials', None)
+            session.pop('spreadsheet_id', None)
+            logged_in = False
             
     return render_template(
         'index.html', 
         maps_api_key=maps_api_key, 
         logged_in=logged_in, 
-        user_info=user_info
+        user_info=user_info,
+        spreadsheet_id=SPREADSHEET_ID
     )
 
 @app.route('/login')
