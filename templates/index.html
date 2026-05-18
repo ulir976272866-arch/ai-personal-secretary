@@ -167,7 +167,7 @@
             <div id="sub_finance" class="sub-menu">
                 <button class="sub-btn" onclick="queryFinanceSummary()">📊 本月合計</button>
                 <button class="sub-btn" onclick="openModal('expenseModal')">💰 我要記帳</button>
-                <button class="sub-btn" onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id if spreadsheet_id else \'1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg\' }}', '_blank')">☁️ 雲端帳簿</button>
+                <button class="sub-btn" onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}', '_blank')">☁️ 雲端帳簿</button>
             </div>
             <!-- 備忘子選單 -->
             <div id="sub_memo" class="sub-menu">
@@ -320,7 +320,7 @@
                 <div id="todo_list" style="padding: 5px;"></div>
             </div>
             <div class="modal-footer">
-                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id if spreadsheet_id else \'1U0qqrOl9sA4ipBteS9WSmLE-w0W3BkIn-t2ATVcT_sM\' }}/edit', '_blank')" class="sheet-link-btn">
+                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}/edit', '_blank')" class="sheet-link-btn">
                     ☁️ 打開雲端試算表
                 </button>
             </div>
@@ -381,7 +381,7 @@
                 <div id="pocket_list" style="padding-top: 5px;"></div>
             </div>
             <div class="modal-footer">
-                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id if spreadsheet_id else \'131OAfDjrf_5rA7Rjezye2aogyub7fSs4OnJltqU36tY\' }}', '_blank')" class="sheet-link-btn">
+                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}', '_blank')" class="sheet-link-btn">
                     ☁️ 打開雲端試算表
                 </button>
             </div>
@@ -428,7 +428,7 @@
                 <div id="memo_list" style="border-top: 1px solid #f1f5f9; padding-top: 15px;"></div>
             </div>
             <div class="modal-footer">
-                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id if spreadsheet_id else \'1qFjXISdGcWaJ_7sTiFiw9OG8Hwxi9xF05IB6JIGO9Og\' }}/edit', '_blank')" class="sheet-link-btn">
+                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}/edit', '_blank')" class="sheet-link-btn">
                     ☁️ 打開雲端試算表
                 </button>
             </div>
@@ -471,7 +471,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id if spreadsheet_id else \'1jPd8NKi3Lv9CID7KEP9u5kD9W8zG9Q4o-0vq3OyFeuE\' }}/edit', '_blank')" class="sheet-link-btn">
+                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}/edit', '_blank')" class="sheet-link-btn">
                     ☁️ 打開雲端試算表
                 </button>
             </div>
@@ -567,7 +567,7 @@
                 <button id="submitExpense" class="submit-btn btn-expense">確認支出記帳 💸</button>
             </div>
             <div class="modal-footer">
-                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id if spreadsheet_id else \'1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg\' }}', '_blank')" class="sheet-link-btn">
+                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}', '_blank')" class="sheet-link-btn">
                     ☁️ 打開雲端試算表
                 </button>
             </div>
@@ -807,7 +807,7 @@
                 </div>
             </div>
             <div class="modal-footer" style="background: #fff1f2; border-top-color: #ffe4e6;">
-                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id if spreadsheet_id else \'1vhvCRQz30JSh8nLSos_vD2QJJtgF-j9L3NLNMKTNqXE\' }}/edit', '_blank')" class="sheet-link-btn" style="color: #e11d48; background: #fff; border-color: #fecdd3;">
+                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}/edit', '_blank')" class="sheet-link-btn" style="color: #e11d48; background: #fff; border-color: #fecdd3;">
                     ☁️ 開啟健康紀錄表
                 </button>
             </div>
@@ -848,7 +848,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id if spreadsheet_id else \'1vhvCRQz30JSh8nLSos_vD2QJJtgF-j9L3NLNMKTNqXE\' }}/edit', '_blank')" class="sheet-link-btn">
+                <button onclick="window.open('https://docs.google.com/spreadsheets/d/{{ spreadsheet_id }}/edit', '_blank')" class="sheet-link-btn">
                     ☁️ 開啟 AI 指令集
                 </button>
             </div>
