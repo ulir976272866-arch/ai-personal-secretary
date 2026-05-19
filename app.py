@@ -6,6 +6,7 @@ os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 import json
 import uuid
 import requests
+import pymysql
 from datetime import datetime, time, timedelta, timezone
 from PIL import Image
 
@@ -52,11 +53,14 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-# 載入環境變數 (確保能讀到腳本同目錄下的 .env)
-load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+# 載入環境變數 (確保能讀到腳本同目錄下的 .env，並允許強制覆蓋環境變數)
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'), override=True)
 
 app = Flask(__name__)
+print("--- [DEBUG] SINGLE_USER_MODE in Flask initialization:", os.getenv("SINGLE_USER_MODE"), "---")
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "ai_personal_secretary_super_secret_key_12345")
+# 配置 PWA 會員登入長效記憶：將 session 的有效期設定為 365 天，直到按登出才失效
+app.permanent_session_lifetime = timedelta(days=365)
 
 # -----------------------------------------------------------------
 # 1. Google OAuth 2.0 與 Service Account 初始化
@@ -127,6 +131,18 @@ def get_valid_credentials():
         client_secret=creds_data.get('client_secret'),
         scopes=creds_data.get('scopes')
     )
+    # 如果 credentials 中缺少 refresh_token，但 session 中有記錄 user_email，則動態從 TiDB Cloud 還原修復它
+    if not creds.refresh_token and 'user_email' in session:
+        try:
+            user = get_user_by_email(session['user_email'])
+            if user and user.get('google_refresh_token'):
+                creds.refresh_token = user['google_refresh_token']
+                session['credentials']['refresh_token'] = user['google_refresh_token']
+                session.modified = True
+                print(f"Dynamically restored refresh_token from TiDB Cloud for {session['user_email']}")
+        except Exception as ex:
+            print(f"Failed to restore refresh_token from TiDB: {ex}")
+
     if creds.expired and creds.refresh_token:
         try:
             creds.refresh(Request())
@@ -187,6 +203,96 @@ def get_user_info():
     except Exception as e:
         print(f"Error getting user info: {e}")
         return None
+
+# -----------------------------------------------------------------
+# TiDB Cloud Multi-User Database Helper Functions
+# -----------------------------------------------------------------
+TIDB_HOST = os.getenv("TIDB_HOST")
+TIDB_PORT = int(os.getenv("TIDB_PORT", 4000))
+TIDB_USER = os.getenv("TIDB_USER")
+TIDB_PASSWORD = os.getenv("TIDB_PASSWORD")
+TIDB_DATABASE = os.getenv("TIDB_DATABASE", "unitask_db")
+
+def get_db_connection():
+    """獲取 TiDB Cloud 安全連線"""
+    return pymysql.connect(
+        host=TIDB_HOST,
+        user=TIDB_USER,
+        password=TIDB_PASSWORD,
+        port=TIDB_PORT,
+        database=TIDB_DATABASE,
+        ssl={"ssl_ca": "/etc/ssl/cert.pem"} if os.path.exists("/etc/ssl/cert.pem") else {}
+    )
+
+def get_user_by_email(email):
+    """從 TiDB 查詢使用者，若為單人模式則直接回傳開發者模擬 VIP 帳號"""
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return {
+            "user_id": "uid_owner",
+            "email": email,
+            "is_subscribed": True,
+            "subscription_type": "YEARLY_AI",
+            "ai_points": 9999,
+            "has_stock_record": True
+        }
+    
+    try:
+        conn = get_db_connection()
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            cursor.execute("SELECT * FROM users WHERE email = %s;", (email,))
+            user = cursor.fetchone()
+            return user
+    except Exception as e:
+        print(f"Error querying user by email in TiDB: {e}")
+        return None
+    finally:
+        if 'conn' in locals() and conn:
+            conn.close()
+
+def get_tidb_user_sheet_id(email):
+    """獲取用戶在 TiDB 綁定的 Google 試算表 ID"""
+    user = get_user_by_email(email)
+    return user.get('google_spreadsheet_id') if user else None
+
+def update_user_sheet_id(email, spreadsheet_id):
+    """更新用戶在 TiDB 中綁定的試算表 ID"""
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return True
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE users SET google_spreadsheet_id = %s WHERE email = %s;",
+                (spreadsheet_id, email)
+            )
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error updating user sheet id in TiDB: {e}")
+        return False
+    finally:
+        if 'conn' in locals() and conn:
+            conn.close()
+
+def update_user_refresh_token(email, refresh_token):
+    """更新用戶在 TiDB 中的 refresh_token 以便背景續存授權"""
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return True
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE users SET google_refresh_token = %s WHERE email = %s;",
+                (refresh_token, email)
+            )
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error updating user refresh token in TiDB: {e}")
+        return False
+    finally:
+        if 'conn' in locals() and conn:
+            conn.close()
 
 def get_spreadsheet_id():
     if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
@@ -349,6 +455,8 @@ def ensure_user_spreadsheet():
             spreadsheet_id = files[0]['id']
             session['spreadsheet_id'] = spreadsheet_id
             print(f"Found existing spreadsheet in user drive: {spreadsheet_id}")
+            if 'user_email' in session:
+                update_user_sheet_id(session['user_email'], spreadsheet_id)
             # 確保 session 中有 gids
             if 'sheet_gids' not in session:
                 try:
@@ -436,6 +544,8 @@ def ensure_user_spreadsheet():
         
         session['spreadsheet_id'] = spreadsheet_id
         print(f"Created and initialized new spreadsheet in user drive: {spreadsheet_id}")
+        if 'user_email' in session:
+            update_user_sheet_id(session['user_email'], spreadsheet_id)
         return spreadsheet_id
         
     except Exception as e:
@@ -756,6 +866,8 @@ def callback():
         
     flow.fetch_token(authorization_response=auth_resp)
     
+    # 啟用長效永久 Cookie 以在裝置上記憶使用者狀態，直到按登出按鈕才清除
+    session.permanent = True
     # 將 OAuth 金鑰資料保存至 Session 中
     creds = flow.credentials
     session['credentials'] = {
@@ -767,6 +879,51 @@ def callback():
         'scopes': creds.scopes
     }
     
+    # 提取使用者資料並進行多用戶註冊比對
+    try:
+        user_info = get_user_info()
+        user_email = user_info.get('email') if user_info else None
+        if user_email:
+            session['user_email'] = user_email
+            print(f"User email captured: {user_email}")
+            
+            # 從 TiDB 查詢使用者
+            user = get_user_by_email(user_email)
+            if not user and os.getenv("SINGLE_USER_MODE", "false").lower() != "true":
+                # 全新註冊的用戶，自動寫入 TiDB (預設為免費版)
+                try:
+                    conn = get_db_connection()
+                    with conn.cursor() as cursor:
+                        new_uid = f"uid_{uuid.uuid4().hex[:12]}"
+                        cursor.execute(
+                            "INSERT INTO users (user_id, email, is_subscribed, subscription_type, ai_points, trial_used) VALUES (%s, %s, FALSE, 'NONE', 0, FALSE);",
+                            (new_uid, user_email)
+                        )
+                        conn.commit()
+                    user = get_user_by_email(user_email)
+                    print(f"Successfully registered new user in TiDB: {user_email}")
+                except Exception as ex:
+                    print(f"Failed to auto register new user in TiDB: {ex}")
+                finally:
+                    if 'conn' in locals() and conn:
+                        conn.close()
+            
+            # 將資料庫會員規格注入 Session
+            if user:
+                session['is_subscribed'] = bool(user.get('is_subscribed'))
+                session['subscription_type'] = user.get('subscription_type', 'NONE')
+                session['ai_points'] = user.get('ai_points', 0)
+                session['has_stock_record'] = bool(user.get('has_stock_record'))
+                if user.get('google_spreadsheet_id'):
+                    session['spreadsheet_id'] = user.get('google_spreadsheet_id')
+                    print(f"Loaded existing spreadsheet_id from TiDB: {user.get('google_spreadsheet_id')}")
+            
+            # 如果取得 refresh_token，非同步保存至 TiDB，以供離線更新使用
+            if creds.refresh_token:
+                update_user_refresh_token(user_email, creds.refresh_token)
+    except Exception as e:
+        print(f"Error handling multi-user context in callback: {e}")
+        
     # 背景自動初始化或檢查試算表資料庫
     ensure_user_spreadsheet()
     
@@ -776,6 +933,69 @@ def callback():
 def logout():
     session.clear()
     return redirect(url_for('index'))
+
+@app.route('/dev/switch_role', methods=['POST'])
+def dev_switch_role():
+    """沙盒身分模擬切換 API (限本地除錯且多人版啟用時)"""
+    # 雙重防安全開線：必須是 Debug 且 SINGLE_USER_MODE=false
+    if not app.debug or os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return jsonify({"status": "error", "message": "此除錯路由已實體防禦阻斷"}), 403
+        
+    data = request.json or {}
+    role = data.get('role', 'FREE')
+    
+    # 映射到三組真實的沙盒信箱與會員特權
+    role_mapping = {
+        'FREE': {
+            'email': 'mina976272866@gmail.com',
+            'is_subscribed': False,
+            'subscription_type': 'NONE',
+            'ai_points': 0,
+            'has_stock_record': False
+        },
+        'BASIC': {
+            'email': 'inming399@gmail.com',
+            'is_subscribed': True,
+            'subscription_type': 'MONTHLY_AI',
+            'ai_points': 500,
+            'has_stock_record': False
+        },
+        'PREMIUM': {
+            'email': 'min272866@gmail.com',
+            'is_subscribed': True,
+            'subscription_type': 'YEARLY_AI',
+            'ai_points': 1000,
+            'has_stock_record': True
+        }
+    }
+    
+    target = role_mapping.get(role)
+    if not target:
+        return jsonify({"status": "error", "message": "無效的角色參數"}), 400
+        
+    # 將模擬身份強行寫入 Session
+    session['user_email'] = target['email']
+    session['is_subscribed'] = target['is_subscribed']
+    session['subscription_type'] = target['subscription_type']
+    session['ai_points'] = target['ai_points']
+    session['has_stock_record'] = target['has_stock_record']
+    
+    # 重新加載試算表 ID (如果資料庫裡有紀錄就載入，沒有就清空 session spreadsheet_id 觸發重新 Drive 探測)
+    user = get_user_by_email(target['email'])
+    if user and user.get('google_spreadsheet_id'):
+        session['spreadsheet_id'] = user.get('google_spreadsheet_id')
+    else:
+        session.pop('spreadsheet_id', None)
+        
+    print(f"Developer Switch Role Success! Current mock session email: {target['email']}, subscription_type: {target['subscription_type']}")
+    return jsonify({
+        "status": "success",
+        "message": f"成功切換身份為 {role}",
+        "user_email": target['email'],
+        "subscription_type": target['subscription_type'],
+        "ai_points": target['ai_points']
+    })
+
 
 @app.route('/api/sync_profile', methods=['POST'])
 def sync_profile():
