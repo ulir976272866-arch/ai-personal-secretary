@@ -27,19 +27,23 @@ class DynamicTimezone(tzinfo):
         return timezone(timedelta(hours=8))
 
     def utcoffset(self, dt):
-        return self.get_inner_tz().utcoffset(dt)
+        if dt is None:
+            return None
+        # 將 dt 轉換為 naive datetime 以相容 pytz 的 utcoffset，徹底解決 Not naive datetime 錯誤
+        naive_dt = dt.replace(tzinfo=None) if dt.tzinfo else dt
+        return self.get_inner_tz().utcoffset(naive_dt)
         
     def tzname(self, dt):
-        return self.get_inner_tz().tzname(dt)
+        if dt is None:
+            return None
+        naive_dt = dt.replace(tzinfo=None) if dt.tzinfo else dt
+        return self.get_inner_tz().tzname(naive_dt)
         
     def dst(self, dt):
-        return self.get_inner_tz().dst(dt)
-        
-    def fromutc(self, dt):
-        inner_tz = self.get_inner_tz()
-        dt_inner = dt.replace(tzinfo=inner_tz)
-        res_inner = inner_tz.fromutc(dt_inner)
-        return res_inner.replace(tzinfo=self)
+        if dt is None:
+            return None
+        naive_dt = dt.replace(tzinfo=None) if dt.tzinfo else dt
+        return self.get_inner_tz().dst(naive_dt)
 
 TW_TZ = DynamicTimezone()
 
@@ -225,8 +229,9 @@ def get_db_connection():
     )
 
 def get_user_by_email(email):
-    """從 TiDB 查詢使用者，若為單人模式則直接回傳開發者模擬 VIP 帳號"""
-    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+    """從 TiDB 查詢使用者，若為單人模式或開發者白名單信箱則直接回傳開發者模擬 VIP 帳號"""
+    developer_emails = {'ulir976272866@gmail.com'}
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true" or (email and email.lower() in developer_emails):
         return {
             "user_id": "uid_owner",
             "email": email,
@@ -241,6 +246,29 @@ def get_user_by_email(email):
         with conn.cursor(pymysql.cursors.DictCursor) as cursor:
             cursor.execute("SELECT * FROM users WHERE email = %s;", (email,))
             user = cursor.fetchone()
+            
+            # 🌟 7天旗艦版免費試用過期安全降級守衛 🌟
+            if user and user.get('trial_expires_at'):
+                from datetime import datetime
+                expires_at = user.get('trial_expires_at')
+                if isinstance(expires_at, str):
+                    try:
+                        expires_at = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S")
+                    except ValueError:
+                        pass
+                
+                # 如果試用期限已過，且使用者目前的 subscription_type 不是 NONE，則降級為免費版
+                if expires_at and datetime.now() > expires_at and user.get('subscription_type') != 'NONE':
+                    print(f"[TiDB Guard] 使用者 {email} 的 7天試用已過期！自動安全降級為免費基礎版 (NONE)")
+                    cursor.execute(
+                        "UPDATE users SET is_subscribed = FALSE, subscription_type = 'NONE', ai_points = 0 WHERE email = %s;",
+                        (email,)
+                    )
+                    conn.commit()
+                    # 重新拉取已降級的最新資料
+                    cursor.execute("SELECT * FROM users WHERE email = %s;", (email,))
+                    user = cursor.fetchone()
+            
             return user
     except Exception as e:
         print(f"Error querying user by email in TiDB: {e}")
@@ -379,47 +407,53 @@ def get_sheet_urls():
         except Exception:
             pass
             
+    # Unified Spreadsheet ID resolution
     if is_owner:
-        return {
-            "finance_sheet_url": f"https://docs.google.com/spreadsheets/d/{os.getenv('GOOGLE_SHEET_ID')}",
-            "diary_sheet_url": f"https://docs.google.com/spreadsheets/d/{os.getenv('DIARY_SHEET_ID')}",
-            "todo_sheet_url": f"https://docs.google.com/spreadsheets/d/{os.getenv('TODO_SHEET_ID')}",
-            "wish_sheet_url": f"https://docs.google.com/spreadsheets/d/{os.getenv('WISH_SHEET_ID')}",
-            "pocket_sheet_url": f"https://docs.google.com/spreadsheets/d/{os.getenv('POCKET_SHEET_ID')}",
-            "health_sheet_url": f"https://docs.google.com/spreadsheets/d/{os.getenv('HEALTH_SHEET_ID')}",
-            "training_sheet_url": f"https://docs.google.com/spreadsheets/d/{os.getenv('HEALTH_SHEET_ID')}"
-        }
+        spreadsheet_id = os.getenv("GOOGLE_SHEET_ID")
     else:
         spreadsheet_id = ensure_user_spreadsheet()
-        gids = session.get('sheet_gids', {})
         
-        if not gids and spreadsheet_id:
+    gids = session.get('sheet_gids', {})
+    
+    if (not gids or '💰股票投資組合' not in gids) and spreadsheet_id:
+        try:
+            sheets_service = get_sheets_service()
+            sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+            gids = {}
+            for s in sheet_meta.get('sheets', []):
+                title = s['properties']['title']
+                gids[title] = s['properties']['sheetId']
+            session['sheet_gids'] = gids
+            session.modified = True
+        except Exception as e:
+            print(f"Error fetching GIDs for index: {e}")
+            import traceback
             try:
-                sheets_service = get_sheets_service()
-                sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
-                gids = {}
-                for s in sheet_meta.get('sheets', []):
-                    title = s['properties']['title']
-                    gids[title] = s['properties']['sheetId']
-                session['sheet_gids'] = gids
-            except Exception as e:
-                print(f"Error fetching GIDs for index: {e}")
-                
-        def get_url_with_gid(title):
-            gid = gids.get(title)
-            if gid is not None:
-                return f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit#gid={gid}"
-            return f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit"
+                with open('/Users/mina.chen/00_AI coding/私人行事曆安排/ai-personal-secretary/gids_error.log', 'w') as f:
+                    f.write(f"Error: {e}\n")
+                    traceback.print_exc(file=f)
+            except Exception:
+                pass
             
-        return {
-            "finance_sheet_url": get_url_with_gid('記帳'),
-            "diary_sheet_url": get_url_with_gid('日記'),
-            "todo_sheet_url": get_url_with_gid('待辦'),
-            "wish_sheet_url": get_url_with_gid('願望'),
-            "pocket_sheet_url": get_url_with_gid('口袋'),
-            "health_sheet_url": get_url_with_gid('生理紀錄'),
-            "training_sheet_url": get_url_with_gid('AI_指令集')
-        }
+    def get_url_with_gid(title, default_sheet_id=None):
+        current_sheet_id = default_sheet_id if (is_owner and default_sheet_id) else spreadsheet_id
+        if is_owner and default_sheet_id:
+            return f"https://docs.google.com/spreadsheets/d/{current_sheet_id}/edit"
+        gid = gids.get(title)
+        if gid is not None:
+            return f"https://docs.google.com/spreadsheets/d/{current_sheet_id}/edit#gid={gid}"
+        return f"https://docs.google.com/spreadsheets/d/{current_sheet_id}/edit"
+        
+    return {
+        "finance_sheet_url": get_url_with_gid('記帳'),
+        "stock_sheet_url": get_url_with_gid('💰股票投資組合'),
+        "diary_sheet_url": get_url_with_gid('日記', os.getenv('DIARY_SHEET_ID')),
+        "todo_sheet_url": get_url_with_gid('待辦', os.getenv('TODO_SHEET_ID')),
+        "wish_sheet_url": get_url_with_gid('願望', os.getenv('WISH_SHEET_ID')),
+        "pocket_sheet_url": get_url_with_gid('口袋', os.getenv('POCKET_SHEET_ID')),
+        "health_sheet_url": get_url_with_gid('生理紀錄', os.getenv('HEALTH_SHEET_ID')),
+        "training_sheet_url": get_url_with_gid('AI_指令集', os.getenv('HEALTH_SHEET_ID'))
+    }
 def ensure_user_spreadsheet():
     """
     檢查使用者雲端硬碟是否有 AI_Personal_Secretary_Data。
@@ -506,10 +540,10 @@ def ensure_user_spreadsheet():
         headers = {
             '記帳!A1:G1': [['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別']],
             '待辦!A1:F1': [['唯一 ID', '事項/內容', '優先級', '分類', '狀態', '建立時間']],
-            '日記!A1:D1': [['日期', '心情', '天氣', '內容']],
+            '日記!A1:E1': [['日期', '內容', '天氣', '心情', '時間']],
             '願望!A1:F1': [['唯一 ID', '願望名稱', '預算', '狀態', '實際花費', '建立時間']],
-            '生理紀錄!A1:F1': [['年度', '月份', '日期', '動作', '症狀/心情', '備註']],
-            '口袋!A1:E1': [['店名', '地址', '分類', '緯度', '經度']],
+            '生理紀錄!A1:G1': [['年度', '月份', '日期', '動作', '症狀/心情', '週期', '備註']],
+            '口袋!A1:I1': [['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度']],
             'AI_指令集!A1:B1': [['觸發語句', '執行動作']]
         }
         
@@ -533,13 +567,51 @@ def ensure_user_spreadsheet():
             body={'values': default_instructions}
         ).execute()
         
-        # 取得新建試算表中所有分頁的唯一 GID 並寫入 session
+        # 取得新建試算表中所有分頁的唯一 GID 並寫入 session，同時為每一張表的第一列 (Row 1) 加上「警告保護鎖」防止手殘誤改！
         sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
         gids = {}
+        protect_requests = []
         for s in sheet_meta.get('sheets', []):
             title = s['properties']['title']
-            gids[title] = s['properties']['sheetId']
+            s_id = s['properties']['sheetId']
+            gids[title] = s_id
+            
+            # 計算每張表的欄數
+            col_count = 7
+            if title == '待辦': col_count = 6
+            elif title == '日記': col_count = 5
+            elif title == '願望': col_count = 6
+            elif title == '口袋': col_count = 9
+            elif title == 'AI_指令集': col_count = 2
+            
+            protect_requests.append({
+                "addProtectedRange": {
+                    "protectedRange": {
+                        "range": {
+                            "sheetId": s_id,
+                            "startRowIndex": 0,
+                            "endRowIndex": 1,
+                            "startColumnIndex": 0,
+                            "endColumnIndex": col_count
+                        },
+                        "description": f"系統 {title} 核心表頭，請勿任意變動以防當機",
+                        "warningOnly": True
+                    }
+                }
+            })
+            
         session['sheet_gids'] = gids
+        
+        # 執行批次保護鎖定
+        if protect_requests:
+            try:
+                sheets_service.spreadsheets().batchUpdate(
+                    spreadsheetId=spreadsheet_id,
+                    body={'requests': protect_requests}
+                ).execute()
+            except Exception as protect_err:
+                print(f"Failed to protect sheet headers: {protect_err}")
+                
         print(f"Created new spreadsheet. Stored sheet GIDs in session: {gids}")
         
         session['spreadsheet_id'] = spreadsheet_id
@@ -553,27 +625,185 @@ def ensure_user_spreadsheet():
         return os.getenv("GOOGLE_SHEET_ID")
 
 # --- Sheets 輔助函數 ---
+_wish_tab_cache = {}
+
+def get_wish_tab_name(spreadsheet_id, service=None):
+    if spreadsheet_id in _wish_tab_cache:
+        return _wish_tab_cache[spreadsheet_id]
+    if not service:
+        service = get_sheets_service()
+    try:
+        metadata = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        titles = [s['properties']['title'] for s in metadata.get('sheets', [])]
+        if '願望' in titles:
+            _wish_tab_cache[spreadsheet_id] = '願望'
+            return '願望'
+    except Exception:
+        pass
+    _wish_tab_cache[spreadsheet_id] = '願望清單'
+    return '願望清單'
+
 def append_to_sheet(range_name, values, spreadsheet_id=None):
     if not spreadsheet_id:
         spreadsheet_id = get_spreadsheet_id()
     service = get_sheets_service()
     body = {'values': [values]}
-    service.spreadsheets().values().append(
-        spreadsheetId=spreadsheet_id,
-        range=range_name,
-        valueInputOption='USER_ENTERED',
-        body=body
-    ).execute()
+    try:
+        service.spreadsheets().values().append(
+            spreadsheetId=spreadsheet_id,
+            range=range_name,
+            valueInputOption='USER_ENTERED',
+            body=body
+        ).execute()
+    except Exception as e:
+        # 智慧地自動匹配「願望清單」與「願望」分頁以防寫入報錯
+        if '願望清單' in range_name:
+            new_range = range_name.replace('願望清單', '願望')
+            try:
+                service.spreadsheets().values().append(
+                    spreadsheetId=spreadsheet_id,
+                    range=new_range,
+                    valueInputOption='USER_ENTERED',
+                    body=body
+                ).execute()
+            except Exception:
+                raise e
+        elif '願望' in range_name:
+            new_range = range_name.replace('願望', '願望清單')
+            try:
+                service.spreadsheets().values().append(
+                    spreadsheetId=spreadsheet_id,
+                    range=new_range,
+                    valueInputOption='USER_ENTERED',
+                    body=body
+                ).execute()
+            except Exception:
+                raise e
+        else:
+            raise e
 
 def get_sheet_values(range_name, spreadsheet_id=None):
     if not spreadsheet_id:
         spreadsheet_id = get_spreadsheet_id()
     service = get_sheets_service()
-    result = service.spreadsheets().values().get(
-        spreadsheetId=spreadsheet_id,
-        range=range_name
-    ).execute()
-    return result.get('values', [])
+    
+    # 智慧地自動匹配「願望清單」與「願望」分頁名以防讀取報錯
+    try:
+        result = service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id,
+            range=range_name
+        ).execute()
+    except Exception as e:
+        if '願望清單' in range_name:
+            new_range = range_name.replace('願望清單', '願望')
+            try:
+                result = service.spreadsheets().values().get(
+                    spreadsheetId=spreadsheet_id,
+                    range=new_range
+                ).execute()
+                range_name = new_range
+            except Exception:
+                raise e
+        elif '願望' in range_name:
+            new_range = range_name.replace('願望', '願望清單')
+            try:
+                result = service.spreadsheets().values().get(
+                    spreadsheetId=spreadsheet_id,
+                    range=new_range
+                ).execute()
+                range_name = new_range
+            except Exception:
+                raise e
+        else:
+            raise e
+            
+    values = result.get('values', [])
+    
+    # 🛡️ 全局主動式表頭自癒安全護盾 (Proactive Header Self-Healing Shield)
+    try:
+        if values and len(values) > 0:
+            sheet_title = range_name.split('!')[0] if '!' in range_name else range_name
+            
+            standard_headers_map = {
+                '生理紀錄': ['年度', '月份', '日期', '動作', '症狀/心情', '週期', '備註'],
+                '記帳': ['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別'],
+                '待辦': ['建立日期', '事項/內容', '分類', '狀態', '唯一 ID', '建立時間', '優先級'],
+                '日記': ['日期', '內容', '天氣', '心情', '時間'],
+                '願望': ['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間'],
+                '願望清單': ['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間'],
+                '口袋': ['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度'],
+                'AI_指令集': ['觸發語句', '執行動作'],
+                '💰股票投資組合': ['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']
+            }
+            
+            if sheet_title in standard_headers_map:
+                standard_headers = standard_headers_map[sheet_title]
+                is_full_sheet_read = '!' not in range_name or (':' not in range_name and len(values[0]) > 1)
+                
+                if is_full_sheet_read:
+                    current_headers = values[0]
+                    if len(current_headers) != len(standard_headers) or current_headers != standard_headers:
+                        print(f"[Self-Healing] Detected header mismatch in sheet '{sheet_title}': {current_headers} vs standard {standard_headers}. Overwriting...")
+                        
+                        col_letter = chr(ord('A') + len(standard_headers) - 1)
+                        header_range = f"{sheet_title}!A1:{col_letter}1"
+                        
+                        service.spreadsheets().values().update(
+                            spreadsheetId=spreadsheet_id,
+                            range=header_range,
+                            valueInputOption='USER_ENTERED',
+                            body={'values': [standard_headers]}
+                        ).execute()
+                        
+                        values[0] = standard_headers
+                        
+                    # 🔒 全局表頭警告保護鎖自癒守衛 (Header Protection Lock Self-Healing Sandbox)
+                    # 包裝在完全獨立的 try-except 程式沙盒中，完美解耦，保證絕不干擾主流程數據讀取
+                    try:
+                        meta = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+                        sheet_obj = None
+                        for s in meta.get('sheets', []):
+                            if s['properties']['title'] == sheet_title:
+                                sheet_obj = s
+                                break
+                                
+                        if sheet_obj:
+                            sheet_id = sheet_obj['properties']['sheetId']
+                            protected_ranges = sheet_obj.get('protectedRanges', [])
+                            
+                            has_header_protect = any(
+                                p.get('range', {}).get('startRowIndex') == 0 and p.get('range', {}).get('endRowIndex') == 1
+                                for p in protected_ranges
+                            )
+                            
+                            if not has_header_protect:
+                                print(f"[Header Lock Self-Healing] '{sheet_title}' is missing Row 1 header warning lock. Restoring...")
+                                req = {
+                                    "addProtectedRange": {
+                                        "protectedRange": {
+                                            "range": {
+                                                "sheetId": sheet_id,
+                                                "startRowIndex": 0,
+                                                "endRowIndex": 1,
+                                                "startColumnIndex": 0,
+                                                "endColumnIndex": len(standard_headers)
+                                            },
+                                            "description": f"系統 {sheet_title} 核心表頭，請勿任意變動以防當機",
+                                            "warningOnly": True
+                                        }
+                                    }
+                                }
+                                service.spreadsheets().batchUpdate(
+                                    spreadsheetId=spreadsheet_id,
+                                    body={'requests': [req]}
+                                ).execute()
+                                print(f"[Header Lock Self-Healing] Header warning lock successfully restored for '{sheet_title}'!")
+                    except Exception as lock_err:
+                        print(f"[Header Lock Self-Healing Error] Skipped header lock restoration on '{sheet_title}' due to: {lock_err}")
+    except Exception as heal_err:
+        print(f"[Self-Healing Error] Central protector failed silently: {heal_err}")
+        
+    return values
 
 def find_row_by_id(rows, target_id, id_col_idx):
     """
@@ -705,10 +935,18 @@ def get_monthly_report(service, now):
         print(f"Error generating monthly report: {e}")
         return 0, "", {}, 0
 
-def check_conflicts(service, start_time, end_time, exclude_id=None):
+def check_conflicts(service, start_time, end_time, exclude_id=None, summary=None):
     """
     檢查指定時間範圍內是否有衝突的行程。
     """
+    # 🌸 核心生理期防禦護盾：生理期為背景標記，豁免於衝突檢測，絕對放行！
+    if summary:
+        summary_str = str(summary).strip()
+        is_period = any(k in summary_str for k in ['生理期', '月經', '經期', '🌸'])
+        if is_period:
+            print(f"[Period Bypass] 偵測到生理期標題 '{summary_str}'，自動豁免衝突限制！")
+            return None
+
     try:
         t_min = ensure_tz(start_time)
         t_max = ensure_tz(end_time)
@@ -727,6 +965,9 @@ def check_conflicts(service, start_time, end_time, exclude_id=None):
         # 排除指定的 ID (用於更新行程時)
         if exclude_id:
             conflicts = [e for e in conflicts if e.get('id') != exclude_id]
+            
+        # 🛡️ 雙向防護盾：同時過濾掉日曆中已存在的「生理期背景提示」，因為它們是背景記錄，不應阻擋其他正常行程排入！
+        conflicts = [e for e in conflicts if not any(k in e.get('summary', '') for k in ['生理期', '月經', '經期', '🌸'])]
             
         if conflicts:
             titles = [e.get('summary', '無標題') for e in conflicts]
@@ -798,7 +1039,31 @@ def index():
     
     # 支援單人模式 (直接使用 Service Account，繞過登入)
     if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        # 單人開發者模式下，若未有模擬 Session，強行賦予全功能旗艦權限與無限 AI 點數，確保開發一切順暢
+        if not session.get('user_email'):
+            session['is_subscribed'] = True
+            session['subscription_type'] = 'YEARLY_AI'
+            session['ai_points'] = 9999
+            session['has_stock_record'] = True
+            session['user_email'] = 'ulir976272866@gmail.com'
+        
         urls = get_sheet_urls()
+        
+        # 🚀 在主線程預先獲取已授權的 sheets service 物件，避免背景線程失去 Session 上下文
+        try:
+            user_sheets_service = get_sheets_service()
+        except Exception:
+            user_sheets_service = None
+            
+        # 🚀 背景非同步啟動全局自癒與警告鎖，極致流暢防呆！
+        import threading
+        spreadsheet_id = session.get('spreadsheet_id') or os.getenv("GOOGLE_SHEET_ID")
+        if spreadsheet_id:
+            threading.Thread(
+                target=ensure_all_sheets_warning_protected, 
+                args=(spreadsheet_id, user_sheets_service)
+            ).start()
+            
         return render_template(
             'index.html', 
             maps_api_key=maps_api_key, 
@@ -824,6 +1089,21 @@ def index():
             logged_in = False
         else:
             urls = get_sheet_urls()
+            
+            # 🚀 在主線程預先獲取已授權的 sheets service 物件，避免背景線程失去 Session 上下文
+            try:
+                user_sheets_service = get_sheets_service()
+            except Exception:
+                user_sheets_service = None
+                
+            # 🚀 背景非同步啟動全局自癒與警告鎖，極致流暢防呆！
+            import threading
+            spreadsheet_id = session.get('spreadsheet_id') or os.getenv("GOOGLE_SHEET_ID")
+            if spreadsheet_id:
+                threading.Thread(
+                    target=ensure_all_sheets_warning_protected, 
+                    args=(spreadsheet_id, user_sheets_service)
+                ).start()
             
     return render_template(
         'index.html', 
@@ -890,18 +1170,20 @@ def callback():
             # 從 TiDB 查詢使用者
             user = get_user_by_email(user_email)
             if not user and os.getenv("SINGLE_USER_MODE", "false").lower() != "true":
-                # 全新註冊的用戶，自動寫入 TiDB (預設為免費版)
+                # 全新註冊的用戶，自動開啟「7天旗艦版全功能免費試用」！
                 try:
                     conn = get_db_connection()
                     with conn.cursor() as cursor:
                         new_uid = f"uid_{uuid.uuid4().hex[:12]}"
+                        from datetime import datetime, timedelta
+                        trial_expiry = datetime.now() + timedelta(days=7)
                         cursor.execute(
-                            "INSERT INTO users (user_id, email, is_subscribed, subscription_type, ai_points, trial_used) VALUES (%s, %s, FALSE, 'NONE', 0, FALSE);",
-                            (new_uid, user_email)
+                            "INSERT INTO users (user_id, email, is_subscribed, subscription_type, ai_points, trial_used, trial_expires_at, has_stock_record) VALUES (%s, %s, TRUE, 'YEARLY_AI', 100, TRUE, %s, TRUE);",
+                            (new_uid, user_email, trial_expiry)
                         )
                         conn.commit()
                     user = get_user_by_email(user_email)
-                    print(f"Successfully registered new user in TiDB: {user_email}")
+                    print(f"Successfully registered new user with 7-day flagship trial in TiDB: {user_email}")
                 except Exception as ex:
                     print(f"Failed to auto register new user in TiDB: {ex}")
                 finally:
@@ -914,6 +1196,23 @@ def callback():
                 session['subscription_type'] = user.get('subscription_type', 'NONE')
                 session['ai_points'] = user.get('ai_points', 0)
                 session['has_stock_record'] = bool(user.get('has_stock_record'))
+                
+                # 注入試用期狀態，以便前端模板進行特別樣式渲染
+                if user.get('trial_expires_at'):
+                    from datetime import datetime
+                    expires_at = user.get('trial_expires_at')
+                    if isinstance(expires_at, str):
+                        try:
+                            expires_at = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S")
+                        except ValueError:
+                            pass
+                    if expires_at and datetime.now() < expires_at:
+                        session['is_trial_active'] = True
+                    else:
+                        session['is_trial_active'] = False
+                else:
+                    session['is_trial_active'] = False
+
                 if user.get('google_spreadsheet_id'):
                     session['spreadsheet_id'] = user.get('google_spreadsheet_id')
                     print(f"Loaded existing spreadsheet_id from TiDB: {user.get('google_spreadsheet_id')}")
@@ -934,16 +1233,24 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 
-@app.route('/dev/switch_role', methods=['POST'])
+@app.route('/dev/switch_role', methods=['GET', 'POST'])
 def dev_switch_role():
     """沙盒身分模擬切換 API (限本地除錯且多人版啟用時)"""
-    # 雙重防安全開線：必須是 Debug 且 SINGLE_USER_MODE=false
-    if not app.debug or os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+    # 雙重防安全開線：必須是 Debug 偵錯模式
+    if not app.debug:
         return jsonify({"status": "error", "message": "此除錯路由已實體防禦阻斷"}), 403
         
-    data = request.json or {}
-    role = data.get('role', 'FREE')
+    role = "FREE"
+    email = None
     
+    if request.method == 'POST':
+        data = request.json or {}
+        role = data.get('role', 'FREE')
+        email = data.get('email')
+    else:
+        role = request.args.get('role', 'FREE').upper()
+        email = request.args.get('email')
+
     # 映射到三組真實的沙盒信箱與會員特權
     role_mapping = {
         'FREE': {
@@ -954,46 +1261,118 @@ def dev_switch_role():
             'has_stock_record': False
         },
         'BASIC': {
-            'email': 'inming399@gmail.com',
+            'email': 'min272866@gmail.com',
             'is_subscribed': True,
             'subscription_type': 'MONTHLY_AI',
             'ai_points': 500,
             'has_stock_record': False
         },
         'PREMIUM': {
-            'email': 'min272866@gmail.com',
+            'email': 'inming399@gmail.com',
             'is_subscribed': True,
             'subscription_type': 'YEARLY_AI',
             'ai_points': 1000,
+            'has_stock_record': True
+        },
+        'DEVELOPER': {
+            'email': 'ulir976272866@gmail.com',
+            'is_subscribed': True,
+            'subscription_type': 'YEARLY_AI',
+            'ai_points': 9999,
             'has_stock_record': True
         }
     }
     
     target = role_mapping.get(role)
     if not target:
-        return jsonify({"status": "error", "message": "無效的角色參數"}), 400
-        
-    # 將模擬身份強行寫入 Session
-    session['user_email'] = target['email']
-    session['is_subscribed'] = target['is_subscribed']
-    session['subscription_type'] = target['subscription_type']
-    session['ai_points'] = target['ai_points']
-    session['has_stock_record'] = target['has_stock_record']
+        # 兼容小寫或縮寫
+        if role in ['NONE', 'FREE']:
+            target = role_mapping['FREE']
+        elif role in ['MONTHLY_AI', 'BASIC']:
+            target = role_mapping['BASIC']
+        elif role in ['YEARLY_AI', 'PREMIUM']:
+            target = role_mapping['PREMIUM']
+        else:
+            return jsonify({"status": "error", "message": "無效的角色參數"}), 400
+            
+    # 如果傳入了自訂的信箱，覆蓋預設的沙盒信箱，並進行自動註冊
+    user_email = email if email else target['email']
     
-    # 重新加載試算表 ID (如果資料庫裡有紀錄就載入，沒有就清空 session spreadsheet_id 觸發重新 Drive 探測)
-    user = get_user_by_email(target['email'])
-    if user and user.get('google_spreadsheet_id'):
-        session['spreadsheet_id'] = user.get('google_spreadsheet_id')
-    else:
-        session.pop('spreadsheet_id', None)
+    # 檢查該自訂信箱在 TiDB 中是否存在，若不存在且非單人模式則進行自動註冊
+    if os.getenv("SINGLE_USER_MODE", "false").lower() != "true":
+        user = get_user_by_email(user_email)
+        if not user:
+            try:
+                conn = get_db_connection()
+                with conn.cursor() as cursor:
+                    new_uid = f"uid_{uuid.uuid4().hex[:12]}"
+                    is_sub = target['is_subscribed']
+                    sub_type = target['subscription_type']
+                    points = target['ai_points']
+                    from datetime import datetime, timedelta
+                    trial_expiry = datetime.now() + timedelta(days=7)
+                    cursor.execute(
+                        "INSERT INTO users (user_id, email, is_subscribed, subscription_type, ai_points, trial_used, trial_expires_at, has_stock_record) VALUES (%s, %s, %s, %s, %s, TRUE, %s, TRUE);",
+                        (new_uid, user_email, is_sub, sub_type, points, trial_expiry)
+                    )
+                    conn.commit()
+                print(f"Successfully registered custom test user via switch_role: {user_email}")
+            except Exception as ex:
+                print(f"Failed to auto register custom test user via switch_role: {ex}")
+            finally:
+                if 'conn' in locals() and conn:
+                    conn.close()
+
+    # 再次查詢使用者狀態，以獲得寫入資料庫後的精準資料
+    user = get_user_by_email(user_email)
+    if user:
+        session['user_email'] = user.get('email')
+        session['is_subscribed'] = bool(user.get('is_subscribed'))
+        session['subscription_type'] = user.get('subscription_type', 'NONE')
+        session['ai_points'] = user.get('ai_points', 0)
+        session['has_stock_record'] = bool(user.get('has_stock_record'))
         
-    print(f"Developer Switch Role Success! Current mock session email: {target['email']}, subscription_type: {target['subscription_type']}")
+        # 注入試用期狀態
+        if user.get('trial_expires_at'):
+            from datetime import datetime
+            expires_at = user.get('trial_expires_at')
+            if isinstance(expires_at, str):
+                try:
+                    expires_at = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    pass
+            if expires_at and datetime.now() < expires_at:
+                session['is_trial_active'] = True
+            else:
+                session['is_trial_active'] = False
+        else:
+            session['is_trial_active'] = False
+
+        if user.get('google_spreadsheet_id'):
+            session['spreadsheet_id'] = user.get('google_spreadsheet_id')
+        else:
+            session.pop('spreadsheet_id', None)
+    else:
+        # 單人模式或資料庫查詢異常時，使用映射的預設沙盒 session
+        session['user_email'] = user_email
+        session['is_subscribed'] = target['is_subscribed']
+        session['subscription_type'] = target['subscription_type']
+        session['ai_points'] = target['ai_points']
+        session['has_stock_record'] = target['has_stock_record']
+        session.pop('spreadsheet_id', None)
+
+    print(f"Developer Switch Role Success! Current mock session email: {session['user_email']}, subscription_type: {session['subscription_type']}")
+    
+    if request.method == 'GET':
+        # GET 請求時直接重導向回首頁，方便手機上點擊連結一步到位！
+        return redirect(url_for('index'))
+        
     return jsonify({
         "status": "success",
         "message": f"成功切換身份為 {role}",
-        "user_email": target['email'],
-        "subscription_type": target['subscription_type'],
-        "ai_points": target['ai_points']
+        "user_email": session['user_email'],
+        "subscription_type": session['subscription_type'],
+        "ai_points": session['ai_points']
     })
 
 
@@ -1052,6 +1431,8 @@ def chat():
             bypass_data = {"type": "query_schedule", "days": 7}
         elif user_text == "本月合計":
             bypass_data = {"type": "query_expense_report"}
+        elif user_text in ["投資持股", "查詢持股", "存股明細"]:
+            bypass_data = {"type": "query_stock_portfolio"}
         elif user_text == "開啟記帳表單":
             bypass_data = {"type": "open_spreadsheet"}
         elif user_text.startswith("+行程"):
@@ -1147,7 +1528,21 @@ def chat():
         - 行事曆：type: "calendar" (title, start_time, location)
         - 查詢行程/未來/今日/本週行程：type: "query_schedule" (days: 查詢天數，預設 1) (例如：「今日行程」、「這週行程」、「未來三天行程」)
         - 查詢已完成行程：type: "query_completed_schedule" (keyword: 搜尋關鍵字如離職或 null, days: 過去查詢天數，預設 30) (例如：「查詢過去30天內完成的行程」、「我上週完成了什麼」、「搜尋已完成的池府王爺行程」、「查詢過三天內已完成的行程」)
+        - 股票交易：type: "stock" (ticker: 股票代號如 "TPE:2330"、"NASDAQ:AAPL", name: 股票名稱如 "台積電", tx_type: "買進" 或 "賣出", shares: 交易股數(整數，例如: 一張=1000股，10張=10000股，零股則依實際股數), price: 單價(浮點數), fee: 手續費(浮點數，預設為 0), date: 交易日期 "YYYY-MM-DD")
         - 其他：chat, query_expense_report
+        
+        【股票代碼自動映射對照】：
+        - 台積電 / 2330 -> "TPE:2330"
+        - 鴻海 / 2317 -> "TPE:2317"
+        - 聯發科 / 2454 -> "TPE:2454"
+        - 長榮航 / 2618 -> "TPE:2618"
+        - 長榮 / 2603 -> "TPE:2603"
+        - 聯電 / 2303 -> "TPE:2303"
+        - 富邦金 / 2881 -> "TPE:2881"
+        - 國泰金 / 2882 -> "TPE:2882"
+        - 蘋果 / Apple / AAPL -> "NASDAQ:AAPL"
+        - 輝達 / Nvidia / NVDA -> "NASDAQ:NVDA"
+        - 特斯拉 / Tesla / TSLA -> "NASDAQ:TSLA"
         
         【特別規則】：如果是領錢、薪水、進帳、退款、中獎等屬於「收入」，請將 expense_type 設為 "income"。
         {ai_rules_str}
@@ -1238,7 +1633,8 @@ def chat():
             conflict_msg = check_conflicts(
                 service, 
                 event['start'].get('dateTime', event['start'].get('date')), 
-                event['end'].get('dateTime', event['end'].get('date'))
+                event['end'].get('dateTime', event['end'].get('date')),
+                summary=event.get('summary')
             )
             if conflict_msg: 
                 return jsonify({"status": "error", "message": conflict_msg})
@@ -1295,6 +1691,13 @@ def chat():
             _, cat_report, cat_dict, _ = get_monthly_report(service, now)
             return jsonify({"status": "success", "type": "expense_report", "message": f"📊 本月結算：\n\n{cat_report}", "chart_data": cat_dict})
 
+        elif intent_type == "query_stock_portfolio":
+            spreadsheet_id = get_spreadsheet_id()
+            if not spreadsheet_id:
+                return jsonify({"status": "error", "message": "尚未連結試算表"})
+            report_text = get_stock_portfolio_report_text(spreadsheet_id)
+            return jsonify({"status": "success", "type": "chat", "message": report_text})
+
         elif intent_type == "delete_last_expense":
             service = get_sheets_service()
             res = service.spreadsheets().values().get(spreadsheetId=SPREADSHEET_ID, range='記帳!A:F').execute()
@@ -1318,6 +1721,55 @@ def chat():
                 "type": "open_spreadsheet",
                 "url": link,
                 "message": f"已為您準備好記帳本連結：\n<a href='{link}' target='_blank' class='chat-link'>點此開啟記帳本</a>"
+            })
+
+        elif intent_type == "stock":
+            user_email = session.get('user_email', '')
+            db = get_db_connection()
+            try:
+                with db.cursor() as cur:
+                    cur.execute("SELECT subscription_type FROM users WHERE email = %s", (user_email,))
+                    row = cur.fetchone()
+                    sub_type = row['subscription_type'] if row else 'NONE'
+            except Exception as e:
+                print(f"Error checking stock subscription in chat: {e}")
+                sub_type = 'NONE'
+            finally:
+                db.close()
+                
+            WHITELIST_EMAILS = ['ulir976272866@gmail.com', 'mina.chen.xstar.sg@gmail.com']
+            if sub_type != 'YEARLY_AI' and user_email not in WHITELIST_EMAILS:
+                return jsonify({
+                    "status": "success",
+                    "type": "stock_locked",
+                    "message": "🔒 「智慧股票投資記帳」為尊榮旗艦版 (YEARLY_AI) 獨享功能，請升級後體驗語音智慧自動填單功能喔！"
+                })
+                
+            ticker = parsed_data.get('ticker')
+            name = parsed_data.get('name')
+            tx_type = parsed_data.get('tx_type', '買進')
+            shares = parsed_data.get('shares', 0)
+            price = parsed_data.get('price', 0.0)
+            fee = parsed_data.get('fee', 0.0)
+            date = parsed_data.get('date') or now.strftime('%Y-%m-%d')
+            
+            msg = f"📈 偵測到股票交易意圖：\n• 交易類型：{tx_type}\n• 股票：{name} ({ticker})\n• 股數：{shares} 股\n• 單價：${price}\n\n已自動為您預填入新增表單，請核對無誤後確認送出！"
+            if ai_response_message:
+                msg = f"{ai_response_message}\n\n{msg}"
+                
+            return jsonify({
+                "status": "success",
+                "type": "stock_prefill",
+                "message": msg,
+                "stock_data": {
+                    "ticker": ticker,
+                    "name": name,
+                    "tx_type": tx_type,
+                    "shares": shares,
+                    "price": price,
+                    "fee": fee,
+                    "date": date
+                }
             })
 
         elif intent_type == "chat":
@@ -1389,9 +1841,10 @@ def get_memos():
             if len(row) > 3:
                 memos.append({
                     'date': row[0],
-                    'mood': row[1],
+                    'content': row[1],
                     'weather': row[2],
-                    'content': row[3]
+                    'mood': row[3] if len(row) > 3 else '',
+                    'time': row[4] if len(row) > 4 else ''
                 })
         return jsonify({"status": "success", "data": memos})
     except Exception as e:
@@ -1622,7 +2075,8 @@ def manual_action():
 
             # 檢查衝突
             conflict_msg = check_conflicts(service, event['start'].get('dateTime', event['start'].get('date')), 
-                                          event['end'].get('dateTime', event['end'].get('date')))
+                                          event['end'].get('dateTime', event['end'].get('date')),
+                                          summary=event.get('summary'))
             
             if conflict_msg:
                 return jsonify({
@@ -1722,13 +2176,15 @@ def handle_wishlist():
             datetime.now(TW_TZ).strftime("%H:%M:%S")
         ]
         try:
-            append_to_sheet('願望清單', row, spreadsheet_id=wish_id)
+            tab_name = get_wish_tab_name(wish_id)
+            append_to_sheet(tab_name, row, spreadsheet_id=wish_id)
             return jsonify({"status": "success", "message": "願望已許下", "id": unique_id})
         except Exception as e:
             return jsonify({"status": "error", "message": f"寫入失敗：{str(e)}"}), 500
     else:
         try:
-            rows = get_sheet_values('願望清單', spreadsheet_id=wish_id)
+            tab_name = get_wish_tab_name(wish_id)
+            rows = get_sheet_values(tab_name, spreadsheet_id=wish_id)
             if not rows or len(rows) < 1: return jsonify([])
             
             headers = [h.strip() for h in rows[0]] # 去除表頭空格
@@ -1774,10 +2230,11 @@ def fulfill_wish():
         return jsonify({"status": "error", "message": "找不到該願望"})
         
     service = get_sheets_service()
+    tab_name = get_wish_tab_name(wish_id, service)
     # 更新狀態 (E 欄, index 4), 實際價格 (G 欄, index 6), 唯一ID (H 欄, index 7)
     service.spreadsheets().values().update(
         spreadsheetId=wish_id,
-        range=f'願望清單!E{target_row_idx}:H{target_row_idx}',
+        range=f'{tab_name}!E{target_row_idx}:H{target_row_idx}',
         valueInputOption='USER_ENTERED',
         body={'values': [['已圓夢', rows[target_row_idx-1][5] if len(rows[target_row_idx-1]) > 5 else '', actual_price, item_id]]}
     ).execute()
@@ -1817,10 +2274,11 @@ def delete_wish():
         return jsonify({"status": "error", "message": f"找不到該願望 (ID: {item_id})"})
 
     service = get_sheets_service()
+    tab_name = get_wish_tab_name(wish_id, service)
     # 更新狀態為「已取消」 (E 欄)
     service.spreadsheets().values().update(
         spreadsheetId=wish_id,
-        range=f'願望清單!E{target_row_idx}',
+        range=f'{tab_name}!E{target_row_idx}',
         valueInputOption='USER_ENTERED',
         body={'values': [['已取消']]}
     ).execute()
@@ -1988,11 +2446,12 @@ def update_wish():
 
     # 分次更新以確保準確
     service = get_sheets_service()
+    tab_name = get_wish_tab_name(wish_id, service)
     
     # 1. 更新名稱、價格、備註 (B-D 欄)
     service.spreadsheets().values().update(
         spreadsheetId=wish_id,
-        range=f'願望清單!B{target_row_idx}:D{target_row_idx}',
+        range=f'{tab_name}!B{target_row_idx}:D{target_row_idx}',
         valueInputOption='USER_ENTERED',
         body={'values': [[name, price, note]]}
     ).execute()
@@ -2001,7 +2460,7 @@ def update_wish():
     if category:
         service.spreadsheets().values().update(
             spreadsheetId=wish_id,
-            range=f'願望清單!F{target_row_idx}',
+            range=f'{tab_name}!F{target_row_idx}',
             valueInputOption='USER_ENTERED',
             body={'values': [[category]]}
         ).execute()
@@ -2009,7 +2468,7 @@ def update_wish():
     # 3. 更新最後儲存時間 (I 欄)
     service.spreadsheets().values().update(
         spreadsheetId=wish_id,
-        range=f'願望清單!I{target_row_idx}',
+        range=f'{tab_name}!I{target_row_idx}',
         valueInputOption='USER_ENTERED',
         body={'values': [[datetime.now(TW_TZ).strftime("%H:%M:%S")]]}
     ).execute()
@@ -2130,7 +2589,8 @@ def update_event():
         conflict_msg = check_conflicts(service, 
                                       event['start'].get('dateTime', event['start'].get('date')), 
                                       event['end'].get('dateTime', event['end'].get('date')),
-                                      exclude_id=event_id)
+                                      exclude_id=event_id,
+                                      summary=event.get('summary'))
         
         if conflict_msg:
              return jsonify({
@@ -2176,11 +2636,10 @@ def handle_pocket(action, data=None):
 
     if action == 'list':
         try:
-            result = service.spreadsheets().values().get(
-                spreadsheetId=sheet_id, range='A2:I').execute()
-            rows = result.get('values', [])
+            rows = get_sheet_values('口袋', spreadsheet_id=sheet_id)
+            if not rows: return []
             pocket_list = []
-            for row in rows:
+            for row in rows[1:]: # 跳過表頭
                 if len(row) >= 3:
                     loc_val = row[3] if len(row) > 3 else ''
                     area_val = row[4] if len(row) > 4 else ''
@@ -2239,7 +2698,7 @@ def handle_pocket(action, data=None):
             values = [[item_id, category, name, location, area, note, create_time, lat, lng]]
             body = {'values': values}
             service.spreadsheets().values().append(
-                spreadsheetId=sheet_id, range='A2',
+                spreadsheetId=sheet_id, range='口袋!A2',
                 valueInputOption='RAW', body=body).execute()
             return True
         except Exception as e:
@@ -2249,20 +2708,24 @@ def handle_pocket(action, data=None):
     elif action == 'delete':
         try:
             target_id = data.get('id')
-            # 1. 先獲取試算表資訊，找出第一個分頁的 sheetId
+            # 1. 先獲取試算表資訊，找出「口袋」分頁的 sheetId
             spreadsheet_metadata = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
-            first_sheet_id = spreadsheet_metadata['sheets'][0]['properties']['sheetId']
-
-            # 2. 找出 ID 所在的行號
-            result = service.spreadsheets().values().get(
-                spreadsheetId=sheet_id, range='A:A').execute()
-            ids = result.get('values', [])
-            
-            row_index = -1
-            for i, row in enumerate(ids):
-                if row and row[0] == target_id:
-                    row_index = i
+            pocket_sheet_id = None
+            for sheet in spreadsheet_metadata['sheets']:
+                if sheet['properties']['title'] == '口袋':
+                    pocket_sheet_id = sheet['properties']['sheetId']
                     break
+            if pocket_sheet_id is None:
+                pocket_sheet_id = spreadsheet_metadata['sheets'][0]['properties']['sheetId']
+
+            # 2. 找出 ID 所在的行號 (利用 get_sheet_values 觸發自癒，且定位為 0-based)
+            rows = get_sheet_values('口袋', spreadsheet_id=sheet_id)
+            row_index = -1
+            if rows:
+                for i, row in enumerate(rows):
+                    if row and row[0] == target_id:
+                        row_index = i
+                        break
             
             if row_index == -1:
                 return False
@@ -2272,7 +2735,7 @@ def handle_pocket(action, data=None):
                 'requests': [{
                     'deleteDimension': {
                         'range': {
-                            'sheetId': first_sheet_id,
+                            'sheetId': pocket_sheet_id,
                             'dimension': 'ROWS',
                             'startIndex': row_index,
                             'endIndex': row_index + 1
@@ -2291,22 +2754,20 @@ def handle_pocket(action, data=None):
             target_id = data.get('id')
             new_cat = data.get('category', '常用')
 
-            result = service.spreadsheets().values().get(
-                spreadsheetId=sheet_id, range='A:A').execute()
-            ids = result.get('values', [])
-
+            rows = get_sheet_values('口袋', spreadsheet_id=sheet_id)
             row_index = -1
-            for i, row in enumerate(ids):
-                if row and row[0] == target_id:
-                    row_index = i + 1
-                    break
+            if rows:
+                for i, row in enumerate(rows):
+                    if row and row[0] == target_id:
+                        row_index = i + 1
+                        break
 
             if row_index == -1:
                 return False
 
             body = {'values': [[new_cat]]}
             service.spreadsheets().values().update(
-                spreadsheetId=sheet_id, range=f'B{row_index}',
+                spreadsheetId=sheet_id, range=f'口袋!B{row_index}',
                 valueInputOption='RAW', body=body).execute()
             return True
         except Exception as e:
@@ -2319,30 +2780,28 @@ def handle_pocket(action, data=None):
             new_note = data.get('note', '')
             new_name = data.get('name')
 
-            result = service.spreadsheets().values().get(
-                spreadsheetId=sheet_id, range='A:A').execute()
-            ids = result.get('values', [])
-
+            rows = get_sheet_values('口袋', spreadsheet_id=sheet_id)
             row_index = -1
-            for i, row in enumerate(ids):
-                if row and row[0] == target_id:
-                    row_index = i + 1
-                    break
+            if rows:
+                for i, row in enumerate(rows):
+                    if row and row[0] == target_id:
+                        row_index = i + 1
+                        break
 
             if row_index == -1:
                 return False
 
-            # 更新自訂稱呼 (Column F，即 'F' + row_index)
+            # 更新自訂稱呼 (Column F，即 '口袋!F' + row_index)
             body_note = {'values': [[new_note]]}
             service.spreadsheets().values().update(
-                spreadsheetId=sheet_id, range=f'F{row_index}',
+                spreadsheetId=sheet_id, range=f'口袋!F{row_index}',
                 valueInputOption='RAW', body=body_note).execute()
 
-            # 若有傳入主要名稱，更新主要名稱 (Column C，即 'C' + row_index)
+            # 若有傳入主要名稱，更新主要名稱 (Column C，即 '口袋!C' + row_index)
             if new_name is not None:
                 body_name = {'values': [[new_name]]}
                 service.spreadsheets().values().update(
-                    spreadsheetId=sheet_id, range=f'C{row_index}',
+                    spreadsheetId=sheet_id, range=f'口袋!C{row_index}',
                     valueInputOption='RAW', body=body_name).execute()
 
             return True
@@ -2398,7 +2857,7 @@ def get_current_cycle_status():
         if not rows or len(rows) < 2:
             return None
             
-        history = []
+        parsed_history = []
         cycles = []
         lengths = []
         
@@ -2409,7 +2868,16 @@ def get_current_cycle_status():
              symptoms = row[6] if len(row) > 6 else ""
              
              if start_d:
-                 history.append({"start": start_d, "end": end_d, "symptoms": symptoms})
+                 try:
+                     parsed_dt = datetime.strptime(start_d.strip(), "%Y/%m/%d")
+                     parsed_history.append({
+                         "start": start_d.strip(),
+                         "end": end_d.strip(),
+                         "symptoms": symptoms.strip(),
+                         "dt": parsed_dt
+                     })
+                 except Exception as e:
+                     print(f"Skipping bad date format in row: {row}, error: {e}")
                  
              try:
                  if len(row) > 5 and row[5].strip():
@@ -2417,6 +2885,13 @@ def get_current_cycle_status():
                  if len(row) > 4 and row[4].strip():
                      lengths.append(int(row[4]))
              except: pass
+        
+        if not parsed_history:
+            return None
+            
+        # 依開始日期進行降序排列（最新日期在最前面 history[0]），確保 latest_start 始終為最新紀錄，徹底防禦歷史亂序補錄
+        parsed_history.sort(key=lambda x: x["dt"], reverse=True)
+        history = [{"start": item["start"], "end": item["end"], "symptoms": item["symptoms"]} for item in parsed_history]
                  
         avg_cycle = round(sum(cycles)/len(cycles)) if cycles else 31
         avg_length = round(sum(lengths)/len(lengths)) if lengths else 7
@@ -2531,24 +3006,961 @@ def get_health_info():
     try:
         status = get_current_cycle_status()
         if not status:
-            return jsonify({"status": "success", "history": [], "avg_cycle": 28, "avg_length": 5, "days_until_next": 28, "next_date": "", "current_phase": "安全期 (濾泡期)", "phase_desc": "代謝極佳、思緒敏捷。"})
+            return jsonify({
+                "status": "success",
+                "history": [],
+                "avg_cycle": 28,
+                "avg_length": 5,
+                "days_until_next": 28,
+                "next_date": "",
+                "current_phase": "安全期 (濾泡期)",
+                "phase_desc": "代謝極佳、思緒敏捷。精力充沛、皮膚狀況極佳，適合衝刺事業與高強度鍛鍊！",
+                "phase_icon": "🟢",
+                "pregnancy_probability": "🍀 不易懷孕 (安全期)",
+                "is_cold_start": True
+            })
             
         rows = get_sheet_values('生理紀錄', spreadsheet_id=health_id)
-        history = []
+        parsed_history = []
         for row in rows[1:]:
              start_d = row[2] if len(row) > 2 else ""
              end_d = row[3] if len(row) > 3 and row[3].strip() else "進行中"
              symptoms = row[6] if len(row) > 6 else ""
              if start_d:
-                 history.append({"start": start_d, "end": end_d, "symptoms": symptoms})
-                 
+                 try:
+                     parsed_dt = datetime.strptime(start_d.strip(), "%Y/%m/%d")
+                     parsed_history.append({
+                         "start": start_d.strip(),
+                         "end": end_d.strip(),
+                         "symptoms": symptoms.strip(),
+                         "dt": parsed_dt
+                     })
+                 except:
+                     pass
+                     
+        # 依開始日期降序排列
+        parsed_history.sort(key=lambda x: x["dt"], reverse=True)
+        history = [{"start": item["start"], "end": item["end"], "symptoms": item["symptoms"]} for item in parsed_history]
+        
+        # 歷史紀錄小於 2 筆即為冷啟動狀態
+        is_cold_start = len(history) < 2
+                  
         return jsonify({
             "status": "success",
             "history": history[:3],
+            "is_cold_start": is_cold_start,
             **status
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/health/agree_disclaimer', methods=['POST'])
+def agree_disclaimer():
+    """
+    雙重防線存證免責聲明：
+    1. 在用戶的 Google 試算表「生理紀錄」中寫入一筆 SYSTEM 屬性的合規簽署紀錄 (Column A=SYSTEM, B=LEGAL, C=SYSTEM_NOTICE, D=AGREED, G=簽署日期與說明)。
+    2. 若非單人模式且非開發者模擬，則在 TiDB users 資料庫寫入簽署時間戳記。
+    """
+    health_id = get_health_sheet_id()
+    email = session.get('user_email', '')
+    
+    now_str = datetime.now(TW_TZ).strftime("%Y-%m-%d %H:%M:%S")
+    
+    # 1. 寫入用戶的 Google 試算表（去中心化永久備份）
+    if health_id:
+        try:
+            # 欄位：年度, 月份, 開始日期, 結束日期, 經期天數, 週期天數, 症狀/心情/備註
+            row = [
+                "SYSTEM", 
+                "LEGAL", 
+                "SYSTEM_NOTICE", 
+                "AGREED", 
+                "", 
+                "", 
+                f"已於 {now_str} 同意醫療暨避孕免責聲明 V1.0"
+            ]
+            append_to_sheet('生理紀錄', row, spreadsheet_id=health_id)
+            print(f"[Google Sheet Consent Log] 成功為使用者 {email} 於試算表寫入簽署存證。")
+        except Exception as e:
+            print(f"[Google Sheet Consent Log] 寫入試算表失敗: {e}")
+            
+    # 2. 寫入 TiDB 雲端資料庫（開發者防抵賴存證）
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "false" and email:
+        try:
+            conn = get_db_connection()
+            with conn.cursor() as cursor:
+                # 🛡️ 自癒式資料庫遷移：嘗試新增欄位（如果欄位不存在）
+                try:
+                    cursor.execute("ALTER TABLE users ADD COLUMN menstrual_disclaimer_agreed_at TIMESTAMP NULL DEFAULT NULL;")
+                    conn.commit()
+                    print("[TiDB Consent Log] 成功執行資料庫自動升級，新增 menstrual_disclaimer_agreed_at 欄位。")
+                except Exception as db_err:
+                    # 若已存在則會報錯，直接忽略即可
+                    pass
+                
+                # 寫入同意時間
+                cursor.execute(
+                    "UPDATE users SET menstrual_disclaimer_agreed_at = NOW() WHERE email = %s;",
+                    (email,)
+                )
+                conn.commit()
+                print(f"[TiDB Consent Log] 成功為使用者 {email} 於 TiDB 寫入簽署時間戳記。")
+        except Exception as e:
+            print(f"[TiDB Consent Log] 寫入 TiDB 失敗: {e}")
+            
+    return jsonify({"status": "success", "message": "免責聲明簽署存證寫入成功！"})
+
+@app.route('/api/health/check_disclaimer', methods=['GET'])
+def check_disclaimer():
+    """
+    檢查使用者是否已經同意過免責聲明（雙重保險判定，跨裝置同步）。
+    """
+    email = session.get('user_email', '')
+    
+    # 1. 優先從 TiDB 資料庫查詢
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "false" and email:
+        try:
+            conn = get_db_connection()
+            with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                # 確保欄位存在
+                try:
+                    cursor.execute("SELECT menstrual_disclaimer_agreed_at FROM users WHERE email = %s;", (email,))
+                    res = cursor.fetchone()
+                    if res and res.get('menstrual_disclaimer_agreed_at'):
+                        print(f"[Check Disclaimer] 從 TiDB 查得 {email} 已同意。")
+                        return jsonify({"status": "success", "agreed": True})
+                except Exception as db_err:
+                    # 欄位尚未建立或發生其他資料庫錯誤
+                    pass
+        except Exception as e:
+            print(f"[Check Disclaimer] 查詢 TiDB 失敗: {e}")
+            
+    # 2. 如果資料庫查不到，則查詢 Google Sheets 作為第二保險
+    health_id = get_health_sheet_id()
+    if health_id:
+        try:
+            rows = get_sheet_values('生理紀錄', spreadsheet_id=health_id)
+            if rows:
+                for row in rows:
+                    if len(row) > 3 and row[2] == "SYSTEM_NOTICE" and row[3] == "AGREED":
+                        print(f"[Check Disclaimer] 從 Google Sheets 查得 {email} 已同意。")
+                        return jsonify({"status": "success", "agreed": True})
+        except Exception as e:
+            print(f"[Check Disclaimer] 查詢 Google Sheets 失敗: {e}")
+            
+    return jsonify({"status": "success", "agreed": False})
+
+def is_premium_user():
+    """判斷使用者是否為 YEARLY_AI (Premium) 旗艦版尊榮會員"""
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return True  # 本機單人模式完全開放
+    
+    developer_emails = {'ulir976272866@gmail.com', 'mina.chen.xstar.sg@gmail.com'}
+    email = session.get('user_email', '')
+    if email and email.lower() in developer_emails:
+        return True # 開發者白名單豁免
+        
+    return session.get('subscription_type') == 'YEARLY_AI'
+
+def check_and_deduct_points(email, cost_points):
+    """
+    檢查使用者點數是否足夠，若足夠則扣除並同步到資料庫與 session。
+    若為單人模式或開發者白名單則無條件通過且不扣點。
+    """
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
+        return True, 9999
+        
+    developer_emails = {'ulir976272866@gmail.com', 'mina.chen.xstar.sg@gmail.com'}
+    if email and email.lower() in developer_emails:
+        return True, 9999
+        
+    current_points = session.get('ai_points', 0)
+    
+    # 再次從 TiDB 資料庫中做最終確認，以防併發扣點漏洞
+    try:
+        conn = get_db_connection()
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            cursor.execute("SELECT ai_points FROM users WHERE email = %s;", (email,))
+            user = cursor.fetchone()
+            if user:
+                current_points = user.get('ai_points', 0)
+    except Exception as e:
+        print(f"[Points Check Error] {e}")
+        
+    if current_points < cost_points:
+        return False, current_points
+        
+    new_points = current_points - cost_points
+    session['ai_points'] = new_points
+    
+    # 更新到 TiDB 資料庫
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("UPDATE users SET ai_points = %s WHERE email = %s;", (new_points, email))
+            conn.commit()
+            print(f"[Points Deduction] 成功扣除 {email} {cost_points} 點，剩餘 {new_points} 點。")
+    except Exception as e:
+        print(f"[Points Update Error] {e}")
+        
+    return True, new_points
+
+def ensure_stock_sheet_exists(spreadsheet_id):
+    """
+    自癒式股票分頁守衛：
+    1. 檢查指定的 spreadsheet 是否有「💰股票投資組合」工作表，如果沒有則自動新建並初始化欄位。
+    2. 自動化比照表頭鎖定技術，為「核心表頭 (Row 1)」與「即時市價與損益公式欄位 (Column H & I)」加上 warningOnly 警告保護鎖！
+    """
+    if not spreadsheet_id:
+        return
+    service = get_sheets_service()
+    try:
+        metadata = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        sheets = metadata.get('sheets', [])
+        titles = [s['properties']['title'] for s in sheets]
+        
+        if '💰股票投資組合' not in titles:
+            print("[Stock Guard] 偵測到用戶試算表缺少「💰股票投資組合」分頁，啟動自動增量升級...")
+            # 建立分頁
+            req = {'addSheet': {'properties': {'title': '💰股票投資組合'}}}
+            service.spreadsheets().batchUpdate(
+                spreadsheetId=spreadsheet_id,
+                body={'requests': [req]}
+            ).execute()
+            
+            # 初始化表頭
+            headers = [['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']]
+            service.spreadsheets().values().update(
+                spreadsheetId=spreadsheet_id,
+                range='💰股票投資組合!A1:J1',
+                valueInputOption='USER_ENTERED',
+                body={'values': headers}
+            ).execute()
+            print("[Stock Guard] 成功自動建立並初始化「💰股票投資組合」分頁與表頭！")
+            
+            # 重新拉取最新元數據以獲得新建分頁的 sheetId
+            metadata = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+            sheets = metadata.get('sheets', [])
+
+        # 找到「💰股票投資組合」的 sheet_obj
+        sheet_obj = None
+        for s in sheets:
+            if s['properties']['title'] == '💰股票投資組合':
+                sheet_obj = s
+                break
+                
+        if sheet_obj:
+            # 1. 獨立的警告保護鎖設定區塊（若因權限不足失敗，不影響公式自癒）
+            try:
+                sheet_id = sheet_obj['properties']['sheetId']
+                protected_ranges = sheet_obj.get('protectedRanges', [])
+                
+                has_header_protect = any(
+                    p.get('range', {}).get('startRowIndex') == 0 and p.get('range', {}).get('endRowIndex') == 1
+                    for p in protected_ranges
+                )
+                has_cols_protect = any(
+                    p.get('range', {}).get('startRowIndex') == 1 and p.get('range', {}).get('startColumnIndex') == 7 and p.get('range', {}).get('endColumnIndex') == 9
+                    for p in protected_ranges
+                )
+                
+                reqs = []
+                if not has_header_protect:
+                    reqs.append({
+                        "addProtectedRange": {
+                            "protectedRange": {
+                                "range": {
+                                    "sheetId": sheet_id,
+                                    "startRowIndex": 0,
+                                    "endRowIndex": 1,
+                                    "startColumnIndex": 0,
+                                    "endColumnIndex": 10
+                                },
+                                "description": "系統股票投資組合核心表頭，請勿任意變動以防當機",
+                                "warningOnly": True
+                            }
+                        }
+                    })
+                    
+                if not has_cols_protect:
+                    reqs.append({
+                        "addProtectedRange": {
+                            "protectedRange": {
+                                "range": {
+                                    "sheetId": sheet_id,
+                                    "startRowIndex": 1,        # 從第二列開始保護數據行
+                                    "startColumnIndex": 7,     # Column H (Index 7: 即時市價)
+                                    "endColumnIndex": 9        # Column I (Index 8: 即時損益)
+                                },
+                                "description": "即時市價與即時損益公式欄位由系統自動運算，請勿手動編輯以免破壞公式",
+                                "warningOnly": True
+                            }
+                        }
+                    })
+                    
+                if reqs:
+                    service.spreadsheets().batchUpdate(
+                        spreadsheetId=spreadsheet_id,
+                        body={'requests': reqs}
+                    ).execute()
+                    print("[Stock Guard] 成功為「💰股票投資組合」新增表頭與 H/I 即時欄位警告保護鎖！")
+            except Exception as lock_err:
+                print(f"[Stock Guard] 設定警告保護鎖時發生錯誤（已跳過並繼續公式自癒）: {lock_err}")
+                
+            # 2. 獨立的實時公式自癒守衛區塊（必定被執行）
+            try:
+                # 讀取「💰股票投資組合」的原始公式（使用 FORMULA 模式）以進行精確比對
+                formula_res = service.spreadsheets().values().get(
+                    spreadsheetId=spreadsheet_id,
+                    range='💰股票投資組合!A1:J',
+                    valueRenderOption='FORMULA'
+                ).execute()
+                formula_rows = formula_res.get('values', [])
+                
+                if len(formula_rows) > 1:
+                    heal_updates = []
+                    for idx, row in enumerate(formula_rows[1:], start=2):
+                        # 若為空行或未填寫股票代號，跳過
+                        if len(row) < 2 or not str(row[1]).strip():
+                            continue
+                            
+                        # 預期公式
+                        expected_h = f'=GOOGLEFINANCE(B{idx}, "price")'
+                        expected_i = f'=IF(D{idx}="買進", (H{idx}-F{idx})*E{idx}-G{idx}, (F{idx}-H{idx})*E{idx}-G{idx})'
+                        
+                        current_h = row[7] if len(row) > 7 else ""
+                        current_i = row[8] if len(row) > 8 else ""
+                        
+                        # 若公式損毀、被手動覆蓋或清空，自動執行單格自癒修復
+                        if not str(current_h).strip().startswith('=GOOGLEFINANCE'):
+                            heal_updates.append({
+                                'range': f'💰股票投資組合!H{idx}',
+                                'values': [[expected_h]]
+                            })
+                        if not str(current_i).strip().startswith('=IF'):
+                            heal_updates.append({
+                                'range': f'💰股票投資組合!I{idx}',
+                                'values': [[expected_i]]
+                            })
+                            
+                    if heal_updates:
+                        print(f"[Stock Guard] 偵測到 {len(heal_updates)} 筆損毀的即時公式！啟動自動自癒修復程序...")
+                        # 批次更新自癒公式
+                        body = {
+                            'valueInputOption': 'USER_ENTERED',
+                            'data': heal_updates
+                        }
+                        service.spreadsheets().values().batchUpdate(
+                            spreadsheetId=spreadsheet_id,
+                            body=body
+                        ).execute()
+                        print("[Stock Guard] 公式自癒修復完成！已恢復為系統預設即時活公式。")
+            except Exception as heal_err:
+                print(f"[Stock Guard] 執行公式自癒守衛時發生錯誤: {heal_err}")
+                
+    except Exception as e:
+        print(f"[Stock Guard] 確保股票分頁與保護鎖存在時發生錯誤: {e}")
+
+def ensure_all_sheets_warning_protected(spreadsheet_id, service=None):
+    """
+    實時全局表頭與警告鎖自癒守衛：
+    一次性為該 spreadsheet 的所有核心分頁（生理紀錄、記帳等）進行：
+    1. 表頭名稱自癒（若被清空、修改或留白則強行還原）
+    2. 自動加上警告保護鎖 (warningOnly: True)
+    """
+    if not spreadsheet_id:
+        return
+    try:
+        if not service:
+            service = get_sheets_service()
+        metadata = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        sheets = metadata.get('sheets', [])
+        
+        standard_headers_map = {
+            '生理紀錄': ['年度', '月份', '日期', '動作', '症狀/心情', '週期', '備註'],
+            '記帳': ['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別'],
+            '待辦': ['建立日期', '事項/內容', '分類', '狀態', '唯一 ID', '建立時間', '優先級'],
+            '日記': ['日期', '內容', '天氣', '心情', '時間'],
+            '願望': ['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間'],
+            '願望清單': ['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間'],
+            '口袋': ['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度'],
+            'AI_指令集': ['觸發語句', '執行動作'],
+            '💰股票投資組合': ['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']
+        }
+        
+        reqs = []
+        for s in sheets:
+            title = s['properties']['title']
+            if title in standard_headers_map:
+                sheet_id = s['properties']['sheetId']
+                protected_ranges = s.get('protectedRanges', [])
+                
+                # A. 檢查並自癒表頭文字
+                standard = standard_headers_map[title]
+                try:
+                    # 讀取 Row 1 的表頭
+                    col_letter = chr(ord('A') + len(standard) - 1)
+                    res = service.spreadsheets().values().get(
+                        spreadsheetId=spreadsheet_id,
+                        range=f"{title}!A1:{col_letter}1"
+                    ).execute()
+                    current = res.get('values', [[]])[0]
+                except Exception:
+                    current = []
+                
+                # 如果表頭留白、長度不對或不一致，啟動自癒覆蓋
+                if len(current) != len(standard) or current != standard:
+                    print(f"[Global Lock Guard] Detected header mismatch in sheet '{title}': {current} vs {standard}. Healing...")
+                    col_letter = chr(ord('A') + len(standard) - 1)
+                    service.spreadsheets().values().update(
+                        spreadsheetId=spreadsheet_id,
+                        range=f"{title}!A1:{col_letter}1",
+                        valueInputOption='USER_ENTERED',
+                        body={'values': [standard]}
+                    ).execute()
+                
+                # B. 檢查並自癒警告保護鎖
+                has_header_protect = any(
+                    p.get('range', {}).get('startRowIndex') == 0 and p.get('range', {}).get('endRowIndex') == 1
+                    for p in protected_ranges
+                )
+                if not has_header_protect:
+                    reqs.append({
+                        "addProtectedRange": {
+                            "protectedRange": {
+                                "range": {
+                                    "sheetId": sheet_id,
+                                    "startRowIndex": 0,
+                                    "endRowIndex": 1,
+                                    "startColumnIndex": 0,
+                                    "endColumnIndex": len(standard)
+                                },
+                                "description": f"系統 {title} 核心表頭，請勿任意變動以防當機",
+                                "warningOnly": True
+                            }
+                        }
+                    })
+                    
+        if reqs:
+            print(f"[Global Lock Guard] Found {len(reqs)} sheets missing header warning locks. Restoring...")
+            service.spreadsheets().batchUpdate(
+                spreadsheetId=spreadsheet_id,
+                body={'requests': reqs}
+            ).execute()
+            print("[Global Lock Guard] All missing header warning locks successfully restored!")
+    except Exception as e:
+        print(f"[Global Lock Guard Error] Central header/lock healer failed: {e}")
+
+def get_stock_portfolio_report_text(spreadsheet_id):
+    """
+    獲取最新股票投資組合數據，並格式化為極致精美的對話框文字訊息 (V3 - 股數整數化)。
+    """
+    ensure_stock_sheet_exists(spreadsheet_id)
+    try:
+        rows = get_sheet_values('💰股票投資組合', spreadsheet_id=spreadsheet_id)
+        if not rows or len(rows) < 2:
+            return "📈 **智慧證券持股部位總覽**\n\n目前試算表尚無任何持股交易紀錄。您可點擊左側選單中的「➕ 新增持股」開始建檔登記喔！"
+            
+        transactions = []
+        portfolio = {}
+        for row in rows[1:]:
+            if len(row) < 7 or not row[1].strip():
+                continue
+            ticker = row[1].strip().upper()
+            name = row[2].strip()
+            tx_type = row[3].strip()
+            try:
+                shares = round(float(row[4]), 2)
+                price = float(row[5])
+                fee = float(row[6]) if row[6] else 0.0
+            except ValueError:
+                continue
+                
+            live_price = 0.0
+            if len(row) > 7 and row[7]:
+                try:
+                    live_price = float(str(row[7]).replace(',', '').strip())
+                except ValueError:
+                    pass
+            
+            transactions.append({
+                "ticker": ticker,
+                "name": name,
+                "price": price,
+                "live_price": live_price
+            })
+            
+            if ticker not in portfolio:
+                portfolio[ticker] = {
+                    "ticker": ticker,
+                    "name": name,
+                    "net_shares": 0,
+                    "total_cost": 0.0,
+                    "live_price": 0.0,
+                    "total_roi": 0.0,
+                    "avg_cost": 0.0
+                }
+            p = portfolio[ticker]
+            if tx_type == "買進":
+                p["net_shares"] += shares
+                p["total_cost"] += (shares * price + fee)
+            elif tx_type == "賣出":
+                p["net_shares"] -= shares
+                p["total_cost"] -= (shares * price - fee)
+                
+            if live_price > 0:
+                p["live_price"] = live_price
+                
+        active_portfolio = {}
+        total_cost = 0.0
+        total_value = 0.0
+        total_roi = 0.0
+        
+        for t, p in portfolio.items():
+            if p["net_shares"] > 0:
+                p["avg_cost"] = round(p["total_cost"] / p["net_shares"], 2)
+                if p["live_price"] <= 0:
+                    ticker_txs = [tx for tx in transactions if tx["ticker"] == t]
+                    if ticker_txs:
+                        p["live_price"] = ticker_txs[-1]["price"]
+                p["current_value"] = round(p["net_shares"] * p["live_price"], 2)
+                p["total_roi"] = round(p["current_value"] - p["total_cost"], 2)
+                
+                total_cost += p["total_cost"]
+                total_value += p["current_value"]
+                total_roi += p["total_roi"]
+                
+                p["total_cost"] = round(p["total_cost"], 2)
+                p["live_price"] = round(p["live_price"], 2)
+                p["net_shares"] = int(round(p["net_shares"])) # 強制轉為整數顯示！
+                active_portfolio[t] = p
+                
+        if not active_portfolio:
+            return '<div style="line-height: 1.6;"><span style="color: #7c2d12; font-weight: bold; font-size: 1.02rem; display: block; margin-bottom: 8px;">📊 智慧證券持股部位總覽</span>目前試算表尚無任何持股交易紀錄。您可點選選單中的「➕ 新增持股」開始建檔登記喔！</div>'
+            
+        total_roi_rate = round((total_roi / total_cost) * 100, 2) if total_cost > 0 else 0.0
+        roi_sign = "+" if total_roi >= 0 else ""
+        roi_color = "🟢" if total_roi >= 0 else "🔴"
+        roi_color_span = '<span style="color: #16a34a; font-weight: bold;">' if total_roi >= 0 else '<span style="color: #dc2626; font-weight: bold;">'
+        
+        report = '<div style="line-height: 1.6;">'
+        report += '<span style="color: #7c2d12; font-weight: bold; font-size: 1.05rem; display: block; margin-bottom: 8px; border-bottom: 1.5px solid #fed7aa; padding-bottom: 4px;">📊 智慧證券持股部位總覽</span>'
+        report += f'🌟 <span style="color: #0f172a; font-weight: bold;">總市值</span>：${int(total_value):,} NTD<br>'
+        report += f'🪙 <span style="color: #0f172a; font-weight: bold;">總成本</span>：${int(total_cost):,} NTD<br>'
+        report += f'⚖️ <span style="color: #0f172a; font-weight: bold;">總損益</span>：{roi_color} {roi_color_span}{roi_sign}${int(total_roi):,} ({roi_sign}{total_roi_rate}%)</span><br>'
+        report += '<div style="border-top: 1px dashed #cbd5e1; margin: 10px 0;"></div>'
+        
+        for t, p in active_portfolio.items():
+            p_roi = p["total_roi"]
+            p_roi_rate = round((p_roi / p["total_cost"]) * 100, 2) if p["total_cost"] > 0 else 0.0
+            p_roi_sign = "+" if p_roi >= 0 else ""
+            p_roi_color = "🟢" if p_roi >= 0 else "🔴"
+            p_roi_color_span = '<span style="color: #16a34a; font-weight: bold;">' if p_roi >= 0 else '<span style="color: #dc2626; font-weight: bold;">'
+            
+            # 換算張/股，將張/股部分高亮為深寶藍色 (#1d4ed8)
+            shares = int(p['net_shares'])
+            if shares >= 1000:
+                sheets = shares // 1000
+                rem_shares = shares % 1000
+                if rem_shares > 0:
+                    shares_str = f'🎟️ <span style="color: #1d4ed8; font-weight: bold;">{sheets}張 {rem_shares}股</span>'
+                else:
+                    shares_str = f'🎟️ <span style="color: #1d4ed8; font-weight: bold;">{sheets}張</span>'
+            else:
+                shares_str = f'🌱 <span style="color: #1d4ed8; font-weight: bold;">{shares}股</span>'
+                
+            report += f'<span style="color: #334155; font-weight: bold;">{p["name"]}</span>：<br>'
+            report += f'已持有 {shares_str} / {p_roi_color} {p_roi_color_span}{p_roi_sign}${int(p_roi):,} ({p_roi_sign}{p_roi_rate}%)</span><br>'
+            
+        report += '<div style="border-top: 1px dashed #cbd5e1; margin: 10px 0;"></div>'
+        report += '<span style="color: #64748b; font-size: 0.85rem; font-style: italic; display: block; margin-top: 5px;">💡 溫馨提示：點選選單中的「➕ 新增持股」可以快速登記交易明細或補登歷史部位！</span>'
+        report += '</div>'
+        return report
+    except Exception as e:
+        return f"❌ 彙整股票投資組合時發生錯誤：{str(e)}"
+
+@app.route('/api/query_stock_portfolio', methods=['POST'])
+def query_stock_portfolio_api():
+    """
+    一鍵查詢股票部位，並直接將精美報告返回給對話框。
+    """
+    if not is_premium_user():
+        return jsonify({
+            "status": "success", 
+            "message": "🔒 「智慧股票投資記帳」為尊榮旗艦版 (YEARLY_AI) 獨享功能，請升級後體驗語音與一鍵資產看板功能！"
+        })
+        
+    spreadsheet_id = get_spreadsheet_id()
+    if not spreadsheet_id:
+        return jsonify({"status": "error", "message": "尚未連結試算表"})
+        
+    report_text = get_stock_portfolio_report_text(spreadsheet_id)
+    return jsonify({"status": "success", "message": report_text})
+
+@app.route('/api/stock/portfolio', methods=['GET'])
+def get_stock_portfolio():
+    """
+    獲取「💰股票投資組合」的交易紀錄，並由後端智慧彙整為證券資產組合。
+    """
+    # 權限驗證
+    if not is_premium_user():
+        return jsonify({
+            "status": "locked", 
+            "message": "💡 旗艦版尊榮功能：一鍵開通智慧股票存股健檢，解鎖零時差資產回報率精算！"
+        })
+        
+    spreadsheet_id = get_spreadsheet_id()
+    if not spreadsheet_id:
+        return jsonify({"status": "error", "message": "尚未連結試算表"})
+        
+    # 自癒式保護：確保表單存在
+    ensure_stock_sheet_exists(spreadsheet_id)
+    
+    try:
+        # 讀取完整工作表
+        rows = get_sheet_values('💰股票投資組合', spreadsheet_id=spreadsheet_id)
+        if not rows or len(rows) < 2:
+            return jsonify({
+                "status": "success",
+                "transactions": [],
+                "portfolio": {},
+                "summary": {
+                    "total_cost": 0,
+                    "total_value": 0,
+                    "total_roi": 0,
+                    "total_roi_rate": 0
+                }
+            })
+            
+        transactions = []
+        portfolio = {}
+        
+        # 依列遍歷交易
+        # headers: ['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']
+        # index:    0         1          2          3          4          5          6         7          8         9
+        for i, row in enumerate(rows[1:], start=2):
+            if len(row) < 7 or not row[1].strip():
+                continue
+                
+            date_val = row[0].strip()
+            ticker = row[1].strip().upper()
+            name = row[2].strip()
+            tx_type = row[3].strip() # 買進 或 賣出
+            try:
+                shares = round(float(row[4]), 2)
+                price = float(row[5])
+                fee = float(row[6]) if row[6] else 0.0
+            except ValueError:
+                continue
+                
+            # 讀取 Google Sheets 計算出來的即時價格與單筆損益 (如果存在且格式正確)
+            live_price = 0.0
+            tx_roi = 0.0
+            if len(row) > 7 and row[7]:
+                try:
+                    live_price = float(str(row[7]).replace(',', '').strip())
+                except ValueError:
+                    pass
+            if len(row) > 8 and row[8]:
+                try:
+                    tx_roi = float(str(row[8]).replace(',', '').strip())
+                except ValueError:
+                    pass
+                    
+            note = row[9].strip() if len(row) > 9 else ""
+            
+            transactions.append({
+                "row_index": i,
+                "date": date_val,
+                "ticker": ticker,
+                "name": name,
+                "type": tx_type,
+                "shares": shares,
+                "price": price,
+                "fee": fee,
+                "live_price": live_price,
+                "roi": tx_roi,
+                "note": note
+            })
+            
+            # 彙整投資組合
+            if ticker not in portfolio:
+                portfolio[ticker] = {
+                    "ticker": ticker,
+                    "name": name,
+                    "net_shares": 0,
+                    "total_cost": 0.0,
+                    "live_price": 0.0,
+                    "total_roi": 0.0,
+                    "avg_cost": 0.0,
+                    "dividends": 0.0
+                }
+                
+            p = portfolio[ticker]
+            if tx_type == "買進":
+                p["net_shares"] += shares
+                p["total_cost"] += (shares * price + fee)
+            elif tx_type == "賣出":
+                p["net_shares"] -= shares
+                p["total_cost"] -= (shares * price - fee) # 賣出收回資金，減少成本
+            elif tx_type in ["股息", "配息"]:
+                # 股息收入：不增減股數與部位成本，但計入該檔持股與全域的累計已領股息
+                dividend_amt = price * (shares if shares > 0 else 1.0)
+                if "dividends" not in p:
+                    p["dividends"] = 0.0
+                p["dividends"] += dividend_amt
+                
+            # 保持最新的即時價格
+            if live_price > 0:
+                p["live_price"] = live_price
+                
+        # 刪除已出清的持股 (避免除以零且精簡顯示)
+        active_portfolio = {}
+        total_cost = 0.0
+        total_value = 0.0
+        total_roi = 0.0
+        total_dividends = 0.0
+        
+        for t, p in portfolio.items():
+            # 統計全域已領股息 (包含即使目前已出清的股票所領的股息)
+            total_dividends += p.get("dividends", 0.0)
+            
+            if p["net_shares"] > 0:
+                p["avg_cost"] = round(p["total_cost"] / p["net_shares"], 2)
+                # 若 Google Sheet 還沒跑出 GOOGLEFINANCE，使用當前交易單價作為預估
+                if p["live_price"] <= 0:
+                    # 拿最後一筆交易的價格
+                    ticker_txs = [tx for tx in transactions if tx["ticker"] == t]
+                    if ticker_txs:
+                        p["live_price"] = ticker_txs[-1]["price"]
+                        
+                p["current_value"] = round(p["net_shares"] * p["live_price"], 2)
+                p["total_roi"] = round(p["current_value"] - p["total_cost"], 2)
+                
+                # 加總
+                total_cost += p["total_cost"]
+                total_value += p["current_value"]
+                total_roi += p["total_roi"]
+                
+                # 四捨五入數值
+                p["total_cost"] = round(p["total_cost"], 2)
+                p["live_price"] = round(p["live_price"], 2)
+                p["net_shares"] = round(p["net_shares"], 2)
+                p["dividends"] = round(p.get("dividends", 0.0), 2)
+                
+                active_portfolio[t] = p
+                
+        total_roi_rate = round((total_roi / total_cost) * 100, 2) if total_cost > 0 else 0.0
+        
+        return jsonify({
+            "status": "success",
+            "transactions": transactions[-10:], # 回傳最後 10 筆明細
+            "portfolio": active_portfolio,
+            "summary": {
+                "total_cost": round(total_cost, 2),
+                "total_value": round(total_value, 2),
+                "total_roi": round(total_roi, 2),
+                "total_roi_rate": total_roi_rate,
+                "total_dividends": round(total_dividends, 2)
+            }
+        })
+        
+    except Exception as e:
+        print(f"[Stock API Error] {e}")
+        return jsonify({"status": "error", "message": f"載入證券失敗: {str(e)}"})
+
+@app.route('/api/stock/add_transaction', methods=['POST'])
+def add_stock_transaction():
+    """
+    新增股票交易紀錄（買進 / 賣出），並自動計算 GoogleFinance 算力公式寫入試算表。
+    """
+    if not is_premium_user():
+        return jsonify({"status": "locked", "message": "請先升級 Premium 旗艦版會員"})
+        
+    spreadsheet_id = get_spreadsheet_id()
+    if not spreadsheet_id:
+        return jsonify({"status": "error", "message": "尚未連結試算表"})
+        
+    ensure_stock_sheet_exists(spreadsheet_id)
+    
+    data = request.json or {}
+    ticker = data.get('ticker', '').strip().upper()
+    name = data.get('name', '').strip()
+    tx_type = data.get('type', '買進').strip() # 買進 或 賣出
+    
+    try:
+        shares = round(float(data.get('shares')), 2)
+        price = float(data.get('price'))
+        fee = float(data.get('fee', 0.0))
+        date_str = data.get('date', datetime.now(TW_TZ).strftime("%Y-%m-%d")).strip()
+    except (ValueError, TypeError):
+        return jsonify({"status": "error", "message": "輸入的股數、單價或金額格式不正確"})
+        
+    if not ticker or not name:
+        return jsonify({"status": "error", "message": "請填寫股票代號與股票名稱"})
+        
+    try:
+        # 讀取現有列數，以推算公式的列號 N
+        rows = get_sheet_values('💰股票投資組合', spreadsheet_id=spreadsheet_id)
+        next_row_index = len(rows) + 1 if rows else 2
+        
+        # 建立 GOOGLEFINANCE 與損益公式
+        # Column H: 即時市價 =GOOGLEFINANCE(B{N}, "price")
+        # Column I: 即時損益 =IF(D{N}="買進", (H{N}-F{N})*E{N}-G{N}, (F{N}-H{N})*E{N}-G{N})
+        live_price_formula = f'=GOOGLEFINANCE(B{next_row_index}, "price")'
+        roi_formula = f'=IF(D{next_row_index}="買進", (H{next_row_index}-F{next_row_index})*E{next_row_index}-G{next_row_index}, (F{next_row_index}-H{next_row_index})*E{next_row_index}-G{next_row_index})'
+        
+        row = [
+            date_str,
+            ticker,
+            name,
+            tx_type,
+            shares,
+            price,
+            fee,
+            live_price_formula,
+            roi_formula,
+            f"手動寫入交易 {tx_type}"
+        ]
+        
+        append_to_sheet('💰股票投資組合', row, spreadsheet_id=spreadsheet_id)
+        
+        # 🌟 更新 TiDB 的 has_stock_record 標籤做為再行銷依據
+        email = session.get('user_email', '')
+        if os.getenv("SINGLE_USER_MODE", "false").lower() == "false" and email:
+            try:
+                conn = get_db_connection()
+                with conn.cursor() as cursor:
+                    # 確保 has_stock_record 欄位存在
+                    try:
+                        cursor.execute("UPDATE users SET has_stock_record = TRUE WHERE email = %s;", (email,))
+                        conn.commit()
+                        print(f"[TiDB Marketing] 已標記 {email} 的 has_stock_record = TRUE")
+                    except Exception as e:
+                        pass
+            except Exception as e:
+                print(f"[TiDB Marketing Error] {e}")
+                
+        return jsonify({"status": "success", "message": f"成功新增股票 {name} {tx_type}交易紀錄！"})
+        
+    except Exception as e:
+        print(f"[Add Stock Tx Error] {e}")
+        return jsonify({"status": "error", "message": f"新增股票交易失敗: {str(e)}"})
+
+@app.route('/api/stock/ai_analysis', methods=['POST'])
+def analyze_stock_portfolio():
+    """
+    一鍵 AI 股票資產健檢：
+    打包股票工作表的歷史持股清單，消耗 30 點 AI 點數，調用 Gemini AI 進行大數據複雜診斷。
+    """
+    if not is_premium_user():
+        return jsonify({
+            "status": "locked", 
+            "message": "💡 旗艦版尊榮功能：一鍵開通智慧股票存股健檢，解鎖零時差資產回報率精算！"
+        })
+        
+    email = session.get('user_email', '')
+    
+    # 1. 扣除 30 點點數
+    success, remaining_points = check_and_deduct_points(email, 30)
+    if not success:
+        return jsonify({
+            "status": "error", 
+            "message": f"您的 AI 額度不足囉！本次健檢需要 30 點，您目前僅剩 {remaining_points} 點。請前往充值或升級方案！"
+        })
+        
+    spreadsheet_id = get_spreadsheet_id()
+    if not spreadsheet_id:
+        return jsonify({"status": "error", "message": "尚未連結試算表"})
+        
+    ensure_stock_sheet_exists(spreadsheet_id)
+    
+    try:
+        # 2. 獲取投資組合數據
+        rows = get_sheet_values('💰股票投資組合', spreadsheet_id=spreadsheet_id)
+        if not rows or len(rows) < 2:
+            return jsonify({
+                "status": "success",
+                "analysis": "💡 您的投資組合目前沒有持股紀錄，請先新增買進交易後再進行 AI 健檢診斷！",
+                "remaining_points": remaining_points
+            })
+            
+        # 整理持股清單
+        portfolio_summary = []
+        portfolio_map = {}
+        for row in rows[1:]:
+            if len(row) < 7 or not row[1].strip():
+                continue
+            ticker = row[1].strip()
+            name = row[2].strip()
+            tx_type = row[3].strip()
+            try:
+                shares = int(row[4])
+                price = float(row[5])
+                fee = float(row[6]) if row[6] else 0.0
+            except ValueError:
+                continue
+                
+            if ticker not in portfolio_map:
+                portfolio_map[ticker] = {"name": name, "shares": 0, "total_cost": 0.0}
+            p = portfolio_map[ticker]
+            if tx_type == "買進":
+                p["shares"] += shares
+                p["total_cost"] += (shares * price + fee)
+            elif tx_type == "賣出":
+                p["shares"] -= shares
+                p["total_cost"] -= (shares * price - fee)
+                
+        for ticker, p in portfolio_map.items():
+            if p["shares"] > 0:
+                avg_price = round(p["total_cost"] / p["shares"], 2)
+                portfolio_summary.append(f"- 股票: {p['name']} ({ticker}), 持股股數: {p['shares']} 股, 持股均價: {avg_price} 元, 總投入成本: {round(p['total_cost'], 2)} 元")
+                
+        if not portfolio_summary:
+            return jsonify({
+                "status": "success",
+                "analysis": "💡 您的投資組合目前沒有任何有效持股（已出清），請先新增買進交易後再進行 AI 健檢診斷！",
+                "remaining_points": remaining_points
+            })
+            
+        portfolio_text = "\n".join(portfolio_summary)
+        
+        # 3. 呼叫 Gemini AI 進行診斷
+        prompt = f"""
+你是一位頂尖的資深證券分析師與智能財富管家。
+請為用戶當前的存股投資組合進行全方位的一鍵 AI 投資組合健檢診斷。
+
+用戶目前的持股清單如下：
+{portfolio_text}
+
+請從以下幾個維度給出極具專業度、實用度且高端優雅的健檢報告：
+1. 【📊 投資組合健康度診斷】：分析資產配置是否過度集中、產業覆蓋度與整體風險防禦能力。
+2. 【📈 個股潛力與行情解讀】：對持股清單中的主力股票（如台積電等台股熱門股）進行近期市場行情解析與技術面、基本面展望。
+3. 【💡 智慧理財與存股操作建議】：給出具體且溫良有度的資產配置建議（例如加碼、減碼、防守型策略、零成本存股心法）。
+4. 【🎯 未來30天行動指南】：列出三條具體、可執行的理財建議。
+
+注意：請使用繁體中文回答，口吻必須高端優雅、條理分明、溫柔而極具智慧與洞察力，字數約 600 - 800 字。
+"""
+        # 使用專案現有的 Gemini 呼叫方法
+        from google.generativeai import GenerativeModel
+        import google.generativeai as genai
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        analysis_report = response.text
+        
+        return jsonify({
+            "status": "success",
+            "analysis": analysis_report,
+            "remaining_points": remaining_points
+        })
+        
+    except Exception as e:
+        print(f"[Stock AI Analysis Error] {e}")
+        return jsonify({
+            "status": "error", 
+            "message": f"AI 健檢失敗: {str(e)}"
+        })
 
 @app.route('/api/health/record_start', methods=['POST'])
 def record_health_start():
@@ -2592,7 +4004,8 @@ def record_health_start():
         new_row = [now.strftime("%Y"), now.strftime("%m"), today_str, "進行中", "", "", ""]
         
         sh = service_sheets.spreadsheets().get(spreadsheetId=health_id).execute()
-        sheet_id = next(s['properties']['sheetId'] for s in sh['sheets'] if s['properties']['title'] == '生理紀錄')
+        sheet_obj = next(s for s in sh['sheets'] if s['properties']['title'] == '生理紀錄')
+        sheet_id = sheet_obj['properties']['sheetId']
         
         # 插入新的一列
         requests = [{
@@ -2601,6 +4014,29 @@ def record_health_start():
                 "inheritFromBefore": False
             }
         }]
+        
+        # 檢查第一列 (Row 1) 是否設有警告保護鎖，若無則一併加入保護請求
+        has_protection = any(
+            p.get('range', {}).get('startRowIndex') == 0 and p.get('range', {}).get('endRowIndex') == 1
+            for p in sheet_obj.get('protectedRanges', [])
+        )
+        if not has_protection:
+            requests.append({
+                "addProtectedRange": {
+                    "protectedRange": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": 0,
+                            "endRowIndex": 1,
+                            "startColumnIndex": 0,
+                            "endColumnIndex": 7
+                        },
+                        "description": "系統生理紀錄核心表頭，請勿任意變動以防當機",
+                        "warningOnly": True
+                    }
+                }
+            })
+            
         service_sheets.spreadsheets().batchUpdate(spreadsheetId=health_id, body={"requests": requests}).execute()
         
         # 寫入新資料到 A2
@@ -2615,6 +4051,18 @@ def record_health_start():
                 spreadsheetId=health_id, range="生理紀錄!F3",
                 valueInputOption="USER_ENTERED", body={"values": [[cycle_days]]}
             ).execute()
+            
+        # 自動實體排序 (將 A2 到最後一列依據 C 欄降序排列，確保最新日期始終在最上方 Row 2)
+        try:
+            sort_req = {
+                "sortRange": {
+                    "range": {"sheetId": sheet_id, "startRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 7},
+                    "sortSpecs": [{"dimensionIndex": 2, "sortOrder": "DESCENDING"}]
+                }
+            }
+            service_sheets.spreadsheets().batchUpdate(spreadsheetId=health_id, body={"requests": [sort_req]}).execute()
+        except Exception as sort_err:
+            print(f"Auto-sorting error in record_health_start: {sort_err}")
         
         # 3. 日曆操作
         service_cal = get_calendar_service()
@@ -2686,6 +4134,121 @@ def record_health_end():
         
         return jsonify({"status": "success", "message": "已記錄結束，辛苦了！✅"})
     except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/health/backfill', methods=['POST'])
+def backfill_health():
+    health_id = get_health_sheet_id()
+    if not health_id:
+        return jsonify({"status": "error", "message": "尚未設定 HEALTH_SHEET_ID"})
+    try:
+        data = request.get_json() or {}
+        start_date = data.get('start_date') # YYYY-MM-DD
+        end_date = data.get('end_date') # YYYY-MM-DD
+        symptoms = data.get('symptoms', '').strip() or "歷史補錄數據"
+        
+        if not start_date or not end_date:
+            return jsonify({"status": "error", "message": "開始日期與結束日期為必填欄位"})
+            
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        
+        if start_dt > end_dt:
+            return jsonify({"status": "error", "message": "開始日期不能大於結束日期"})
+            
+        # 轉換為標準 %Y/%m/%d 寫入格式
+        start_formatted = start_dt.strftime("%Y/%m/%d")
+        end_formatted = end_dt.strftime("%Y/%m/%d")
+        
+        # 經期天數
+        period_length = (end_dt - start_dt).days + 1
+        
+        # 取得年度與月份
+        year = str(start_dt.year)
+        month = str(start_dt.month)
+        
+        # 讀取現有生理紀錄，推算此補錄相較於之前最近的開始日期的週期天數
+        rows = get_sheet_values('生理紀錄', spreadsheet_id=health_id)
+        cycle_days = 28 # 預設
+        
+        existing_starts = []
+        if rows and len(rows) > 1:
+            for row in rows[1:]:
+                if len(row) > 2 and row[2].strip():
+                    try:
+                        p_dt = datetime.strptime(row[2].strip(), "%Y/%m/%d")
+                        existing_starts.append(p_dt)
+                    except:
+                        pass
+                        
+        # 加入本次補錄日期並升序排列，找出前一個最近的開始日期來精算週期
+        all_starts = sorted(existing_starts + [start_dt])
+        idx = all_starts.index(start_dt)
+        if idx > 0:
+            cycle_days = (start_dt - all_starts[idx - 1]).days
+            
+        # 寫入一行完整 7 個欄位: [年度, 月份, 開始日期, 結束日期, 經期天數, 週期天數, 症狀/備註]
+        new_row = [year, month, start_formatted, end_formatted, str(period_length), str(cycle_days), symptoms]
+        
+        # 呼叫標準寫入，插入在第二列（與 record_start 保持一致，使最新紀錄在頂部）
+        service_sheets = get_sheets_service()
+        sh = service_sheets.spreadsheets().get(spreadsheetId=health_id).execute()
+        sheet_obj = next(s for s in sh['sheets'] if s['properties']['title'] == '生理紀錄')
+        sheet_id = sheet_obj['properties']['sheetId']
+        
+        # 插入新的一列
+        requests = [{
+            "insertDimension": {
+                "range": {"sheetId": sheet_id, "dimension": "ROWS", "startIndex": 1, "endIndex": 2},
+                "inheritFromBefore": False
+            }
+        }]
+        
+        # 檢查第一列 (Row 1) 是否設有警告保護鎖，若無則一併加入保護請求
+        has_protection = any(
+            p.get('range', {}).get('startRowIndex') == 0 and p.get('range', {}).get('endRowIndex') == 1
+            for p in sheet_obj.get('protectedRanges', [])
+        )
+        if not has_protection:
+            requests.append({
+                "addProtectedRange": {
+                    "protectedRange": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": 0,
+                            "endRowIndex": 1,
+                            "startColumnIndex": 0,
+                            "endColumnIndex": 7
+                        },
+                        "description": "系統生理紀錄核心表頭，請勿任意變動以防當機",
+                        "warningOnly": True
+                    }
+                }
+            })
+            
+        service_sheets.spreadsheets().batchUpdate(spreadsheetId=health_id, body={"requests": requests}).execute()
+        
+        # 寫入新資料到 A2
+        service_sheets.spreadsheets().values().update(
+            spreadsheetId=health_id, range="生理紀錄!A2",
+            valueInputOption="USER_ENTERED", body={"values": [new_row]}
+        ).execute()
+        
+        # 自動實體排序 (將 A2 到最後一列依據 C 欄降序排列，確保最新日期始終在最上方 Row 2)
+        try:
+            sort_req = {
+                "sortRange": {
+                    "range": {"sheetId": sheet_id, "startRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 7},
+                    "sortSpecs": [{"dimensionIndex": 2, "sortOrder": "DESCENDING"}]
+                }
+            }
+            service_sheets.spreadsheets().batchUpdate(spreadsheetId=health_id, body={"requests": [sort_req]}).execute()
+        except Exception as sort_err:
+            print(f"Auto-sorting error in backfill_health: {sort_err}")
+            
+        return jsonify({"status": "success", "message": "歷史生理紀錄補錄成功！🌸"})
+    except Exception as e:
+        print(f"Error backfilling health records: {e}")
         return jsonify({"status": "error", "message": str(e)})
 
 @app.route('/api/health/symptoms/options', methods=['GET', 'POST', 'DELETE'])
@@ -2783,6 +4346,163 @@ def add_training_rule():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
+def init_stock_suggestions_table():
+    """初始化 TiDB 股票選單聯想庫"""
+    print("[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...")
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # 1. 建立 table (如果不存在)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS stock_suggestions (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    ticker VARCHAR(50) UNIQUE NOT NULL,
+                    name VARCHAR(100) NOT NULL,
+                    short_code VARCHAR(50) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            
+            # 2. 檢查是否已經有資料，如果沒有則寫入預設的種子熱門股票
+            cursor.execute("SELECT COUNT(*) FROM stock_suggestions;")
+            res = cursor.fetchone()
+            count = res[0] if res else 0
+            if count == 0:
+                print("[Stock DB Guard] 偵測到選單表為空，開始寫入預設種子熱門證券資產...")
+                seeds = [
+                    ("TPE:0050", "元大台灣50", "0050"),
+                    ("TPE:0056", "元大高股息", "0056"),
+                    ("TPE:00878", "國泰永續高股息", "00878"),
+                    ("TPE:00919", "群益台灣精選高息", "00919"),
+                    ("TPE:00929", "復華台灣科技優息", "00929"),
+                    ("TPE:2330", "台積電", "2330"),
+                    ("TPE:2317", "鴻海", "2317"),
+                    ("TPE:2454", "聯發科", "2454"),
+                    ("TPE:2303", "聯電", "2303"),
+                    ("TPE:2603", "長榮", "2603"),
+                    ("TPE:2618", "長榮航", "2618"),
+                    ("TPE:2002", "中鋼", "2002"),
+                    ("TPE:2308", "台達電", "2308"),
+                    ("TPE:2881", "富邦金", "2881"),
+                    ("TPE:2882", "國泰金", "2882"),
+                    ("TPE:2884", "玉山金", "2884"),
+                    ("TPE:2886", "兆豐金", "2886"),
+                    ("TPE:2891", "中信金", "2891"),
+                    ("NASDAQ:AAPL", "Apple", "AAPL"),
+                    ("NASDAQ:NVDA", "Nvidia", "NVDA"),
+                    ("NASDAQ:MSFT", "Microsoft", "MSFT"),
+                    ("NASDAQ:TSLA", "Tesla", "TSLA")
+                ]
+                cursor.executemany(
+                    "INSERT INTO stock_suggestions (ticker, name, short_code) VALUES (%s, %s, %s);",
+                    seeds
+                )
+                conn.commit()
+                print("[Stock DB Guard] 預設熱門證券種子已成功匯入 TiDB 資料庫！")
+        conn.close()
+    except Exception as e:
+        print(f"[Stock DB Guard Error] 初始化資料庫失敗: {e}")
+
+@app.route('/api/stock/suggestions', methods=['GET'])
+def get_stock_suggestions_api():
+    """
+    從 TiDB Cloud 中模糊查詢匹配的熱門股票代號與名稱
+    """
+    q = request.args.get('q', '').strip().lower()
+    if not q:
+        return jsonify([])
+        
+    try:
+        conn = get_db_connection()
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            like_val = f"%{q}%"
+            cursor.execute("""
+                SELECT ticker, name, short_code FROM stock_suggestions
+                WHERE LOWER(ticker) LIKE %s 
+                   OR LOWER(name) LIKE %s 
+                   OR LOWER(short_code) LIKE %s
+                LIMIT 10;
+            """, (like_val, like_val, like_val))
+            matches = cursor.fetchall()
+        conn.close()
+        return jsonify(matches)
+    except Exception as e:
+        print(f"[Stock Suggestions API Error] {e}")
+        return jsonify([])
+
+def sync_taiwan_stocks_to_db():
+    """
+    從台灣證交所 (TWSE) 與櫃買中心 (TPEx) 官方 OpenAPI 抓取最新上市、上櫃股票與 ETF 清單，
+    並自動以批次 Upsert 寫入 TiDB 的 stock_suggestions 表，保持代號與名稱隨時最新。
+    """
+    import requests
+    print("[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...")
+    try:
+        # 1. 抓取上市股票 (TWSE)
+        twse_url = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"
+        twse_res = requests.get(twse_url, timeout=15)
+        twse_data = twse_res.json()
+        
+        # 2. 抓取上櫃股票 (TPEx)
+        tpex_url = "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes"
+        tpex_res = requests.get(tpex_url, timeout=15)
+        tpex_data = tpex_res.json()
+        
+        records = []
+        seen = set() # 防止重複
+        
+        # 處理上市資料
+        for item in twse_data:
+            code = item.get('Code', '').strip()
+            name = item.get('Name', '').strip()
+            # 篩選標準：代碼長度小於等於 6 位（過濾掉極長且雜亂的權證與公司債，保留正統股票與 ETF）
+            if code and len(code) <= 6 and code not in seen:
+                ticker = f"TPE:{code}"
+                records.append((ticker, name, code))
+                seen.add(code)
+                
+        # 處理上櫃資料
+        for item in tpex_data:
+            code = item.get('SecuritiesCompanyCode', '').strip()
+            name = item.get('CompanyName', '').strip()
+            if code and len(code) <= 6 and code not in seen:
+                ticker = f"TPE:{code}"
+                records.append((ticker, name, code))
+                seen.add(code)
+                
+        print(f"[Stock Sync] 資料清洗完成，共計 {len(records)} 檔有效標的。開始寫入 TiDB...")
+        
+        # 3. 寫入 TiDB (使用 ON DUPLICATE KEY UPDATE 增量更新)
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.executemany("""
+                INSERT INTO stock_suggestions (ticker, name, short_code) 
+                VALUES (%s, %s, %s)
+                ON DUPLICATE KEY UPDATE name = VALUES(name), short_code = VALUES(short_code);
+            """, records)
+            conn.commit()
+        conn.close()
+        print(f"[Stock Sync] 同步大成功！共 {len(records)} 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！")
+        return len(records)
+    except Exception as e:
+        print(f"[Stock Sync Error] 同步台灣股票時發生錯誤: {e}")
+        return 0
+
+@app.route('/api/admin/sync_stocks', methods=['POST'])
+def force_sync_stocks_api():
+    """
+    提供開發者手動點擊或定期 Cron 觸發的全台股票同步端點
+    """
+    import threading
+    # 啟動非同步執行，防止 HTTP 請求阻塞
+    threading.Thread(target=sync_taiwan_stocks_to_db, daemon=True).start()
+    return jsonify({"status": "success", "message": "已在背景啟動全台上市櫃股票與 ETF 同步作業！🚀"})
+
 if __name__ == '__main__':
+    # 確保 TiDB 資料庫選單表已初始化自癒
+    init_stock_suggestions_table()
+    # 啟動背景執行緒，自動非同步與 TWSE/TPEx 同步全台灣股票與 ETF
+    import threading
+    threading.Thread(target=sync_taiwan_stocks_to_db, daemon=True).start()
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port, debug=True)

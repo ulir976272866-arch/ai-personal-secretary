@@ -34,49 +34,25 @@ window.closeLoginNdaModal = () => {
     if (modal) modal.style.display = 'none';
 };
 
-// --- 自動防偽動態 Email 浮水印系統 (雙重安全保險鎖) ---
-function generateWatermark() {
-    if (!window.USER_EMAIL) return;
-    
-    // 檢查是否已建立過浮水印
-    if (document.getElementById('confidential-watermark-overlay')) return;
-    
-    const overlay = document.createElement('div');
-    overlay.id = 'confidential-watermark-overlay';
-    overlay.className = 'confidential-watermark';
-    
-    // 計算螢幕上需要填滿的浮水印數量
-    const totalItems = 40; // 填滿大螢幕與手機板
-    for (let i = 0; i < totalItems; i++) {
-        const item = document.createElement('div');
-        item.className = 'watermark-item';
-        
-        const textSpan1 = document.createElement('span');
-        textSpan1.innerText = 'CONFIDENTIAL';
-        textSpan1.style.letterSpacing = '1px';
-        textSpan1.style.fontSize = '10px';
-        textSpan1.style.fontWeight = 'bold';
-        
-        const textSpan2 = document.createElement('span');
-        textSpan2.innerText = window.USER_EMAIL;
-        textSpan2.style.fontSize = '9px';
-        textSpan2.style.marginTop = '2px';
-        
-        item.appendChild(textSpan1);
-        item.appendChild(textSpan2);
-        overlay.appendChild(item);
-    }
-    
-    document.body.appendChild(overlay);
-}
-
-// 在 DOM 加載後立刻啟動浮水印
-document.addEventListener('DOMContentLoaded', () => {
-    generateWatermark();
-});
+// 已移除動態浮水印系統以恢復畫面純淨簡潔與高端美感
 
 document.addEventListener('DOMContentLoaded', () => {
     window.editingEventId = null;
+
+    // --- 🌸 生理健康免責聲明跨裝置自動解鎖同步 ---
+    if (!localStorage.getItem('menstrual_disclaimer_agreed')) {
+        fetch('/api/health/check_disclaimer')
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success' && data.agreed) {
+                    localStorage.setItem('menstrual_disclaimer_agreed', 'true');
+                    console.log('[Consent Roaming] 偵測到雲端已有免責聲明同意紀錄，本機已自動同步解鎖生理期助理！');
+                }
+            })
+            .catch(err => {
+                console.error('[Consent Roaming] 同步免責聲明狀態失敗:', err);
+            });
+    }
 
     // --- 更新動態日期圖示 (V13.0) ---
     function updateDynamicDateIcons() {
@@ -509,8 +485,93 @@ document.addEventListener('DOMContentLoaded', () => {
     const voiceBtn = document.getElementById('voiceBtn');
     const clearBtn = document.getElementById('clearBtn');
 
+    // --- 商業特權與解鎖防線檢測 (V1.0) ---
+    window.checkFeatureAccess = (featureOrModalId) => {
+        // 核心開發者管理員白名單，免檢放行，絕不受任何鎖頭阻擋！
+        if (window.USER_EMAIL === 'ulir976272866@gmail.com') {
+            return true;
+        }
+
+        const subType = window.USER_SUBSCRIPTION_TYPE || 'NONE';
+        
+        // 免費版 (NONE) 鎖定：行程、備忘、健康、股票
+        const freeLockedTabs = ['schedule', 'memo', 'health', 'stock'];
+        const freeLockedModals = [
+            'scheduleModal', 'memoModal', 'todoModal', 'pocketModal', 
+            'wishlistModal', 'healthModal', 'trainingModal', 'stockModal', 'stockAnalysisModal'
+        ];
+        
+        // 基礎版 (MONTHLY_AI) 鎖定：股票
+        const basicLockedTabs = ['stock'];
+        const basicLockedModals = ['stockModal', 'stockAnalysisModal'];
+        
+        if (subType === 'NONE') {
+            if (freeLockedTabs.includes(featureOrModalId) || freeLockedModals.includes(featureOrModalId)) {
+                return false;
+            }
+        } else if (subType === 'MONTHLY_AI') {
+            if (basicLockedTabs.includes(featureOrModalId) || basicLockedModals.includes(featureOrModalId)) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    // 商業版模擬訂閱與加購 (前端自愈交互)
+    window.mockSubscribe = async (tier) => {
+        const tierName = tier === 'PREMIUM' ? '🥇 旗艦版訂閱方案' : '🥈 基礎版訂閱方案';
+        const confirmSub = confirm(`您確定要模擬訂閱「${tierName}」嗎？\n這將在資料庫中為您的帳號開通特權！`);
+        if (!confirmSub) return;
+        
+        try {
+            const res = await fetch('/dev/switch_role', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role: tier })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                alert(`🎉 恭喜！您已成功模擬訂閱 ${tierName}！\n系統將自動重新整理，開啟您的尊榮體驗！`);
+                window.location.reload();
+            } else {
+                alert(`❌ 訂閱失敗: ${data.message}`);
+            }
+        } catch (err) {
+            alert(`❌ 連線錯誤: ${err}`);
+        }
+    };
+
+    window.mockBuyPoints = async (points, price) => {
+        const confirmBuy = confirm(`您確定要模擬加購「⚡ ${points} 點 AI 點數包」（NT$ ${price}）嗎？`);
+        if (!confirmBuy) return;
+        
+        try {
+            const res = await fetch('/dev/switch_role', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role: window.USER_SUBSCRIPTION_TYPE === 'NONE' ? 'BASIC' : window.USER_SUBSCRIPTION_TYPE })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                alert(`⚡ 成功加購！已為您充值 ${points} 點 AI 智慧點數！`);
+                window.location.reload();
+            } else {
+                alert(`❌ 充值失敗: ${data.message}`);
+            }
+        } catch (err) {
+            alert(`❌ 連線錯誤: ${err}`);
+        }
+    };
+
     // --- 樹狀導航切換 ---
     window.switchTab = (tab, e) => {
+        // 特權防線攔截
+        if (!window.checkFeatureAccess(tab)) {
+            if (e) e.preventDefault();
+            window.openModal('upgradePaywallModal');
+            return;
+        }
+
         // 更新母頁籤樣式
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
         if (e) {
@@ -521,11 +582,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 更新子選單顯示
         document.querySelectorAll('.sub-menu').forEach(menu => menu.classList.remove('active'));
-        document.getElementById(`sub_${tab}`).classList.add('active');
+        const targetMenu = document.getElementById(`sub_${tab}`);
+        if (targetMenu) {
+            targetMenu.classList.add('active');
+        }
     };
 
     // --- 彈窗控制 ---
     window.openModal = (id) => {
+        // 生理健康避孕暨臨床醫學免責聲明攔截
+        if (id === 'healthModal' && !localStorage.getItem('menstrual_disclaimer_agreed')) {
+            window.openModal('menstrualDisclaimerModal');
+            return;
+        }
+
+        // 特權防線攔截
+        if (id !== 'upgradePaywallModal' && !window.checkFeatureAccess(id)) {
+            window.openModal('upgradePaywallModal');
+            return;
+        }
+
         if (id === 'scheduleModal' && !window.editingEventId) {
             document.getElementById('manual_summary').value = '';
             document.getElementById('manual_location').value = '';
@@ -550,7 +626,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitBtn.style.background = '';
             }
         }
-        document.getElementById(id).classList.add('show');
+        const modalEl = document.getElementById(id);
+        if (!modalEl) {
+            console.warn(`[openModal] 彈窗 ID "${id}" 在 DOM 中不存在！`);
+            return;
+        }
+        modalEl.classList.add('show');
 
         // 分支邏輯優化 (V11.1)
         if (id === 'wishlistModal') window.loadWishes();
@@ -559,7 +640,6 @@ document.addEventListener('DOMContentLoaded', () => {
             window.loadTodos();
             window.renderTodoCatDropdown();
         }
-        if (id === 'memoModal') window.loadMemos();
         if (id === 'pocketModal') {
             window.selectCategory(''); // 口袋名單開啟時預設空白
             setTimeout(window.initPocketAutocomplete, 300);
@@ -1165,9 +1245,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 3. 成功後直接關閉彈窗 (使用者的要求)
                 window.closeModal('memoModal');
 
-                // 4. 重置與更新
+                // 4. 重置
                 window.checkMemoFields();
-                window.loadMemos();
 
                 // 5. 給一點小提示
                 appendMessage('✨ 日記已成功記錄！', false);
@@ -1199,36 +1278,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!title) return;
 
-        const endpoint = window.editingTodoId ? '/api/todo/update' : '/api/todo';
-        const payload = { title, category, priority };
-        if (window.editingTodoId) payload.id = window.editingTodoId;
+        // 停用按鈕並顯示 Loading Spinner
+        const submitBtn = document.getElementById('submitTodoBtn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.style.pointerEvents = 'none';
+            submitBtn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; margin: 0; border-width: 2px;"></span>';
+            submitBtn.style.opacity = '1';
+        }
 
-        const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if ((await res.json()).status === 'success') {
-            input.value = '';
-            window.editingTodoId = null;
-
-            // 恢復按鈕 UI (V10.9)
-            const submitBtn = document.getElementById('submitTodoBtn');
+        const resetTodoBtnUI = () => {
             if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.style.pointerEvents = window.editingTodoId ? 'auto' : 'none';
                 submitBtn.innerHTML = '✓';
-                submitBtn.style.opacity = '0.3';
-                submitBtn.style.pointerEvents = 'none';
+                submitBtn.style.opacity = window.editingTodoId ? '1' : '0.3';
             }
+        };
 
-            window.loadTodos();
+        try {
+            const endpoint = window.editingTodoId ? '/api/todo/update' : '/api/todo';
+            const payload = { title, category, priority };
+            if (window.editingTodoId) payload.id = window.editingTodoId;
 
-            // 重置選擇
-            const defaultOpt = document.querySelector('.priority-opt.green');
-            if (defaultOpt) window.selectPriority(defaultOpt, '一般');
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
 
-            // 重置類別
-            window.selectTodoCategory('任務', '📝');
+            const data = await res.json();
+            if (data.status === 'success') {
+                input.value = '';
+                window.editingTodoId = null;
+
+                resetTodoBtnUI();
+                window.loadTodos();
+
+                // 重置選擇
+                const defaultOpt = document.querySelector('.priority-opt.green');
+                if (defaultOpt) window.selectPriority(defaultOpt, '一般');
+
+                // 重置類別
+                window.selectTodoCategory('任務', '📝');
+            } else {
+                alert('儲存失敗：' + (data.message || '未知錯誤'));
+                resetTodoBtnUI();
+            }
+        } catch (e) {
+            console.error("Save Todo Error:", e);
+            alert('連線失敗，請重試。');
+            resetTodoBtnUI();
         }
     };
 
@@ -1243,29 +1343,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const category = document.getElementById('wish_category').value || '必買';
 
-        const endpoint = window.editingWishId ? '/api/wishlist/update' : '/api/wishlist';
-        const payload = { name, price, note, category };
-        if (window.editingWishId) payload.id = window.editingWishId;
+        // 停用按鈕並顯示 Loading Spinner
+        const submitBtn = document.getElementById('saveWishBtn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.style.pointerEvents = 'none';
+            submitBtn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; margin: 0; border-width: 2px;"></span>';
+        }
 
-        const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if ((await res.json()).status === 'success') {
-            nameInput.value = '';
-            priceInput.value = '';
-            noteInput.value = '';
-            window.editingWishId = null;
-
-            const submitBtn = document.getElementById('saveWishBtn');
+        const resetWishBtnUI = () => {
             if (submitBtn) {
-                submitBtn.innerHTML = '＋';
-                submitBtn.style.background = '#f97316';
+                submitBtn.disabled = false;
+                submitBtn.style.pointerEvents = '';
+                if (window.editingWishId) {
+                    submitBtn.innerHTML = '✓';
+                    submitBtn.style.background = '#10b981';
+                } else {
+                    submitBtn.innerHTML = '＋';
+                    submitBtn.style.background = '#f97316';
+                }
                 submitBtn.style.width = '45px';
             }
-            window.loadWishes();
+        };
+
+        try {
+            const endpoint = window.editingWishId ? '/api/wishlist/update' : '/api/wishlist';
+            const payload = { name, price, note, category };
+            if (window.editingWishId) payload.id = window.editingWishId;
+
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (data.status === 'success') {
+                nameInput.value = '';
+                priceInput.value = '';
+                noteInput.value = '';
+                window.editingWishId = null;
+
+                resetWishBtnUI();
+                window.loadWishes();
+            } else {
+                alert('儲存失敗：' + (data.message || '未知錯誤'));
+                resetWishBtnUI();
+            }
+        } catch (e) {
+            console.error("Save Wish Error:", e);
+            alert('連線失敗，請重試。');
+            resetWishBtnUI();
         }
     };
 
@@ -2027,6 +2155,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.handleSend = async function (text = null, file = null) {
+        // 點數防線攔截：如果是免費版且剩餘點數 <= 0，攔截並開啟計費牆
+        if (window.USER_SUBSCRIPTION_TYPE === 'NONE' && window.USER_AI_POINTS <= 0) {
+            alert("您的 AI 智慧點數額度已用完，請加購點數或升級尊榮會員方案！");
+            window.openModal('upgradePaywallModal');
+            return;
+        }
+
         const message = text || userInput.value.trim();
         if (!message && !file) return;
 
@@ -2118,6 +2253,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (data.type === 'open_spreadsheet') {
                     appendMessage(data.message);
                     setTimeout(() => window.open(data.url, '_blank'), 1000);
+                } else if (data.type === 'stock_prefill') {
+                    appendMessage(data.message);
+                    if (window.openAddStockTxModalWithValues) {
+                        window.openAddStockTxModalWithValues(data.stock_data);
+                    }
+                } else if (data.type === 'stock_locked') {
+                    appendMessage(data.message);
                 } else {
                     appendMessage(data.message || data.reply);
                 }
@@ -2231,59 +2373,79 @@ document.addEventListener('DOMContentLoaded', () => {
         const resetBtnUI = () => {
             const submitBtn = document.getElementById('submitSchedule');
             if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '';
+                submitBtn.style.pointerEvents = '';
                 submitBtn.innerText = window.editingEventId ? '💾 儲存修改' : '確認加入日曆';
                 submitBtn.style.background = window.editingEventId ? '#10b981' : '';
             }
         };
 
-        if (window.editingEventId) {
-            appendMessage(`正在更新行程：${title}...`, true);
-            const res = await fetch('/api/update_event', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    event_id: window.editingEventId,
-                    title,
-                    start_time: startTime,
-                    duration: isAllDay ? 0 : parseInt(duration), // 傳送預估時間
-                    location,
-                    is_all_day: finalIsAllDay
-                })
-            });
-            const result = await res.json();
-            
-            if (result.status === 'error') {
-                // 原地高質感警示彈窗提示衝突！
-                window.customAlert('行程衝突 ⚠️', result.message, '🚫');
-                resetBtnUI();
+        // 開始寫入，停用按鈕並顯示 Loading Spinner
+        const submitBtn = document.getElementById('submitSchedule');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.style.pointerEvents = 'none';
+            submitBtn.style.opacity = '0.7';
+            submitBtn.innerHTML = `<span class="loading-spinner"></span>${window.editingEventId ? '正在儲存修改...' : '正在加入日曆...'}`;
+        }
+
+        try {
+            if (window.editingEventId) {
+                appendMessage(`正在更新行程：${title}...`, true);
+                const res = await fetch('/api/update_event', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        event_id: window.editingEventId,
+                        title,
+                        start_time: startTime,
+                        duration: isAllDay ? 0 : parseInt(duration), // 傳送預估時間
+                        location,
+                        is_all_day: finalIsAllDay
+                    })
+                });
+                const result = await res.json();
+                
+                if (result.status === 'error') {
+                    // 原地高質感警示彈窗提示衝突！
+                    window.customAlert('行程衝突 ⚠️', result.message, '🚫');
+                    resetBtnUI();
+                } else {
+                    appendMessage(result.message);
+                    window.closeModal('scheduleModal');
+                    resetBtnUI();
+                }
             } else {
-                appendMessage(result.message);
-                window.closeModal('scheduleModal');
+                appendMessage(`新增行程：${title}`, true);
+                const res = await fetch('/api/manual_action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'calendar', 
+                        title, 
+                        start_time: startTime, 
+                        duration: isAllDay ? 0 : parseInt(duration), // 傳送預估時間
+                        location, 
+                        is_all_day: finalIsAllDay
+                    })
+                });
+                const result = await res.json();
+                
+                if (result.status === 'error') {
+                    // 原地高質感警示彈窗提示衝突！
+                    window.customAlert('行程衝突 ⚠️', result.message, '🚫');
+                    resetBtnUI();
+                } else {
+                    appendMessage(result.message);
+                    window.closeModal('scheduleModal');
+                    resetBtnUI();
+                }
             }
-        } else {
-            appendMessage(`新增行程：${title}`, true);
-            const res = await fetch('/api/manual_action', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'calendar', 
-                    title, 
-                    start_time: startTime, 
-                    duration: isAllDay ? 0 : parseInt(duration), // 傳送預估時間
-                    location, 
-                    is_all_day: finalIsAllDay
-                })
-            });
-            const result = await res.json();
-            
-            if (result.status === 'error') {
-                // 原地高質感警示彈窗提示衝突！
-                window.customAlert('行程衝突 ⚠️', result.message, '🚫');
-                resetBtnUI();
-            } else {
-                appendMessage(result.message);
-                window.closeModal('scheduleModal');
-            }
+        } catch (e) {
+            console.error("Save Schedule Error:", e);
+            window.showToast('網路連線或系統發生錯誤，請重試。', 'warning');
+            resetBtnUI();
         }
     };
 
@@ -2415,13 +2577,39 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 口袋名單功能 (V10.9 完善版) ---
     window.currentPocketFilter = '全部';
     window.selectedPocketCategory = ''; // 預設空白
-    window.pocketCategories = JSON.parse(localStorage.getItem('pocketCategories')) || [
+    const defaultPocketCategories = [
         { name: '美食', icon: '🍜' },
         { name: '咖啡', icon: '☕' },
         { name: '景點', icon: '🎡' },
         { name: '住宿', icon: '🏨' },
-        { name: '購物', icon: '🛍️' }
+        { name: '購物', icon: '🛍️' },
+        { name: '宮廟', icon: '⛩️' },
+        { name: '寺廟', icon: '🛕' }
     ];
+    let loadedPocketCats = localStorage.getItem('pocketCategories');
+    if (loadedPocketCats) {
+        try {
+            let parsed = JSON.parse(loadedPocketCats);
+            let changed = false;
+            if (!parsed.some(c => c.name === '宮廟')) {
+                parsed.push({ name: '宮廟', icon: '⛩️' });
+                changed = true;
+            }
+            if (!parsed.some(c => c.name === '寺廟')) {
+                parsed.push({ name: '寺廟', icon: '🛕' });
+                changed = true;
+            }
+            if (changed) {
+                localStorage.setItem('pocketCategories', JSON.stringify(parsed));
+            }
+            window.pocketCategories = parsed;
+        } catch (e) {
+            window.pocketCategories = defaultPocketCategories;
+        }
+    } else {
+        window.pocketCategories = defaultPocketCategories;
+        localStorage.setItem('pocketCategories', JSON.stringify(defaultPocketCategories));
+    }
 
     function getPocketIcon(cat) {
         const found = window.pocketCategories.find(c => c.name === cat);
@@ -2780,12 +2968,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.moveToFavorites = async (id, name, targetCategory) => {
         const isMovingToFav = targetCategory === '常用';
+        
+        let finalCategory = targetCategory;
+        if (!isMovingToFav) {
+            // 移回口袋景點時，讓使用者選擇要歸類的類別，不直接死板地變成「其他」
+            const chosen = prompt(
+                `請問要將「${name}」移回口袋景點的哪一個分類？\n` +
+                `（預設分類：美食、咖啡、景點、住宿、購物、宮廟、寺廟，或自訂新分類）`,
+                '景點'
+            );
+            if (chosen === null) return; // 使用者點選取消
+            finalCategory = chosen.trim() || '其他';
+        }
+
         const yesText = isMovingToFav ? '移入常用地址' : '移回口袋景點';
         const confirmed = await window.customConfirm(
             isMovingToFav ? '移入常用地址？' : '移回口袋景點？',
             isMovingToFav 
                 ? `您確定要將「${name}」移入常用地址，並從口袋景點中隱藏嗎？` 
-                : `您確定要將「${name}」移回口袋景點嗎？`,
+                : `您確定要將「${name}」移回口袋景點，並歸類為「${finalCategory}」嗎？`,
             '📌',
             yesText
         );
@@ -2795,7 +2996,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('/api/pocket/update_category', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, category: targetCategory })
+                body: JSON.stringify({ id, category: finalCategory })
             });
             const data = await res.json();
             if (data.status === 'success') {
@@ -3139,6 +3340,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const pregnancyBadgeEl = document.getElementById('health_pregnancy_badge');
                 const tipsCardEl = document.getElementById('health_tips_card');
 
+                // 渲染冷啟動溫馨提示橫幅
+                const coldStartBannerEl = document.getElementById('health_cold_start_banner');
+                if (coldStartBannerEl) {
+                    if (data.is_cold_start) {
+                        coldStartBannerEl.style.display = 'block';
+                    } else {
+                        coldStartBannerEl.style.display = 'none';
+                    }
+                }
+
                 if (statusTitleEl) statusTitleEl.innerText = data.status_title || '距離下次預測';
                 
                 if (statusDaysEl) {
@@ -3262,8 +3473,107 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- 🌸 生理健康免責條款與補錄邏輯 (V5.1) ---
+    window.agreeMenstrualDisclaimer = () => {
+        localStorage.setItem('menstrual_disclaimer_agreed', 'true');
+        window.closeModal('menstrualDisclaimerModal');
+        window.openModal('healthModal');
+
+        // 非同步向後端發送免責聲明同意存證
+        fetch('/api/health/agree_disclaimer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            console.log('[Consent DB Logging] 免責聲明雙重雲端存證完成！', data);
+        })
+        .catch(err => {
+            console.error('[Consent DB Logging] 雲端存證失敗，但本地已解鎖:', err);
+        });
+    };
+
+    window.calculateBackfillLength = () => {
+        const startVal = document.getElementById('backfill_start_date').value;
+        const endVal = document.getElementById('backfill_end_date').value;
+        const lengthEl = document.getElementById('backfill_period_length');
+        
+        if (startVal && endVal) {
+            const startDt = new Date(startVal);
+            const endDt = new Date(endVal);
+            
+            if (startDt > endDt) {
+                lengthEl.value = '❌ 開始日期不能大於結束日期';
+                lengthEl.style.color = '#be123c';
+                return;
+            }
+            
+            const diffDays = Math.round((endDt - startDt) / (1000 * 60 * 60 * 24)) + 1;
+            lengthEl.value = `${diffDays} 天`;
+            lengthEl.style.color = '#1e293b';
+        } else {
+            lengthEl.value = '';
+        }
+    };
+
+    window.submitMenstrualBackfill = async () => {
+        const start_date = document.getElementById('backfill_start_date').value;
+        const end_date = document.getElementById('backfill_end_date').value;
+        const symptoms = document.getElementById('backfill_symptoms').value;
+        const submitBtn = document.getElementById('submitBackfillBtn');
+        
+        if (!start_date || !end_date) {
+            showToast('請完整填寫開始與結束日期！', 'warning');
+            return;
+        }
+        
+        const startDt = new Date(start_date);
+        const endDt = new Date(end_date);
+        if (startDt > endDt) {
+            showToast('開始日期不能大於結束日期！', 'warning');
+            return;
+        }
+        
+        const originalText = submitBtn.innerText;
+        submitBtn.disabled = true;
+        submitBtn.innerText = '⏳ 正在寫入雲端...';
+        submitBtn.style.opacity = '0.7';
+        
+        try {
+            const res = await fetch('/api/health/backfill', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ start_date, end_date, symptoms })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast(data.message, 'success');
+                window.closeModal('menstrualBackfillModal');
+                
+                // 清空欄位
+                document.getElementById('backfill_start_date').value = '';
+                document.getElementById('backfill_end_date').value = '';
+                document.getElementById('backfill_symptoms').value = '';
+                document.getElementById('backfill_period_length').value = '';
+                
+                // 重新載入生理健康資訊與統計
+                window.loadHealthInfo();
+            } else {
+                showToast(data.message, 'error');
+            }
+        } catch (err) {
+            console.error('Backfill request error:', err);
+            showToast('雲端連線失敗，請稍後再試！', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = originalText;
+            submitBtn.style.opacity = '1';
+        }
+    };
+
     // 綁定快速操作按鈕事件
     document.querySelectorAll('.health-action-btn').forEach(btn => {
+        if (btn.classList.contains('backfill')) return;
         btn.onclick = async function() {
             const isStart = this.classList.contains('start');
             const isEnd = this.classList.contains('end');
@@ -3455,4 +3765,745 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
     }
+
+    // --- 📈 股票與證券資產核心邏輯 (V15.0 - Premium) ---
+    window.currentStockTxType = '買進';
+
+    window.openAddStockTxModal = () => {
+        document.getElementById('stock_tx_ticker').value = '';
+        document.getElementById('stock_tx_name').value = '';
+        document.getElementById('stock_tx_price').value = '';
+        document.getElementById('stock_tx_shares').value = '';
+        document.getElementById('stock_tx_fee').value = '';
+        
+        // 預設日期為今天 (台灣時間 YYYY-MM-DD)
+        const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+        const localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, 10);
+        document.getElementById('stock_tx_date').value = localISOTime;
+        
+        window.setStockTxType('買進');
+        window.openModal('stockModal');
+    };
+
+    window.setStockTxType = (type) => {
+        window.currentStockTxType = type;
+        const buyBtn = document.getElementById('tx_type_buy');
+        const sellBtn = document.getElementById('tx_type_sell');
+        const saveBtn = document.getElementById('saveStockTxBtn');
+        const previewCard = document.getElementById('stock_tx_preview_card');
+        
+        if (type === '買進') {
+            // 買進按鈕：高級翠綠色
+            buyBtn.style.cssText = "flex: 1; padding: 8px; border: none; border-radius: 8px; font-weight: bold; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; background: #16a34a; color: white;";
+            sellBtn.style.cssText = "flex: 1; padding: 8px; border: none; border-radius: 8px; font-weight: bold; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;";
+            
+            // 確認按鈕：高級翠綠色
+            if (saveBtn) {
+                saveBtn.style.background = "#16a34a";
+                saveBtn.style.boxShadow = "0 4px 10px rgba(22,163,74,0.15)";
+            }
+            
+            // 試算卡片：綠色系
+            if (previewCard) {
+                previewCard.style.background = "#f0fdf4";
+                previewCard.style.borderColor = "#bbf7d0";
+                previewCard.style.color = "#166534";
+                previewCard.innerHTML = `
+                    <span style="font-weight: 900; color: #14532d; display: block; margin-bottom: 5px;">💡 本次交易預算試算：</span>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span>購買股數：</span>
+                        <span id="preview_shares" style="font-weight: 800;">0 股</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span>每股單價：</span>
+                        <span id="preview_price" style="font-weight: 800;">$ 0.00</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span>預估成交金額 (股數*單價)：</span>
+                        <span id="preview_subtotal" style="font-weight: 800;">$ 0.00</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span>手續費：</span>
+                        <span id="preview_fee" style="font-weight: 800;">$ 0.00</span>
+                    </div>
+                    <div style="border-top: 1px dashed #bbf7d0; margin-top: 6px; padding-top: 6px; display: flex; justify-content: space-between; font-size: 0.88rem; font-weight: 900; color: #14532d;">
+                        <span>💰 本次交易您共需支付：</span>
+                        <span id="preview_total">$ 0.00</span>
+                    </div>
+                `;
+            }
+        } else {
+            // 賣出按鈕：珊瑚紅色
+            buyBtn.style.cssText = "flex: 1; padding: 8px; border: none; border-radius: 8px; font-weight: bold; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;";
+            sellBtn.style.cssText = "flex: 1; padding: 8px; border: none; border-radius: 8px; font-weight: bold; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; background: #ef4444; color: white;";
+            
+            // 確認按鈕：珊瑚紅色
+            if (saveBtn) {
+                saveBtn.style.background = "#ef4444";
+                saveBtn.style.boxShadow = "0 4px 10px rgba(239,68,68,0.15)";
+            }
+            
+            // 試算卡片：紅色系
+            if (previewCard) {
+                previewCard.style.background = "#fef2f2";
+                previewCard.style.borderColor = "#fecaca";
+                previewCard.style.color = "#991b1b";
+                previewCard.innerHTML = `
+                    <span style="font-weight: 900; color: #7f1d1d; display: block; margin-bottom: 5px;">💡 本次交易預算試算：</span>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span>賣出股數：</span>
+                        <span id="preview_shares" style="font-weight: 800;">0 股</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span>每股單價：</span>
+                        <span id="preview_price" style="font-weight: 800;">$ 0.00</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span>預估成交金額 (股數*單價)：</span>
+                        <span id="preview_subtotal" style="font-weight: 800;">$ 0.00</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span>手續費：</span>
+                        <span id="preview_fee" style="font-weight: 800;">$ 0.00</span>
+                    </div>
+                    <div style="border-top: 1px dashed #fecaca; margin-top: 6px; padding-top: 6px; display: flex; justify-content: space-between; font-size: 0.88rem; font-weight: 900; color: #7f1d1d;">
+                        <span>💰 本次交易您共可回收：</span>
+                        <span id="preview_total">$ 0.00</span>
+                    </div>
+                `;
+            }
+        }
+        window.updateStockTxPreview();
+    };
+
+    const hotTickers = [
+        { ticker: "TPE:0050", name: "元大台灣50", short: "0050" },
+        { ticker: "TPE:0056", name: "元大高股息", short: "0056" },
+        { ticker: "TPE:00878", name: "國泰永續高股息", short: "00878" },
+        { ticker: "TPE:00919", name: "群益台灣精選高息", short: "00919" },
+        { ticker: "TPE:00929", name: "復華台灣科技優息", short: "00929" },
+        { ticker: "TPE:2330", name: "台積電", short: "2330" },
+        { ticker: "TPE:2317", name: "鴻海", short: "2317" },
+        { ticker: "TPE:2454", name: "聯發科", short: "2454" },
+        { ticker: "TPE:2303", name: "聯電", short: "2303" },
+        { ticker: "TPE:2603", name: "長榮", short: "2603" },
+        { ticker: "TPE:2618", name: "長榮航", short: "2618" },
+        { ticker: "TPE:2002", name: "中鋼", short: "2002" },
+        { ticker: "TPE:2308", name: "台達電", short: "2308" },
+        { ticker: "TPE:2881", name: "富邦金", short: "2881" },
+        { ticker: "TPE:2882", name: "國泰金", short: "2882" },
+        { ticker: "TPE:2884", name: "玉山金", short: "2884" },
+        { ticker: "TPE:2886", name: "兆豐金", short: "2886" },
+        { ticker: "TPE:2891", name: "中信金", short: "2891" },
+        { ticker: "NASDAQ:AAPL", name: "Apple", short: "AAPL" },
+        { ticker: "NASDAQ:NVDA", name: "Nvidia", short: "NVDA" },
+        { ticker: "NASDAQ:MSFT", name: "Microsoft", short: "MSFT" },
+        { ticker: "NASDAQ:TSLA", name: "Tesla", short: "TSLA" }
+    ];
+
+    window.onStockTickerInput = async () => {
+        const input = document.getElementById('stock_tx_ticker');
+        const val = input.value.trim().toLowerCase();
+        const container = document.getElementById('stock_ticker_autocomplete');
+        
+        if (!val) {
+            container.style.display = 'none';
+            return;
+        }
+        
+        let matches = [];
+        try {
+            // 優先從 TiDB 資料庫動態模糊查詢
+            const res = await fetch(`/api/stock/suggestions?q=${encodeURIComponent(val)}`);
+            matches = await res.json();
+        } catch (e) {
+            console.warn("[Stock Autocomplete] 資料庫連線異常，切換至本機備份選單:", e);
+        }
+        
+        // 🛡️ 降級守衛：若 TiDB 查無匹配或連線失敗，無縫 fallback 至本機靜態字典
+        if (!matches || matches.length === 0) {
+            matches = hotTickers.filter(t => 
+                t.short.toLowerCase().includes(val) || 
+                t.ticker.toLowerCase().includes(val) || 
+                t.name.toLowerCase().includes(val)
+            );
+        }
+        
+        if (matches.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+        
+        container.innerHTML = matches.map(m => `
+            <div onclick="window.selectStockSuggestion('${m.ticker}', '${m.name}')" style="padding: 10px; cursor: pointer; border-radius: 6px; font-size: 0.85rem; font-weight: bold; color: #1e293b; transition: background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <span style="color:#0f172a;">${m.ticker}</span> - <span style="color:#64748b;">${m.name}</span>
+            </div>
+        `).join('');
+        container.style.display = 'block';
+    };
+
+    window.onStockNameInput = async () => {
+        const input = document.getElementById('stock_tx_name');
+        const val = input.value.trim().toLowerCase();
+        const container = document.getElementById('stock_name_autocomplete');
+        
+        if (!val) {
+            container.style.display = 'none';
+            return;
+        }
+        
+        let matches = [];
+        try {
+            const res = await fetch(`/api/stock/suggestions?q=${encodeURIComponent(val)}`);
+            matches = await res.json();
+        } catch (e) {
+            console.warn("[Stock Autocomplete] 資料庫連線異常，切換至本機選單:", e);
+        }
+        
+        if (!matches || matches.length === 0) {
+            matches = hotTickers.filter(t => 
+                t.short.toLowerCase().includes(val) || 
+                t.ticker.toLowerCase().includes(val) || 
+                t.name.toLowerCase().includes(val)
+            );
+        }
+        
+        if (matches.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+        
+        container.innerHTML = matches.map(m => `
+            <div onclick="window.selectStockSuggestion('${m.ticker}', '${m.name}')" style="padding: 10px; cursor: pointer; border-radius: 6px; font-size: 0.85rem; font-weight: bold; color: #1e293b; transition: background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <span style="color:#0f172a;">${m.ticker}</span> - <span style="color:#64748b;">${m.name}</span>
+            </div>
+        `).join('');
+        container.style.display = 'block';
+    };
+
+    window.selectStockSuggestion = (ticker, name) => {
+        document.getElementById('stock_tx_ticker').value = ticker;
+        document.getElementById('stock_tx_name').value = name;
+        document.getElementById('stock_ticker_autocomplete').style.display = 'none';
+        document.getElementById('stock_name_autocomplete').style.display = 'none';
+        window.updateStockTxPreview();
+    };
+
+    // 點擊/觸控外部關閉自動聯想
+    const hideStockAutocompletes = (e) => {
+        const tickerContainer = document.getElementById('stock_ticker_autocomplete');
+        if (tickerContainer && e.target.id !== 'stock_tx_ticker') {
+            tickerContainer.style.display = 'none';
+        }
+        const nameContainer = document.getElementById('stock_name_autocomplete');
+        if (nameContainer && e.target.id !== 'stock_tx_name') {
+            nameContainer.style.display = 'none';
+        }
+    };
+    document.addEventListener('click', hideStockAutocompletes);
+    document.addEventListener('touchstart', hideStockAutocompletes, { passive: true });
+
+    // 焦點離開 (Focusout 委派) 時延時關閉 (延遲 200ms 確保 select 點擊事件能被正確接收，且完美解決 DOM 載入順序問題)
+    document.addEventListener('focusout', (e) => {
+        if (e.target && e.target.id === 'stock_tx_ticker') {
+            setTimeout(() => {
+                const container = document.getElementById('stock_ticker_autocomplete');
+                if (container) container.style.display = 'none';
+            }, 200);
+        }
+        if (e.target && e.target.id === 'stock_tx_name') {
+            setTimeout(() => {
+                const container = document.getElementById('stock_name_autocomplete');
+                if (container) container.style.display = 'none';
+            }, 200);
+        }
+    });
+
+    window.saveStockTransaction = async () => {
+        const ticker = document.getElementById('stock_tx_ticker').value.trim();
+        const name = document.getElementById('stock_tx_name').value.trim();
+        const price = document.getElementById('stock_tx_price').value.trim();
+        const sharesInput = document.getElementById('stock_tx_shares');
+        sharesInput.value = sharesInput.value.replace(/[^0-9]/g, ''); // 強制防呆取整
+        const shares = sharesInput.value.trim();
+        const fee = document.getElementById('stock_tx_fee').value.trim() || "0";
+        const date = document.getElementById('stock_tx_date').value.trim();
+        
+        if (!ticker || !name || !price || !shares || !date) {
+            showToast('請完整填寫股票代號、名稱、單價與股數喔！');
+            return;
+        }
+        
+        const saveBtn = document.getElementById('saveStockTxBtn');
+        const originalText = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<span class="loading-spinner" style="width: 16px; height: 16px; border-width: 2px;"></span> 寫入中...';
+        saveBtn.style.opacity = '0.7';
+        saveBtn.disabled = true;
+        
+        try {
+            const res = await fetch('/api/stock/add_transaction', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ticker,
+                    name,
+                    type: window.currentStockTxType,
+                    price: parseFloat(price),
+                    shares: parseInt(shares), // 強制以整數傳入後端
+                    fee: parseFloat(fee),
+                    date
+                })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast(data.message, 'success');
+                
+                // 清空表單欄位
+                document.getElementById('stock_tx_ticker').value = '';
+                document.getElementById('stock_tx_name').value = '';
+                document.getElementById('stock_tx_price').value = '';
+                document.getElementById('stock_tx_shares').value = '';
+                document.getElementById('stock_tx_fee').value = '';
+                
+                // 動態隱藏試算預覽
+                const previewCard = document.getElementById('stock_tx_preview_card');
+                if (previewCard) previewCard.style.display = 'none';
+                
+                // 關閉新增持股彈窗
+                closeModal('stockModal');
+                
+                // 自動在對話框中直出並整理最新持股明細報告
+                window.queryStockPortfolioSummary();
+            } else {
+                showToast(data.message, 'error');
+            }
+        } catch (e) {
+            showToast('寫入失敗，請稍後再試', 'error');
+        } finally {
+            saveBtn.innerHTML = originalText;
+            saveBtn.style.opacity = '1';
+            saveBtn.disabled = false;
+        }
+    };
+
+    window.loadStockPortfolio = async () => {
+        const listContainer = document.getElementById('stock_portfolio_list');
+        const historyContainer = document.getElementById('stock_tx_history');
+        if (!listContainer || !historyContainer) return;
+        
+        listContainer.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 20px;"><span class="loading-spinner" style="width: 20px; height: 20px; border-color: #0f172a; border-top-color: transparent;"></span> 讀取證券資料中...</div>';
+        
+        try {
+            const res = await fetch('/api/stock/portfolio');
+            const data = await res.json();
+            
+            if (data.status === 'locked') {
+                closeModal('stockModal');
+                openModal('upgradePaywallModal');
+                return;
+            }
+            
+            if (data.status === 'error') {
+                listContainer.innerHTML = `<div style="text-align: center; color: #ef4444; font-size: 0.85rem; padding: 20px;">❌ 載入失敗: ${data.message}</div>`;
+                return;
+            }
+            
+            // 1. 渲染頂部總體資產
+            document.getElementById('stock_total_value').innerText = `$ ${data.summary.total_value.toLocaleString()}`;
+            document.getElementById('stock_total_cost').innerText = `$ ${data.summary.total_cost.toLocaleString()}`;
+            
+            const roiVal = data.summary.total_roi;
+            const roiRate = data.summary.total_roi_rate;
+            const roiEl = document.getElementById('stock_total_roi');
+            if (roiVal >= 0) {
+                roiEl.innerText = `+$ ${roiVal.toLocaleString()} (+${roiRate}%)`;
+                roiEl.style.color = '#34d399';
+            } else {
+                roiEl.innerText = `-$ ${Math.abs(roiVal).toLocaleString()} (${roiRate}%)`;
+                roiEl.style.color = '#f87171';
+            }
+            
+            // 2. 渲染持股卡片
+            const portfolio = data.portfolio;
+            const tickers = Object.keys(portfolio);
+            
+            if (tickers.length === 0) {
+                listContainer.innerHTML = `
+                    <div style="text-align: center; padding: 25px; background: #f8fafc; border-radius: 16px; border: 1.5px dashed #cbd5e1;">
+                        <span style="font-size: 1.8rem; display: block; margin-bottom: 8px;">📈</span>
+                        <div style="font-weight: bold; color: #475569; font-size: 0.9rem; margin-bottom: 10px;">目前試算表尚無任何持股部位</div>
+                        <div style="text-align: left; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; font-size: 0.78rem; color: #64748b; margin-bottom: 12px; line-height: 1.6;">
+                            <div style="font-weight: 800; color: #334155; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">🎯 系統將在此為您條列與統計：</div>
+                            <div style="display: flex; gap: 4px; margin-bottom: 2px;"><span>1.</span><span><strong>條列持有股票</strong>：股票名稱與代號</span></div>
+                            <div style="display: flex; gap: 4px; margin-bottom: 2px;"><span>2.</span><span><strong>共持有多少股數</strong>：累計持股總股數</span></div>
+                            <div style="display: flex; gap: 4px; margin-bottom: 2px;"><span>3.</span><span><strong>每股平均成本</strong>：每整股的平均取得成本</span></div>
+                            <div style="display: flex; gap: 4px; margin-bottom: 2px;"><span>4.</span><span><strong>即時最新市價</strong>：對接 Google 金融報價</span></div>
+                            <div style="display: flex; gap: 4px;"><span>5.</span><span><strong>累計即時損益</strong>：最新市值減成本與 ROI (%)</span></div>
+                        </div>
+                        <div style="color: #94a3b8; font-size: 0.75rem;">點擊上方「➕ 新增持股」分頁即可開始存股！</div>
+                    </div>
+                `;
+            } else {
+                listContainer.innerHTML = tickers.map(t => {
+                    const p = portfolio[t];
+                    const roi = p.total_roi;
+                    const roiRate = p.total_cost > 0 ? ((roi / p.total_cost) * 100).toFixed(2) : "0.00";
+                    const isProfit = roi >= 0;
+                    const badgeColor = isProfit ? "#d1fae5" : "#fee2e2";
+                    const textColor = isProfit ? "#065f46" : "#991b1b";
+                    const sign = isProfit ? "+" : "";
+                    
+                    return `
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 15px; display: flex; flex-direction: column; gap: 8px; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.01)'" onmouseout="this.style.transform='scale(1.0)'">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <span style="font-size: 0.95rem; font-weight: 800; color: #1e293b; text-align: left; display: inline-block;">${p.name}</span>
+                                    <span style="font-size: 0.72rem; color: #64748b; margin-left: 4px; background: #e2e8f0; padding: 2px 6px; border-radius: 6px;">${p.ticker}</span>
+                                </div>
+                                <div style="background: ${badgeColor}; color: ${textColor}; font-size: 0.75rem; font-weight: 800; padding: 4px 8px; border-radius: 20px;">
+                                    ${sign}${roi.toLocaleString()} (${sign}${roiRate}%)
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: #64748b; margin-top: 4px; text-align: left;">
+                                <div>
+                                    <div>持股股數: <span style="font-weight: bold; color: #1e293b;">${p.net_shares.toLocaleString()} 股</span></div>
+                                    <div>每股平均成本: <span style="font-weight: bold; color: #1e293b;">$ ${p.avg_cost}</span></div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div>即時市價: <span style="font-weight: bold; color: #1e293b;">$ ${p.live_price}</span></div>
+                                    <div>部位累計成本: <span style="font-weight: bold; color: #1e293b;">$ ${p.total_cost.toLocaleString()}</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            // 3. 渲染交易歷史
+            const transactions = data.transactions;
+            if (transactions.length === 0) {
+                historyContainer.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.75rem; padding: 10px;">目前尚無交易明細。</div>';
+            } else {
+                historyContainer.innerHTML = transactions.map(tx => {
+                    const isBuy = tx.type === '買進';
+                    const pillColor = isBuy ? '#e0f2fe' : '#fee2e2';
+                    const textColor = isBuy ? '#0369a1' : '#b91c1c';
+                    
+                    return `
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 10px; font-size: 0.78rem;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="background: ${pillColor}; color: ${textColor}; font-weight: 800; padding: 2px 6px; border-radius: 6px; font-size: 0.7rem;">${tx.type}</span>
+                                <span style="font-weight: bold; color: #1e293b;">${tx.name}</span>
+                                <span style="color: #94a3b8;">${tx.date}</span>
+                            </div>
+                            <div style="text-align: right; font-weight: bold; color: #475569;">
+                                ${tx.shares.toLocaleString()} 股 @ $ ${tx.price}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+        } catch (e) {
+            listContainer.innerHTML = '<div style="text-align: center; color: #ef4444; font-size: 0.85rem; padding: 20px;">❌ 載入失敗，連線異常</div>';
+        }
+    };
+
+    window.runStockAIFit = async () => {
+        const runBtn = document.getElementById('runStockAIBtn');
+        const container = document.getElementById('stock_ai_report_container');
+        if (!container || !runBtn) return;
+        
+        container.innerHTML = `
+            <div style="text-align: center; color: #94a3b8; padding-top: 50px;">
+                <span class="loading-spinner" style="width: 32px; height: 32px; border-color: #38bdf8; border-top-color: transparent; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;"></span>
+                🤖 AI 正在全方位解讀您的存股配置並進行診斷，大數據複雜計算預估需要 8-15 秒，請稍候...
+            </div>
+        `;
+        runBtn.disabled = true;
+        runBtn.style.opacity = '0.6';
+        runBtn.innerHTML = '⚡ AI 正在精算大數據中...';
+        
+        try {
+            const res = await fetch('/api/stock/ai_analysis', { method: 'POST' });
+            const data = await res.json();
+            
+            if (data.status === 'locked') {
+                closeModal('stockAnalysisModal');
+                openModal('upgradePaywallModal');
+                return;
+            }
+            
+            if (data.status === 'error') {
+                container.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px;">❌ 診斷失敗: ${data.message}</div>`;
+                return;
+            }
+            
+            // 格式化 markdown 並印出
+            container.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px; color:#38bdf8; font-weight: bold; font-size: 0.95rem; text-align: left;">
+                    <span>🤖</span> 旗艦版 AI 全能證券健檢報告 (已成功精算)
+                </div>
+                <div style="text-align: left;">
+                    ${formatStockMarkdown(data.analysis)}
+                </div>
+            `;
+            
+            // 同步更新首頁右上角的點數顯示
+            const pointEl = document.getElementById('user_ai_points');
+            if (pointEl && data.remaining_points !== undefined) {
+                pointEl.innerText = data.remaining_points;
+                window.USER_AI_POINTS = data.remaining_points;
+            }
+            showToast('AI 全能持股健檢大數據計算完畢！', 'success');
+            
+        } catch (e) {
+            container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">❌ 連線失敗，無法取得 AI 報告</div>';
+        } finally {
+            runBtn.disabled = false;
+            runBtn.style.opacity = '1';
+            runBtn.innerHTML = '⚡ 立即啟動 AI 全能診斷 (扣除 30 點)';
+        }
+    };
+
+    function formatStockMarkdown(text) {
+        if (!text) return "";
+        // 若內容已經是後端格式化好的精美 HTML 樣式，則直接返回，避免二次逸出破壞樣式
+        if (text.includes('<div') || text.includes('<span')) {
+            return text;
+        }
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\*\*([^*]+)\*\*/g, '<strong style="color: #38bdf8; font-weight: 800;">$1</strong>')
+            .replace(/\*([^*]+)\*/g, '<em style="color: #93c5fd;">$1</em>')
+            .replace(/`([^`]+)`/g, '<code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color:#f472b6;">$1</code>')
+            .replace(/\n/g, '<br>');
+    }
+
+    // --- 投資持股直出對話框核心 ---
+    window.queryStockPortfolioSummary = async () => {
+        appendMessage(`查詢當前證券持股...`, true);
+        try {
+            const res = await fetch('/api/query_stock_portfolio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                appendMessage(formatStockMarkdown(data.message));
+            } else {
+                appendMessage("❌ 查詢失敗：" + data.message);
+            }
+        } catch (error) {
+            appendMessage("❌ 伺服器連線失敗");
+        }
+    };
+
+    window.openAddStockTxModalWithValues = (tx) => {
+        window.openAddStockTxModal();
+        if (tx.ticker) document.getElementById('stock_tx_ticker').value = tx.ticker;
+        if (tx.name) document.getElementById('stock_tx_name').value = tx.name;
+        if (tx.price) document.getElementById('stock_tx_price').value = tx.price;
+        if (tx.shares) document.getElementById('stock_tx_shares').value = tx.shares;
+        if (tx.fee !== undefined) document.getElementById('stock_tx_fee').value = tx.fee;
+        if (tx.date) document.getElementById('stock_tx_date').value = tx.date;
+        if (tx.tx_type) window.setStockTxType(tx.tx_type);
+        window.updateStockTxPreview();
+    };
+
+    // 💡 零股與交易金額即時雙向試算防呆 (V3 - 限制整數)
+    window.updateStockTxPreview = () => {
+        const sharesInput = document.getElementById('stock_tx_shares');
+        if (sharesInput) {
+            // 自動防呆過濾非數字
+            sharesInput.value = sharesInput.value.replace(/[^0-9]/g, '');
+        }
+        
+        const sharesVal = parseInt(sharesInput.value) || 0;
+        const priceVal = parseFloat(document.getElementById('stock_tx_price').value) || 0;
+        const feeVal = parseFloat(document.getElementById('stock_tx_fee').value) || 0;
+        const previewCard = document.getElementById('stock_tx_preview_card');
+        
+        if (!previewCard) return;
+        
+        if (sharesVal > 0 && priceVal > 0) {
+            previewCard.style.display = 'block';
+            
+            const subtotal = sharesVal * priceVal;
+            // 💰 金融邏輯防呆對齊：買進為成交金額加手續費；賣出為成交金額扣除手續費
+            const isSell = window.currentStockTxType === '賣出';
+            const total = isSell ? (subtotal - feeVal) : (subtotal + feeVal);
+            
+            const sharesLabel = isSell ? `${sharesVal} 股 (賣出整數)` : `${sharesVal} 股 (買進整數)`;
+            
+            document.getElementById('preview_shares').innerText = sharesLabel;
+            document.getElementById('preview_price').innerText = `$ ${priceVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('preview_subtotal').innerText = `$ ${subtotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('preview_fee').innerText = `$ ${feeVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('preview_total').innerText = `$ ${total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        } else {
+            previewCard.style.display = 'none';
+        }
+    };
+
+    // --- 📊 存股看板核心載入渲染器 (V3.2 - Premium Glassmorphism) ---
+    window.openStockDashboard = async () => {
+        window.openModal('stockDashboardModal');
+        
+        // 取得渲染容器與指標 DOM
+        const totalValueEl = document.getElementById('dash_total_value');
+        const totalRoiEl = document.getElementById('dash_total_roi');
+        const totalCostEl = document.getElementById('dash_total_cost');
+        const totalDividendsEl = document.getElementById('dash_total_dividends');
+        const portfolioListEl = document.getElementById('dash_portfolio_list');
+        
+        if (!portfolioListEl) return;
+        
+        // 初始化 Loading 狀態
+        portfolioListEl.innerHTML = `
+            <div style="text-align: center; padding: 40px 10px; color: #64748b; font-weight: bold; font-size: 0.85rem; width: 100%;">
+                <div class="loading-spinner" style="border-top-color: #38bdf8; margin: 0 auto 10px auto;"></div>
+                正在安全連結 Google 試算表計算最新損益...
+            </div>
+        `;
+        
+        try {
+            const res = await fetch('/api/stock/portfolio');
+            const data = await res.json();
+            
+            if (data.status === 'locked') {
+                // 如果是免費版被鎖定，直接交由 HTML 訂閱遮罩阻擋即可，此處清空列表
+                portfolioListEl.innerHTML = `
+                    <div style="text-align: center; padding: 40px 10px; color: #64748b; font-weight: bold; font-size: 0.85rem;">
+                        🔒 升級旗艦版會員解鎖實時存股看板
+                    </div>
+                `;
+                return;
+            }
+            
+            if (data.status !== 'success') {
+                portfolioListEl.innerHTML = `
+                    <div style="text-align: center; padding: 40px 10px; color: #f87171; font-weight: bold; font-size: 0.85rem;">
+                        ❌ 載入失敗：${data.message || '無法連線到試算表'}
+                    </div>
+                `;
+                return;
+            }
+            
+            const summary = data.summary || { total_cost: 0, total_value: 0, total_roi: 0, total_roi_rate: 0, total_dividends: 0 };
+            const portfolio = data.portfolio || {};
+            
+            // 1. 渲染頂部總計資產卡片 (一鍵資產看板)
+            totalValueEl.innerHTML = `$${Math.round(summary.total_value).toLocaleString()} <span style="font-size: 1rem; color: #94a3b8; font-weight: 700;">NTD</span>`;
+            totalCostEl.innerText = `$${Math.round(summary.total_cost).toLocaleString()}`;
+            totalDividendsEl.innerText = `$${Math.round(summary.total_dividends || 0).toLocaleString()} NTD`;
+            
+            const roiVal = Math.round(summary.total_roi);
+            const roiRate = summary.total_roi_rate.toFixed(2);
+            if (roiVal >= 0) {
+                totalRoiEl.innerText = `+${roiVal.toLocaleString()} (+${roiRate}%)`;
+                totalRoiEl.style.color = '#4ade80'; // Soft Mint Green
+            } else {
+                totalRoiEl.innerText = `${roiVal.toLocaleString()} (${roiRate}%)`;
+                totalRoiEl.style.color = '#f87171'; // Warning Coral Red
+            }
+            
+            // 2. 渲染持股明細清單 (微軟式極簡深色毛玻璃卡片)
+            const tickers = Object.keys(portfolio);
+            if (tickers.length === 0) {
+                portfolioListEl.innerHTML = `
+                    <div style="text-align: center; padding: 40px 10px; color: #94a3b8; font-size: 0.82rem; font-weight: 700; line-height: 1.5;">
+                        🌱 您的證券投資組合目前沒有持股紀錄喔！<br>
+                        點擊下方「➕ 新增持股」快速補登您的第一筆部位吧！
+                    </div>
+                `;
+                return;
+            }
+            
+            let htmlContent = '';
+            tickers.forEach(t => {
+                const p = portfolio[t];
+                
+                // 換算張/股
+                const netShares = Math.round(p.net_shares);
+                let sharesText = '';
+                if (netShares >= 1000) {
+                    const sheets = Math.floor(netShares / 1000);
+                    const rem = netShares % 1000;
+                    sharesText = rem > 0 ? `🎟️ ${sheets}張 ${rem}股` : `🎟️ ${sheets}張`;
+                } else {
+                    sharesText = `🌱 ${netShares}股`;
+                }
+                
+                // 損益百分比
+                const stockRoiRate = p.total_cost > 0 ? ((p.total_roi / p.total_cost) * 100).toFixed(2) : '0.00';
+                
+                // 盈利與虧損配色系統 (Soft Mint Green & Warning Coral Red)
+                const isProfit = p.total_roi >= 0;
+                const roiColor = isProfit ? '#4ade80' : '#f87171';
+                const roiSign = isProfit ? '+' : '';
+                const bgBorderStyling = isProfit 
+                    ? 'border: 1px solid rgba(74, 222, 128, 0.16); background: rgba(255, 255, 255, 0.02);' 
+                    : 'border: 1px solid rgba(248, 113, 113, 0.16); background: rgba(255, 255, 255, 0.02);';
+                    
+                htmlContent += `
+                    <div style="border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; ${bgBorderStyling} transition: all 0.2s ease;">
+                        <!-- 第一行：股票代號/名稱 & 當前即時股價 -->
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-weight: 800; font-size: 0.95rem; color: #f8fafc; letter-spacing: -0.2px;">
+                                ${p.name}
+                                <span style="font-size: 0.72rem; color: #64748b; font-weight: normal; margin-left: 5px;">${p.ticker}</span>
+                            </span>
+                            <span style="font-weight: 800; font-size: 0.92rem; color: #f8fafc; font-family: monospace;">
+                                $${p.live_price.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 2})}
+                            </span>
+                        </div>
+                        
+                        <!-- 第二行：持股股數、持股均價 & 損益狀態 -->
+                        <div style="display: flex; align-items: flex-end; justify-content: space-between; font-size: 0.78rem;">
+                            <div style="display: flex; flex-direction: column; gap: 2px; color: #94a3b8;">
+                                <span>數量: <span style="font-weight: 700; color: #cbd5e1;">${sharesText}</span></span>
+                                <span>均價: <span style="font-weight: 700; color: #cbd5e1;">$${p.avg_cost.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 2})}</span></span>
+                            </div>
+                            <div style="text-align: right; display: flex; flex-direction: column; gap: 2px;">
+                                <span style="font-size: 0.7rem; color: #64748b; font-weight: 700;">即時損益</span>
+                                <span style="font-weight: 800; color: ${roiColor}; font-size: 0.88rem; font-family: monospace;">
+                                    ${roiSign}$${Math.round(p.total_roi).toLocaleString()} (${roiSign}${stockRoiRate}%)
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            portfolioListEl.innerHTML = htmlContent;
+            
+        } catch (error) {
+            console.error('[Dashboard Error]', error);
+            portfolioListEl.innerHTML = `
+                <div style="text-align: center; padding: 40px 10px; color: #f87171; font-weight: bold; font-size: 0.85rem;">
+                    ❌ 連線異常，請確認您的網路環境後再重試！
+                </div>
+            `;
+        }
+    };
+
+    // ☁️ 雲端存股表自癒觸發包裝器
+    window.openCloudStockSheet = (url) => {
+        // 先在背景發送一個輕量級的 API 請求，悄悄觸發自癒守衛
+        fetch('/api/stock/portfolio').catch(() => {});
+        // 同時順暢地在分頁開啟雲端存股表
+        window.open(url, '_blank');
+    };
+
+    // ☁️ 雲端生理紀錄表自癒觸發包裝器
+    window.openCloudHealthSheet = (url) => {
+        // 先在背景發送一個輕量級的 API 請求，悄悄觸發自癒守衛（修復生理紀錄表頭與警告鎖）
+        fetch('/api/health/info').catch(() => {});
+        // 同時順暢地在分頁開啟健康紀錄表
+        window.open(url, '_blank');
+    };
 });

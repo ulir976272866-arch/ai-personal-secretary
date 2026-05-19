@@ -745,7 +745,7 @@ select.form-input {
 
 .tab-btn {
     flex: 1;
-    padding: 8px;
+    padding: 8px 4px;
     border: none;
     background: transparent;
     border-radius: 10px;
@@ -754,6 +754,10 @@ select.form-input {
     color: #64748b;
     cursor: pointer;
     transition: all 0.2s ease;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .tab-btn.active {
@@ -1845,4 +1849,312 @@ select.form-input {
 @keyframes pulseGlow {
     0%, 100% { transform: scale(1); box-shadow: 0 10px 25px rgba(225, 29, 72, 0.08); }
     50% { transform: scale(1.03); box-shadow: 0 12px 30px rgba(225, 29, 72, 0.15); }
+}
+
+/* =================================================================
+   🏆 UniTask Commercial Paywall & AI Points Card Styles
+   ================================================================= */
+
+/* 1. AI 智慧點數卡片 */
+.ai-points-card {
+    position: relative;
+    margin: 15px 20px 20px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    padding: 16px 20px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+}
+
+.ai-points-glow {
+    position: absolute;
+    top: -50%;
+    left: -20%;
+    width: 150px;
+    height: 150px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, rgba(255, 255, 255, 0) 70%);
+    pointer-events: none;
+    animation: rotateGlow 8s linear infinite;
+}
+
+@keyframes rotateGlow {
+    0% { transform: rotate(0deg) translate(0, 0); }
+    50% { transform: rotate(180deg) translate(10px, 10px); }
+    100% { transform: rotate(360deg) translate(0, 0); }
+}
+
+.ai-points-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+}
+
+.ai-points-left {
+    text-align: left;
+}
+
+.ai-badge {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+    color: #2563eb;
+    padding: 3px 8px;
+    border-radius: 8px;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.ai-points-left h3 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #475569;
+    margin: 0 0 4px;
+}
+
+.ai-points-text {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    margin: 0;
+}
+
+.ai-points-text .points-num {
+    font-size: 1.45rem;
+    font-weight: 900;
+    color: #0f172a;
+    margin-right: 2px;
+}
+
+.ai-points-upgrade-btn {
+    background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 14px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+    transition: all 0.2s ease;
+}
+
+.ai-points-upgrade-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+}
+
+.ai-points-upgrade-btn:active {
+    transform: translateY(0);
+}
+
+/* 2. 金色鎖頭小標誌 */
+.gold-lock-icon {
+    font-size: 0.72rem;
+    color: #d97706;
+    margin-left: 2px;
+    background: #fef3c7;
+    padding: 1px 3px;
+    border-radius: 4px;
+    border: 0.5px solid #fcd34d;
+    vertical-align: middle;
+}
+
+/* 3. 灰粉色 AdMob 廣告預留看板 */
+.admob-banner-placeholder {
+    margin: 15px 20px;
+    padding: 12px;
+    border-radius: 16px;
+    background: #f1f5f9;
+    border: 1px dashed #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.admob-banner-placeholder .ad-label {
+    font-size: 0.6rem;
+    font-weight: 900;
+    color: #94a3b8;
+    background: #e2e8f0;
+    padding: 1px 4px;
+    border-radius: 4px;
+    border: 1px solid #cbd5e1;
+}
+
+.admob-banner-placeholder .ad-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.admob-banner-placeholder.mini {
+    margin: 10px 0 0;
+    padding: 6px;
+    border-radius: 10px;
+    border-width: 0.5px;
+}
+
+.admob-banner-placeholder.mini .ad-text {
+    font-size: 0.7rem;
+}
+
+/* 4. 方案卡片懸停動畫 */
+.paywall-tier-card:hover {
+    transform: translateY(-3px);
+    border-color: #3b82f6 !important;
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.05);
+}
+
+.paywall-tier-card.premium:hover {
+    border-color: #fbbf24 !important;
+    box-shadow: 0 12px 30px rgba(252, 211, 77, 0.25) !important;
+}
+
+/* =================================================================
+   👑 UniTask Premium Level Badges (SaaS High-End Styling)
+   ================================================================= */
+
+/* 1. 🛠️ 系統開發管理者 (黑金漸層 + 微光) */
+.user-badge-dev {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #fcd34d; /* 耀眼琥珀金 */
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); /* 深邃靛黑 */
+    border: 1px solid rgba(245, 158, 11, 0.45); /* 橙金邊框 */
+    padding: 3px 8px;
+    border-radius: 99px;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.25); /* 黃金炫光 */
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+    width: fit-content;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    animation: devBadgePulse 4s ease-in-out infinite;
+}
+
+@keyframes devBadgePulse {
+    0%, 100% { box-shadow: 0 0 12px rgba(245, 158, 11, 0.25); transform: scale(1); }
+    50% { box-shadow: 0 0 18px rgba(245, 158, 11, 0.45); transform: scale(1.02); }
+}
+
+/* 2. 🥇 旗艦版會員 (香檳金漸層 + 暗金字) */
+.user-badge-yearly {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #78350f; /* 深琥珀褐 */
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); /* 香檳金 */
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    padding: 2px 7px;
+    border-radius: 99px;
+    margin-top: 4px;
+    width: fit-content;
+    box-shadow: 0 2px 6px rgba(251, 191, 36, 0.15);
+}
+
+/* 3. 🥈 基礎版會員 (海洋藍漸層 + 深藍字) */
+.user-badge-monthly {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #1e3a8a; /* 深皇家藍 */
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); /* 冰洋藍 */
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    padding: 2px 7px;
+    border-radius: 99px;
+    margin-top: 4px;
+    width: fit-content;
+    box-shadow: 0 2px 6px rgba(56, 189, 248, 0.1);
+}
+
+/* 4. 🥉 免費基礎帳戶 (銀石灰漸層 + 灰黑字) */
+.user-badge-free {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #475569; /* 深石板灰 */
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); /* 珍珠銀灰 */
+    border: 1px solid rgba(203, 213, 225, 0.5);
+    padding: 2px 7px;
+    border-radius: 99px;
+    margin-top: 4px;
+    width: fit-content;
+}
+
+/* =================================================================
+   💎 融合於綠色表頭之高階毛玻璃點數卡片樣式
+   ================================================================= */
+.header .ai-points-card {
+    position: relative;
+    margin: 8px 0 0 0 !important; /* 精緻外邊距 */
+    border-radius: 12px !important; /* 圓角收細，更精緻 */
+    background: rgba(255, 255, 255, 0.12) !important; /* 半透明白 */
+    backdrop-filter: blur(12px) !important; /* 磨砂玻璃 */
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important; /* 精緻邊框 */
+    padding: 6px 12px !important; /* 超窄 padding，高度極低！ */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+    width: fit-content !important; /* 🔴 寬度自適應內容，不再是滿版！ */
+    max-width: 100% !important;
+    overflow: hidden;
+}
+
+/* 提高 header 底部 padding，完美包覆點數卡片 */
+.header {
+    padding-bottom: 16px !important; /* 稍微收小 padding */
+}
+
+/* 文字與點數對比與顏色優化 */
+.header .ai-points-card .ai-points-text {
+    color: rgba(255, 255, 255, 0.85) !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+}
+
+.header .ai-points-card .points-num {
+    color: #1e40af !important; /* 💎 尊貴深寶藍色，在半透明毛玻璃上對比度極高！ */
+    font-size: 1.05rem !important; /* 稍微放大，更清晰！ */
+    font-weight: 800 !important;
+    margin-left: 2px;
+    margin-right: 2px;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8) !important; /* 白色亮底陰影，讓寶藍色字體更加立體跳出！ */
+}
+
+/* 升級加購按鈕改為高階極小透明質感 */
+.header .ai-points-card .ai-points-upgrade-btn {
+    background: rgba(255, 255, 255, 0.18) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    backdrop-filter: blur(5px) !important;
+    -webkit-backdrop-filter: blur(5px) !important;
+    font-size: 0.68rem !important; /* 極小字體 */
+    padding: 4px 10px !important; /* 極小內襯 */
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.header .ai-points-card .ai-points-upgrade-btn:hover {
+    background: #ffffff !important;
+    color: #115e59 !important; /* 變為表頭主題綠字 */
+    border-color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3) !important;
+    transform: translateY(-0.5px) !important;
 }
