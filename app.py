@@ -248,13 +248,19 @@ TIDB_DATABASE = os.getenv("TIDB_DATABASE", "unitask_db")
 
 def get_db_connection():
     """獲取 TiDB Cloud 安全連線"""
+    # 🌟 智慧相容 macOS 與 Google Cloud Run (Linux Debian) SSL 憑證路徑
+    ssl_config = {}
+    for path in ["/etc/ssl/cert.pem", "/etc/ssl/certs/ca-certificates.crt", "/etc/pki/tls/certs/ca-bundle.crt"]:
+        if os.path.exists(path):
+            ssl_config = {"ssl_ca": path}
+            break
     return pymysql.connect(
         host=TIDB_HOST,
         user=TIDB_USER,
         password=TIDB_PASSWORD,
         port=TIDB_PORT,
         database=TIDB_DATABASE,
-        ssl={"ssl_ca": "/etc/ssl/cert.pem"} if os.path.exists("/etc/ssl/cert.pem") else {}
+        ssl=ssl_config if ssl_config else {"ssl": {}}
     )
 
 def is_payment_allowed():
