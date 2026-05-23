@@ -76,7 +76,7 @@ class DynamicTimezone(tzinfo):
 
 TW_TZ = DynamicTimezone()
 
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_from_directory, make_response
 from dotenv import load_dotenv
 import google.generativeai as genai
 from google.oauth2.service_account import Credentials as SACredentials
@@ -1360,6 +1360,13 @@ def format_event_success_message(title, start_time_str, location, is_all_day=Fal
         prefix = "✅ 手動新增行程成功！" if is_manual else "✅ 新增行程成功！"
     
     return f"{prefix}\n📅 時間：{formatted_time_detail}\n📍 地點：{loc_str}\n📌 行程：{title}"
+
+@app.route('/sw.js')
+def serve_sw():
+    response = make_response(send_from_directory('static/js', 'sw.js'))
+    response.headers['Content-Type'] = 'application/javascript'
+    response.headers['Service-Worker-Allowed'] = '/'
+    return response
 
 @app.route('/')
 def index():

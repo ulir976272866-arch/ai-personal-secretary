@@ -1844,6 +1844,13 @@
                 // 如果已經設定過，在背景靜默同步時區給後端
                 setTimeout(window.autoSyncTimezone, 1000);
             }
+
+            // 註冊 PWA Service Worker，優化 Cloud Run 冷啟動黑屏與快取速度
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker 註冊成功 Scope:', reg.scope))
+                    .catch(err => console.error('Service Worker 註冊失敗:', err));
+            }
         });
     </script>
     {% endif %}
