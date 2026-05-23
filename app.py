@@ -3793,6 +3793,14 @@ def handle_pocket(action, data=None):
                     spreadsheetId=sheet_id, range=f'{pocket_title}!C{row_index}',
                     valueInputOption='RAW', body=body_name).execute()
 
+            # 若有傳入 is_fav，更新常用地標狀態 (Column J，即 '{pocket_title}!J' + row_index)
+            is_fav = data.get('is_fav')
+            if is_fav is not None:
+                body_fav = {'values': [[is_fav]]}
+                service.spreadsheets().values().update(
+                    spreadsheetId=sheet_id, range=f'{pocket_title}!J{row_index}',
+                    valueInputOption='RAW', body=body_fav).execute()
+
             return True
         except Exception as e:
             print(f"Error updating pocket item note/name: {e}")

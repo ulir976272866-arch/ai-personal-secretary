@@ -657,3 +657,174 @@ Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 127.0.0.1 - - [24/May/2026 00:27:11] "GET /api/pocket/list HTTP/1.1" 200 -
 127.0.0.1 - - [24/May/2026 00:27:23] "GET /api/pocket/list HTTP/1.1" 200 -
 127.0.0.1 - - [24/May/2026 00:27:36] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:34:08] "GET /api/pocket/list HTTP/1.1" 200 -
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+  _permanent: True
+  ai_points: 9999
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-24 00:10:22
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-24 00:11:25
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 00:12:49
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 00:14:19
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 00:21:02
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 00:22:18
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 00:26:18
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 00:26:42
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:81: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+127.0.0.1 - - [24/May/2026 00:36:03] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:36:14] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:36:15] "GET /static/js/app.js?v=6.8 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:36:15] "[36mGET /static/css/style.css?v=5.0 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:36:15] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:36:15] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:36:16] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:36:16] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:37:05] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:38:44] "GET /api/pocket/list HTTP/1.1" 200 -

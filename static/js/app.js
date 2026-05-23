@@ -3953,6 +3953,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.moveToFavorites = async (id, name, targetCategory) => {
         const isMovingToFav = targetCategory === '常用';
+        const item = (window.cachedPocketItems || []).find(i => i.id === id) || { note: '', name: name };
         
         let finalCategory = targetCategory;
         if (!isMovingToFav) {
@@ -3962,21 +3963,63 @@ document.addEventListener('DOMContentLoaded', () => {
             finalCategory = chosen.trim() || '其他';
         }
 
-        const yesText = isMovingToFav ? '移入常用地址' : '移回口袋景點';
+        if (isMovingToFav) {
+            // 🆕 智慧升級：移入常用地址時，直接跳出編輯框讓使用者一併自訂暱稱與名稱！
+            const modal = document.getElementById('pocketCustomNameModal');
+            const inputNote = document.getElementById('custom_pocket_name_input');
+            const inputName = document.getElementById('custom_pocket_address_title_input');
+            if (modal && inputNote && inputName) {
+                // 客製化移入常用地址的標題與按鈕字樣
+                const titleEl = modal.querySelector('h3');
+                if (titleEl) titleEl.innerHTML = '<span>📌</span> 移入常用地址並編輯';
+                const submitBtn = modal.querySelector('button[onclick*="closePocketCustomNameModal(true)"]');
+                if (submitBtn) submitBtn.textContent = '確定移入';
+
+                inputNote.value = item.note || '';
+                inputName.value = item.name || '';
+                modal.classList.add('show');
+                setTimeout(() => inputNote.focus(), 100);
+
+                window.closePocketCustomNameModal = async (confirmed) => {
+                    modal.classList.remove('show');
+                    if (!confirmed) return;
+
+                    const newNote = inputNote.value.trim();
+                    const newName = inputName.value.trim();
+
+                    try {
+                        const res = await fetch('/api/pocket/update_note', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id, note: newNote, name: newName, is_fav: '1' })
+                        });
+                        const data = await res.json();
+                        if (data.status === 'success') {
+                            showToast(`📌 已將「${newName}」成功移入常用地址！`, 'success');
+                            window.loadPocket(true);
+                        } else {
+                            showToast('移入失敗，請重試', 'error');
+                        }
+                    } catch (e) {
+                        showToast('連線失敗，請重試', 'error');
+                    }
+                };
+            }
+            return;
+        }
+
+        // 下面是原本移回口袋景點的邏輯
+        const yesText = '移回口袋景點';
         const confirmed = await window.customConfirm(
-            isMovingToFav ? '移入常用地址？' : '移回口袋景點？',
-            isMovingToFav 
-                ? `您確定要將「${name}」移入常用地址，並從口袋景點中隱藏嗎？` 
-                : `您確定要將「${name}」移回口袋景點，並歸類為「${finalCategory}」嗎？`,
+            '移回口袋景點？',
+            `您確定要將「${name}」移回口袋景點，並歸類為「${finalCategory}」嗎？`,
             '📌',
             yesText
         );
         if (!confirmed) return;
 
         try {
-            const payload = isMovingToFav 
-                ? { id, is_fav: '1' } 
-                : { id, category: finalCategory, is_fav: '' };
+            const payload = { id, category: finalCategory, is_fav: '' };
 
             const res = await fetch('/api/pocket/update_category', {
                 method: 'POST',
@@ -3985,7 +4028,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await res.json();
             if (data.status === 'success') {
-                showToast(isMovingToFav ? `📌 已將「${name}」移入常用地址！` : `↩️ 已將「${name}」移回口袋景點！`, 'success');
+                showToast(`↩️ 已將「${name}」移回口袋景點！`, 'success');
                 window.loadPocket(true);
             } else {
                 showToast('更新失敗，請重試', 'error');
@@ -4000,6 +4043,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const inputNote = document.getElementById('custom_pocket_name_input');
         const inputName = document.getElementById('custom_pocket_address_title_input');
         if (modal && inputNote && inputName) {
+            // 還原預設標題與按鈕字樣
+            const titleEl = modal.querySelector('h3');
+            if (titleEl) titleEl.innerHTML = '<span>✏️</span> 編輯常用地標';
+            const submitBtn = modal.querySelector('button[onclick*="closePocketCustomNameModal(true)"]');
+            if (submitBtn) submitBtn.textContent = '確定修改';
+
             inputNote.value = currentNote;
             inputName.value = currentName || '';
             modal.classList.add('show');
