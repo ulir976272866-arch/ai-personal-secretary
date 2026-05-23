@@ -4,8 +4,8 @@
   "description": "你的專屬智能行事曆秘書",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#f1f5f9",
+  "background_color": "#fff5f6",
+  "theme_color": "#fff5f6",
   "icons": [
     {
       "src": "/static/icons/icon.png",
