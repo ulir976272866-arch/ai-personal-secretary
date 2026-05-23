@@ -35,338 +35,112 @@ https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/READM
   import google.generativeai as genai
  * Debugger is active!
  * Debugger PIN: 493-899-119
-127.0.0.1 - - [21/May/2026 22:30:23] "HEAD / HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:33:39] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:33:39] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:33:39] "GET /static/css/style.css?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:33:39] "GET /static/js/app.js?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:33:42] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:33:42] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:34:00] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:34:00] "GET /static/css/style.css?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:34:00] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [21/May/2026 22:34:00] "GET /static/js/app.js?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:34:01] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 22:34:02] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:34:02] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:02:33] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:05:02] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:05:02] "GET /static/css/style.css?v=4.7 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:05:02] "GET /static/js/app.js?v=5.6 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:05:02] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:05:03] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:05:03] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:05:03] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:05:03] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:06:31] "[36mGET /static/css/style.css?v=4.7 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:06:31] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:06:31] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [23/May/2026 23:06:37] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:07:33] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:07:33] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [23/May/2026 23:07:33] "GET /static/css/style.css?v=4.8 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:07:33] "GET /static/js/app.js?v=5.6 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:07:33] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:07:33] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:07:33] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:07:34] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:07:34] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:12:00] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:12:30] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:12:30] "GET /static/css/style.css?v=4.8 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:12:30] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [23/May/2026 23:12:30] "GET /static/js/app.js?v=5.6 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:12:30] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:12:31] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:12:31] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:12:31] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:12:31] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:13:17] "GET /api/training/rules HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:15:08] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:16:27] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:16:27] "GET /static/css/style.css?v=4.9 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:16:27] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [23/May/2026 23:16:27] "GET /static/js/app.js?v=5.6 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:16:27] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:16:28] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:16:28] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:16:28] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:16:28] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:17:27] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:18:08] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:18:09] "GET /static/css/style.css?v=4.9 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:18:09] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [23/May/2026 23:18:09] "GET /static/js/app.js?v=5.6 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:18:09] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:18:09] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:18:09] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:18:09] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:18:10] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:26:20] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:28:30] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:29:54] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:35:36] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:39:23] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:42:02] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:42:02] "GET /static/css/style.css?v=4.9 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:42:02] "GET /static/js/app.js?v=6.1 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:42:02] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:42:03] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:42:03] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:42:03] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:42:03] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:42:06] "[36mGET /static/css/style.css?v=4.9 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:42:06] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:42:06] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [23/May/2026 23:42:11] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:42:30] "POST /api/pocket/add HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:42:34] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:46:12] "POST /api/pocket/add HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:46:17] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:46:28] "POST /api/pocket/delete HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:46:32] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:47:16] "POST /api/pocket/delete HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:47:20] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:47:27] "[32mGET /logout HTTP/1.1[0m" 302 -
+127.0.0.1 - - [23/May/2026 23:47:29] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:47:29] "[36mGET /static/css/style.css?v=4.9 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:47:29] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:47:29] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [23/May/2026 23:47:29] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:47:33] "[32mGET /login HTTP/1.1[0m" 302 -
+127.0.0.1 - - [23/May/2026 23:47:43] "[32mGET /callback?state=doPwZ0sp1KYsD5Et0tPweMt0OC9zFF&iss=https://accounts.google.com&code=4/0AeoWuM-p0oRCUIGtKRT2w-CI2CmWczVjbxo8xAGim3Pgao2ilm0EfMiLSQGKs5vOLGuLmQ&scope=email%20profile%20https://www.googleapis.com/auth/drive.file%20https://www.googleapis.com/auth/spreadsheets%20https://www.googleapis.com/auth/calendar%20https://www.googleapis.com/auth/userinfo.profile%20https://www.googleapis.com/auth/userinfo.email%20openid&authuser=0&prompt=consent HTTP/1.1[0m" 302 -
+127.0.0.1 - - [23/May/2026 23:47:46] "GET / HTTP/1.1" 200 -
  * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
 --- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
 Success: Loaded backup credentials from service_account.json
 [Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
 [Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...
 [Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
-[Stock Sync] 資料清洗完成，共計 11761 檔有效標的。開始寫入 TiDB...
-[Stock Sync] 同步大成功！共 11761 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+[Stock Sync] 資料清洗完成，共計 11671 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11671 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
 [DEBUG INDEX SESSION] Current session keys and values:
   _permanent: True
-  ai_points: 9999
-  code_verifier: D4UjokQKBCko22S-ennImENepQ27b4AIjCAOVkIP7giHZgqv-Abt3Po.Q1OdMBDOSmgZn03KbnuhzMz.7ahWtI7YGb7ohJe1.GfLJTgMf5l1LJ7AFlI~-yXC5SoCWWPC
+  ai_points: 30
+  code_verifier: hcib.WUmjeacRb_-Td3FWh82~Jmi6LcKaIZEKuzCjAXBeMwPHOt~g~vjdVZEbIviJ99YfFMGdCzIYxlHEPnse6.Mp50jBuPGW0GXv_R038jx3YF_r9JkTU~LpsukOHzf
   enable_period: True
   has_stock_record: True
   is_subscribed: True
   is_trial_active: False
-  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
-  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
-  state: 4lrQVWYHcFzVgttUp1qYRrScIPPiwC
-  subscription_expires_at: 2027-05-21 22:33:39
-  subscription_type: YEARLY_AI
-  timezone: Asia/Taipei
-  trial_expires_at: None
-  user_email: ulir976272866@gmail.com
-  user_gender: girl
-Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 500
-  code_verifier: 9dVJKvdB7mto5EZAo4tVUYl75x5X41d3_vKvh94NdUqeHN3MeCIg7o1g2fmlpXxfZfDikx.h7jjeUKW-a9AouE5EqRcQxhXeJ5vEo379XW_aFq_cdCnZNNmD-F9TRDqv
-  enable_period: True
-  has_stock_record: True
-  is_subscribed: True
-  is_trial_active: False
-  sheet_gids: {'記帳': 33395319, '待辦': 269155350, '日記': 1994942008, '願望': 519316116, '生理紀錄': 887373870, '口袋': 812343442, 'AI_指令集': 1350791412}
-  spreadsheet_id: 1m2Pse7a7oLHsyMPhHuw6LDkQChNI66Ny_imqtTnqX_g
-  state: eAbhTPY4bM8GyaEYCx8hyYpAzkkD3V
-  subscription_expires_at: 2026-05-22 21:17:52
-  subscription_type: MONTHLY_AI
-  timezone: Asia/Taipei
-  trial_expires_at: None
-  user_email: mina.chen.test@gmail.com
-  user_gender: girl
-Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
- * Restarting with stat
-/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
-  warnings.warn(message, FutureWarning)
-/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:81: FutureWarning: 
-
-All support for the `google.generativeai` package has ended. It will no longer be receiving 
-updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
-See README for more details:
-
-https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
-
-  import google.generativeai as genai
- * Debugger is active!
- * Debugger PIN: 493-899-119
-127.0.0.1 - - [21/May/2026 22:41:34] "HEAD / HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:41:38] "[32mGET /dev/switch_role?role=BASIC&days=3 HTTP/1.1[0m" 302 -
-127.0.0.1 - - [21/May/2026 22:41:40] "POST /dev/switch_role HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:55:13] "[32mGET /dev/switch_role?role=BASIC&days=3 HTTP/1.1[0m" 302 -
-127.0.0.1 - - [21/May/2026 22:55:13] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:55:13] "GET /static/css/style.css?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:55:13] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:55:15] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:55:15] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 22:55:27] "[32mGET /dev/switch_role?role=BASIC&days=3 HTTP/1.1[0m" 302 -
-127.0.0.1 - - [21/May/2026 22:55:27] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:55:27] "[36mGET /static/css/style.css?v=4.0 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 22:55:27] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 22:55:29] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 22:55:30] "[32mGET /login HTTP/1.1[0m" 302 -
-127.0.0.1 - - [21/May/2026 22:56:30] "[32mGET /callback?state=DIevs8sg20E5CwlqGRqO2Z1q70MGNs&iss=https://accounts.google.com&code=4/0AeoWuM-a4n1nn4FPJUJR5WNTR25cmN-AGvD-NNlklM7xPajXCQIk13_cNFmN8aP9JxfJ4Q&scope=email%20profile%20https://www.googleapis.com/auth/drive.file%20https://www.googleapis.com/auth/spreadsheets%20https://www.googleapis.com/auth/calendar%20https://www.googleapis.com/auth/userinfo.profile%20https://www.googleapis.com/auth/userinfo.email%20openid&authuser=0&prompt=consent HTTP/1.1[0m" 302 -
-127.0.0.1 - - [21/May/2026 22:56:33] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:56:34] "[36mGET /static/css/style.css?v=4.0 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 22:56:34] "GET /static/js/app.js?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:56:34] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 22:56:34] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:56:36] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 22:56:37] "GET /api/health/check_disclaimer HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 22:56:38] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 23:49:56] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 23:49:56] "GET /static/css/style.css?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 23:49:56] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [21/May/2026 23:49:56] "GET /static/js/app.js?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 23:49:57] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 23:49:57] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 23:49:57] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 23:50:01] "[32mGET /logout HTTP/1.1[0m" 302 -
-127.0.0.1 - - [21/May/2026 23:50:01] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 23:50:01] "[36mGET /static/css/style.css?v=4.0 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 23:50:01] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [21/May/2026 23:50:02] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 23:50:03] "[32mGET /login HTTP/1.1[0m" 302 -
-127.0.0.1 - - [21/May/2026 23:50:17] "[32mGET /callback?state=rbxDR6kVNtbV9UDnJthAIWOLWZ0DKT&iss=https://accounts.google.com&code=4/0AeoWuM_UtogQQIofK72ZiPUehHBDO_njQYQeZ-mWzUd0M44Hf9tJ2wmtvBFZtFMlpSvyeg&scope=email%20profile%20https://www.googleapis.com/auth/drive.file%20https://www.googleapis.com/auth/spreadsheets%20https://www.googleapis.com/auth/calendar%20https://www.googleapis.com/auth/userinfo.profile%20https://www.googleapis.com/auth/userinfo.email%20openid&authuser=2&prompt=consent HTTP/1.1[0m" 302 -
-127.0.0.1 - - [21/May/2026 23:50:20] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 23:50:20] "[36mGET /static/css/style.css?v=4.0 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 23:50:20] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [21/May/2026 23:50:20] "[36mGET /static/js/app.js?v=4.0 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 23:50:21] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 23:50:21] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 23:50:21] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 23:56:57] "[32mGET /logout HTTP/1.1[0m" 302 -
-127.0.0.1 - - [21/May/2026 23:56:57] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [21/May/2026 23:56:57] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [21/May/2026 23:56:57] "[36mGET /static/css/style.css?v=4.0 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 23:56:57] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [21/May/2026 23:56:59] "[32mGET /login HTTP/1.1[0m" 302 -
-127.0.0.1 - - [22/May/2026 00:19:30] "[32mGET /callback?state=G7ocyUQit7TiAN2ZpBIGpKjZHJDgVc&iss=https://accounts.google.com&code=4/0AeoWuM87XvfwKRjwKnrxq0nZxYP-MrcfOODBFmRp6o2663mrFi9LyZXG03g1ip62AlR_9w&scope=email%20profile%20https://www.googleapis.com/auth/drive.file%20https://www.googleapis.com/auth/spreadsheets%20https://www.googleapis.com/auth/calendar%20https://www.googleapis.com/auth/userinfo.profile%20https://www.googleapis.com/auth/userinfo.email%20openid&authuser=4&prompt=consent HTTP/1.1[0m" 302 -
-127.0.0.1 - - [22/May/2026 00:19:34] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 00:19:34] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 00:19:34] "[36mGET /static/css/style.css?v=4.0 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 00:19:34] "[36mGET /static/js/app.js?v=4.0 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 00:19:35] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 00:19:35] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 00:19:35] "POST /api/sync_profile HTTP/1.1" 200 -
- * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
---- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
-Success: Loaded backup credentials from service_account.json
-[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
-[Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...
-[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
-[Stock Sync] 資料清洗完成，共計 11761 檔有效標的。開始寫入 TiDB...
-[Stock Sync] 同步大成功！共 11761 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
-Successfully updated custom test user state via switch_role: min272866@gmail.com
-[TiDB Self-Healing] 偵測到誤遷移的試用用戶 min272866@gmail.com，正在自動將其還原為試用狀態...
-Developer Switch Role Success! Current mock session email: min272866@gmail.com, subscription_type: MONTHLY_AI
-Successfully updated custom test user state via switch_role: min272866@gmail.com
-[TiDB Self-Healing] 偵測到誤遷移的試用用戶 min272866@gmail.com，正在自動將其還原為試用狀態...
-Developer Switch Role Success! Current mock session email: min272866@gmail.com, subscription_type: MONTHLY_AI
-Successfully updated custom test user state via switch_role: min272866@gmail.com
-[TiDB Self-Healing] 偵測到誤遷移的試用用戶 min272866@gmail.com，正在自動將其還原為試用狀態...
-Developer Switch Role Success! Current mock session email: min272866@gmail.com, subscription_type: MONTHLY_AI
-Successfully updated custom test user state via switch_role: min272866@gmail.com
-[TiDB Self-Healing] 偵測到誤遷移的試用用戶 min272866@gmail.com，正在自動將其還原為試用狀態...
-Developer Switch Role Success! Current mock session email: min272866@gmail.com, subscription_type: MONTHLY_AI
-User email captured: inming339@gmail.com
-Loaded existing spreadsheet_id from TiDB: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 1000
-  code_verifier: zPHPYnBd7vTBe_vlidgtDzBtnnWbF8CuvYzvd15YwTV_dHttZpmmFXUJl~35drEMB5u4Vsbth.ZFvlF3ggZjc-cl~Au7XEqFvbrC~Jb-blL6oT-CTLJeZzueH4xxCa4j
-  has_stock_record: True
-  is_subscribed: True
-  is_trial_active: False
+  sheet_gids: {'AI_指令集': 1935869253, '口袋': 320734666, '待辦': 994391060, '日記': 1518502652, '生理紀錄': 222552533, '記帳': 2080917918, '願望': 1662587896, '💰股票投資組合': 684115550}
   spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-  state: DIevs8sg20E5CwlqGRqO2Z1q70MGNs
-  subscription_expires_at: 2028-12-31 23:59:59
-  subscription_type: YEARLY_AI
-  trial_expires_at: None
-  user_email: inming339@gmail.com
-  sheet_gids: {'記帳': 2080917918, '待辦': 994391060, '日記': 1518502652, '願望': 1662587896, '生理紀錄': 222552533, 'AI_指令集': 1935869253}
-Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 500
-  code_verifier: 9dVJKvdB7mto5EZAo4tVUYl75x5X41d3_vKvh94NdUqeHN3MeCIg7o1g2fmlpXxfZfDikx.h7jjeUKW-a9AouE5EqRcQxhXeJ5vEo379XW_aFq_cdCnZNNmD-F9TRDqv
-  enable_period: True
-  has_stock_record: True
-  is_subscribed: True
-  is_trial_active: False
-  sheet_gids: {'記帳': 33395319, '待辦': 269155350, '日記': 1994942008, '願望': 519316116, '生理紀錄': 887373870, '口袋': 812343442, 'AI_指令集': 1350791412}
-  spreadsheet_id: 1m2Pse7a7oLHsyMPhHuw6LDkQChNI66Ny_imqtTnqX_g
-  state: eAbhTPY4bM8GyaEYCx8hyYpAzkkD3V
-  subscription_expires_at: 2026-05-22 21:17:52
-  subscription_type: MONTHLY_AI
-  timezone: Asia/Taipei
-  trial_expires_at: None
-  user_email: mina.chen.test@gmail.com
-  user_gender: girl
-Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
-User email captured: inming339@gmail.com
-Loaded existing spreadsheet_id from TiDB: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 1000
-  code_verifier: CFdq.f9EA~waPjc4_bETb7.7tnBw6hnskMoTBfNt5~5i6IjbMjj0RrEMj1gaGr9LzYXbVSoYGp~TJPljme_XeQuKKHRIV~GCYLnmg.5FrnYcQoxrVnRfrq0XQWJ4m.x4
-  has_stock_record: True
-  is_subscribed: True
-  is_trial_active: False
-  spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-  state: rbxDR6kVNtbV9UDnJthAIWOLWZ0DKT
-  subscription_expires_at: 2028-12-31 23:59:59
-  subscription_type: YEARLY_AI
-  trial_expires_at: None
-  user_email: inming339@gmail.com
-  sheet_gids: {'記帳': 2080917918, '待辦': 994391060, '日記': 1518502652, '願望': 1662587896, '生理紀錄': 222552533, 'AI_指令集': 1935869253}
-Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
-User email captured: mina.chen.xstar.sg@gmail.com
-Loaded existing spreadsheet_id from TiDB: 1ss0EoK0bwJpv12G94_cMFaHV2t_Dqj9fFZ1SLIJhKZA
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 100
-  code_verifier: d4Y56WwNd0.r2dQhPrSICJEf2HobvOxKDHQ-ZCawN01xn_hNj4UpqnwSwVfUuxtCN09u~_2zid-nakmmIFs8b1QPTxsIF626bf4UU3D9yFr04Lg6Wcqw1GFaAcfw356Y
-  has_stock_record: True
-  is_subscribed: True
-  is_trial_active: True
-  spreadsheet_id: 1ss0EoK0bwJpv12G94_cMFaHV2t_Dqj9fFZ1SLIJhKZA
-  state: G7ocyUQit7TiAN2ZpBIGpKjZHJDgVc
-  subscription_expires_at: None
-  subscription_type: YEARLY_AI
-  trial_expires_at: 2026-05-26 14:57:35
-  user_email: mina.chen.xstar.sg@gmail.com
-  sheet_gids: {'記帳': 1831167999, '待辦': 301763192, '日記': 561303158, '願望': 462623667, '生理紀錄': 255722188, '口袋': 538126821, 'AI_指令集': 357513400, '💰股票投資組合': 1113476585}
-Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
- * Restarting with stat
-/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
-  warnings.warn(message, FutureWarning)
-/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:81: FutureWarning: 
-
-All support for the `google.generativeai` package has ended. It will no longer be receiving 
-updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
-See README for more details:
-
-https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
-
-  import google.generativeai as genai
- * Debugger is active!
- * Debugger PIN: 493-899-119
-127.0.0.1 - - [22/May/2026 11:49:37] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:49:37] "GET /static/css/style.css?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:49:37] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:49:40] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:49:40] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:50:09] "[32mGET /login HTTP/1.1[0m" 302 -
-127.0.0.1 - - [22/May/2026 11:50:20] "[32mGET /callback?state=ol5DlsKc3MVYSwaUPeDLULIJihbeiP&iss=https://accounts.google.com&code=4/0AeoWuM9UAVnmZ1xTRK2eW_jd3QD4ygdSKilHpI0Nc_JeVvRQCX8SvOoZNQl14aUlDiRgzA&scope=email%20profile%20https://www.googleapis.com/auth/drive.file%20https://www.googleapis.com/auth/spreadsheets%20https://www.googleapis.com/auth/calendar%20https://www.googleapis.com/auth/userinfo.profile%20https://www.googleapis.com/auth/userinfo.email%20openid&authuser=0&prompt=consent HTTP/1.1[0m" 302 -
-127.0.0.1 - - [22/May/2026 11:50:22] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:50:23] "GET /static/js/app.js?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:50:23] "[36mGET /static/css/style.css?v=4.0 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:50:23] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:50:24] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:50:26] "GET /api/health/check_disclaimer HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:50:26] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:50:27] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:51:16] "GET /mock/checkout?tier=PREMIUM&email=inming339@gmail.com HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:51:17] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 11:52:00] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:52:00] "[36mGET /static/css/style.css?v=4.0 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:52:00] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:52:00] "[36mGET /static/js/app.js?v=4.0 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:52:01] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:52:02] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:52:02] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:52:02] "[36mGET /static/css/style.css?v=4.0 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:52:02] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:52:02] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 11:52:03] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:52:03] "GET /api/health/check_disclaimer HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:52:29] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:52:29] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 11:52:29] "GET /static/css/style.css?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:52:29] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:52:29] "GET /static/js/app.js?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:52:30] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:52:32] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:52:32] "GET /api/health/check_disclaimer HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:52:33] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:52:33] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:54:47] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:54:47] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 11:54:47] "GET /static/css/style.css?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:54:47] "GET /static/js/app.js?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:54:48] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:54:48] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:54:51] "GET /api/health/check_disclaimer HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:54:51] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:54:52] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:54:52] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:54:57] "POST /api/query_schedule HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:54:57] "POST /api/toggle_completion HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:55:00] "POST /api/query_schedule HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:55:22] "POST /api/query_schedule HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:59:36] "POST /api/query_schedule HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:59:45] "[32mGET /logout HTTP/1.1[0m" 302 -
-127.0.0.1 - - [22/May/2026 11:59:45] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 11:59:45] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 11:59:45] "[36mGET /static/css/style.css?v=4.0 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:59:45] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:59:49] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 11:59:54] "[32mGET /login HTTP/1.1[0m" 302 -
-127.0.0.1 - - [22/May/2026 12:00:14] "[32mGET /callback?state=uwRiQX2kTB9xoncpuLrh239O1D88GX&iss=https://accounts.google.com&code=4/0AeoWuM_wADCE49e7EMbKaqFTMyQoCWF3AOjli-etsGyrupLVdhQgeW9WERkKsvLVfdKHoA&scope=email%20profile%20https://www.googleapis.com/auth/drive.file%20https://www.googleapis.com/auth/spreadsheets%20https://www.googleapis.com/auth/calendar%20https://www.googleapis.com/auth/userinfo.profile%20https://www.googleapis.com/auth/userinfo.email%20openid&authuser=1&prompt=consent HTTP/1.1[0m" 302 -
- * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
---- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
-Success: Loaded backup credentials from service_account.json
-[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
-[Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...
-[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
-[Stock Sync] 資料清洗完成，共計 11761 檔有效標的。開始寫入 TiDB...
-[Stock Sync] 同步大成功！共 11761 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
-User email captured: inming339@gmail.com
-Loaded existing spreadsheet_id from TiDB: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 1000
-  code_verifier: Q3HJS_0Y2nUgrh8x~U1evjVFySNtm_jfWTrvJWiSY8DgW1z7bb-6Hcj0ir4ouzvA3yUC9BVHkm49e_Qf.aWm2k2IVOB8CZV.cWLJrlLjcsrdoPyYAeeMy587G~.t7eYq
-  has_stock_record: True
-  is_subscribed: True
-  is_trial_active: False
-  spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-  state: ol5DlsKc3MVYSwaUPeDLULIJihbeiP
-  subscription_expires_at: 2028-12-31 23:59:59
-  subscription_type: YEARLY_AI
-  trial_expires_at: None
-  user_email: inming339@gmail.com
-  sheet_gids: {'記帳': 2080917918, '待辦': 994391060, '日記': 1518502652, '願望': 1662587896, '生理紀錄': 222552533, 'AI_指令集': 1935869253}
-Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 1000
-  code_verifier: Q3HJS_0Y2nUgrh8x~U1evjVFySNtm_jfWTrvJWiSY8DgW1z7bb-6Hcj0ir4ouzvA3yUC9BVHkm49e_Qf.aWm2k2IVOB8CZV.cWLJrlLjcsrdoPyYAeeMy587G~.t7eYq
-  enable_period: True
-  has_stock_record: True
-  is_subscribed: True
-  is_trial_active: False
-  sheet_gids: {'記帳': 2080917918, '待辦': 994391060, '日記': 1518502652, '願望': 1662587896, '生理紀錄': 222552533, 'AI_指令集': 1935869253}
-  spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-  state: ol5DlsKc3MVYSwaUPeDLULIJihbeiP
+  state: yV69M3GbBzFvTARml2PH4QaiCGFwh4
   subscription_expires_at: 2028-12-31 23:59:59
   subscription_type: YEARLY_AI
   timezone: Asia/Taipei
@@ -376,15 +150,15 @@ Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 [DEBUG INDEX SESSION] Current session keys and values:
   _permanent: True
-  ai_points: 1000
-  code_verifier: Q3HJS_0Y2nUgrh8x~U1evjVFySNtm_jfWTrvJWiSY8DgW1z7bb-6Hcj0ir4ouzvA3yUC9BVHkm49e_Qf.aWm2k2IVOB8CZV.cWLJrlLjcsrdoPyYAeeMy587G~.t7eYq
+  ai_points: 30
+  code_verifier: hcib.WUmjeacRb_-Td3FWh82~Jmi6LcKaIZEKuzCjAXBeMwPHOt~g~vjdVZEbIviJ99YfFMGdCzIYxlHEPnse6.Mp50jBuPGW0GXv_R038jx3YF_r9JkTU~LpsukOHzf
   enable_period: True
   has_stock_record: True
   is_subscribed: True
   is_trial_active: False
-  sheet_gids: {'記帳': 2080917918, '待辦': 994391060, '日記': 1518502652, '願望': 1662587896, '生理紀錄': 222552533, 'AI_指令集': 1935869253}
+  sheet_gids: {'AI_指令集': 1935869253, '口袋': 320734666, '待辦': 994391060, '日記': 1518502652, '生理紀錄': 222552533, '記帳': 2080917918, '願望': 1662587896, '💰股票投資組合': 684115550}
   spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-  state: ol5DlsKc3MVYSwaUPeDLULIJihbeiP
+  state: yV69M3GbBzFvTARml2PH4QaiCGFwh4
   subscription_expires_at: 2028-12-31 23:59:59
   subscription_type: YEARLY_AI
   timezone: Asia/Taipei
@@ -394,15 +168,69 @@ Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 [DEBUG INDEX SESSION] Current session keys and values:
   _permanent: True
-  ai_points: 1000
-  code_verifier: Q3HJS_0Y2nUgrh8x~U1evjVFySNtm_jfWTrvJWiSY8DgW1z7bb-6Hcj0ir4ouzvA3yUC9BVHkm49e_Qf.aWm2k2IVOB8CZV.cWLJrlLjcsrdoPyYAeeMy587G~.t7eYq
+  ai_points: 30
+  code_verifier: hcib.WUmjeacRb_-Td3FWh82~Jmi6LcKaIZEKuzCjAXBeMwPHOt~g~vjdVZEbIviJ99YfFMGdCzIYxlHEPnse6.Mp50jBuPGW0GXv_R038jx3YF_r9JkTU~LpsukOHzf
   enable_period: True
   has_stock_record: True
   is_subscribed: True
   is_trial_active: False
-  sheet_gids: {'記帳': 2080917918, '待辦': 994391060, '日記': 1518502652, '願望': 1662587896, '生理紀錄': 222552533, 'AI_指令集': 1935869253}
+  sheet_gids: {'AI_指令集': 1935869253, '口袋': 320734666, '待辦': 994391060, '日記': 1518502652, '生理紀錄': 222552533, '記帳': 2080917918, '願望': 1662587896, '💰股票投資組合': 684115550}
   spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-  state: ol5DlsKc3MVYSwaUPeDLULIJihbeiP
+  state: yV69M3GbBzFvTARml2PH4QaiCGFwh4
+  subscription_expires_at: 2028-12-31 23:59:59
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: inming339@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 30
+  code_verifier: hcib.WUmjeacRb_-Td3FWh82~Jmi6LcKaIZEKuzCjAXBeMwPHOt~g~vjdVZEbIviJ99YfFMGdCzIYxlHEPnse6.Mp50jBuPGW0GXv_R038jx3YF_r9JkTU~LpsukOHzf
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'AI_指令集': 1935869253, '口袋': 320734666, '待辦': 994391060, '日記': 1518502652, '生理紀錄': 222552533, '記帳': 2080917918, '願望': 1662587896, '💰股票投資組合': 684115550}
+  spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
+  state: yV69M3GbBzFvTARml2PH4QaiCGFwh4
+  subscription_expires_at: 2028-12-31 23:59:59
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: inming339@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 30
+  code_verifier: hcib.WUmjeacRb_-Td3FWh82~Jmi6LcKaIZEKuzCjAXBeMwPHOt~g~vjdVZEbIviJ99YfFMGdCzIYxlHEPnse6.Mp50jBuPGW0GXv_R038jx3YF_r9JkTU~LpsukOHzf
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'AI_指令集': 1935869253, '口袋': 320734666, '待辦': 994391060, '日記': 1518502652, '生理紀錄': 222552533, '記帳': 2080917918, '願望': 1662587896, '💰股票投資組合': 684115550}
+  spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
+  state: yV69M3GbBzFvTARml2PH4QaiCGFwh4
+  subscription_expires_at: 2028-12-31 23:59:59
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: inming339@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 30
+  code_verifier: hcib.WUmjeacRb_-Td3FWh82~Jmi6LcKaIZEKuzCjAXBeMwPHOt~g~vjdVZEbIviJ99YfFMGdCzIYxlHEPnse6.Mp50jBuPGW0GXv_R038jx3YF_r9JkTU~LpsukOHzf
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'AI_指令集': 1935869253, '口袋': 320734666, '待辦': 994391060, '日記': 1518502652, '生理紀錄': 222552533, '記帳': 2080917918, '願望': 1662587896, '💰股票投資組合': 684115550}
+  spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
+  state: yV69M3GbBzFvTARml2PH4QaiCGFwh4
   subscription_expires_at: 2028-12-31 23:59:59
   subscription_type: YEARLY_AI
   timezone: Asia/Taipei
@@ -412,6 +240,20 @@ Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 User email captured: ulir976272866@gmail.com
 Owner logged in. Reusing existing original spreadsheet: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-23 23:47:45
+  subscription_type: YEARLY_AI
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
  * Restarting with stat
 /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
   warnings.warn(message, FutureWarning)
@@ -426,212 +268,139 @@ https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/READM
   import google.generativeai as genai
  * Debugger is active!
  * Debugger PIN: 493-899-119
-127.0.0.1 - - [22/May/2026 12:00:21] "[32mGET /callback?state=uwRiQX2kTB9xoncpuLrh239O1D88GX&iss=https://accounts.google.com&code=4/0AeoWuM9HHA689LL26WGy8oXcMRYHXJaifdrqF-GcrBw8-3SjS6cbwZlTZYy-YtxHUcCtXA&scope=email%20profile%20https://www.googleapis.com/auth/drive.file%20https://www.googleapis.com/auth/spreadsheets%20https://www.googleapis.com/auth/calendar%20https://www.googleapis.com/auth/userinfo.profile%20https://www.googleapis.com/auth/userinfo.email%20openid&authuser=1&prompt=consent HTTP/1.1[0m" 302 -
-127.0.0.1 - - [22/May/2026 12:00:24] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:00:24] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:00:24] "[36mGET /static/css/style.css?v=4.0 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:00:24] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:00:24] "GET /static/js/app.js?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:00:25] "GET /api/health/check_disclaimer HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:00:25] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:00:27] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:00:28] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
- * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+127.0.0.1 - - [23/May/2026 23:47:51] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [23/May/2026 23:47:51] "[36mGET /static/css/style.css?v=4.9 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:47:51] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:47:51] "[36mGET /static/js/app.js?v=6.1 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:47:51] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:47:51] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:47:51] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:47:52] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:48:38] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:49:38] "POST /api/pocket/add HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:49:40] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:51:06] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:51:12] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:51:23] "POST /api/pocket/add HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:51:27] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:51:33] "POST /api/pocket/update_category HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:51:36] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:51:56] "POST /api/pocket/update_note HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:51:58] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:52:03] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:53:30] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:53:56] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:53:56] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [23/May/2026 23:53:56] "[36mGET /static/css/style.css?v=4.9 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:53:56] "GET /static/js/app.js?v=6.2 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:53:56] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:53:56] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:53:56] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:53:56] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:53:57] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:54:07] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:55:02] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:55:08] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:55:08] "GET /static/css/style.css?v=4.9 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:55:08] "GET /static/js/app.js?v=6.2 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:55:08] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:55:09] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:55:09] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:55:10] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:55:30] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:57:02] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:57:31] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:57:31] "GET /static/css/style.css?v=4.9 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:57:31] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [23/May/2026 23:57:31] "GET /static/js/app.js?v=6.3 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:57:32] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:57:32] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:57:32] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:57:32] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:57:33] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:57:41] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:58:04] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:58:04] "[36mGET /static/css/style.css?v=4.9 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:58:04] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:58:04] "[36mGET /static/js/app.js?v=6.3 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:58:04] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [23/May/2026 23:58:04] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:58:04] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:58:05] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:58:05] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:58:26] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:58:26] "GET /static/css/style.css?v=4.9 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:58:26] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [23/May/2026 23:58:26] "GET /static/js/app.js?v=6.3 HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:58:26] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:58:26] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:58:27] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:58:27] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [23/May/2026 23:58:27] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:58:36] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:58:59] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2026 23:59:54] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:01:42] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:02:37] "GET /api/todo HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:04:39] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:05:53] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:05:53] "[36mGET /static/css/style.css?v=4.9 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:05:53] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:05:53] "GET /static/js/app.js?v=6.5 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:05:54] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [24/May/2026 00:05:54] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:05:54] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:05:54] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:05:55] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:06:13] "GET /api/todo HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:06:24] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:06:46] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:06:46] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [24/May/2026 00:06:46] "GET /static/css/style.css?v=4.9 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:06:46] "GET /static/js/app.js?v=6.5 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:06:46] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:06:47] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:06:48] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:06:48] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:06:48] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:06:54] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:08:06] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:08:06] "[36mGET /static/css/style.css?v=4.9 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:08:06] "[36mGET /static/js/app.js?v=6.5 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:08:06] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [24/May/2026 00:08:06] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:08:07] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:08:07] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:08:07] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:08:07] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:08:21] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:08:45] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:08:45] "[36mGET /static/css/style.css?v=4.9 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:08:45] "[36mGET /static/js/app.js?v=6.5 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:08:46] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:08:46] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:08:47] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:09:18] "HEAD / HTTP/1.1" 200 -
 --- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
 Success: Loaded backup credentials from service_account.json
 [Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
 [Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...
 [Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
-User email captured: ulir976272866@gmail.com
-[Stock Sync] 資料清洗完成，共計 11761 檔有效標的。開始寫入 TiDB...
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 9999
-  code_verifier: _9xpGxy1J0ye4Zp-ARIHQjs-7.pkkqMserB7hO4zxrI7grrlZkrQ42lA8g3pYo3R.QMNRKsxcvhFI8IK0XY-O_jh2NDLRK1XW12V6a9EJ3QaI7XBiWtB-0SDHOUOREkp
-  has_stock_record: True
-  is_subscribed: True
-  is_trial_active: False
-  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
-  state: uwRiQX2kTB9xoncpuLrh239O1D88GX
-  subscription_expires_at: 2027-05-22 12:00:24
-  subscription_type: YEARLY_AI
-  trial_expires_at: None
-  user_email: ulir976272866@gmail.com
-  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
-[Stock Sync] 同步大成功！共 11761 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
-[Check Disclaimer] 從 TiDB 查得 ulir976272866@gmail.com 已同意。
 Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
- * Restarting with stat
-/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
-  warnings.warn(message, FutureWarning)
-/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:81: FutureWarning: 
-
-All support for the `google.generativeai` package has ended. It will no longer be receiving 
-updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
-See README for more details:
-
-https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
-
-  import google.generativeai as genai
- * Debugger is active!
- * Debugger PIN: 493-899-119
-127.0.0.1 - - [22/May/2026 12:00:48] "POST /api/query_schedule HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:00:48] "POST /api/toggle_completion HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:02:05] "POST /api/update_event HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:02:12] "POST /api/query_schedule HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:02:12] "POST /api/query_schedule HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:02:24] "POST /api/update_event HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:02:56] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:02:57] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:02:57] "GET /static/css/style.css?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:02:57] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:02:57] "GET /static/js/app.js?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:02:58] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:00] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:00] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:00] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:03:07] "POST /api/query_stock_portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:15] "GET /api/stock/suggestions?q=2 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:15] "GET /api/stock/suggestions?q=22 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:17] "GET /api/stock/suggestions?q=2 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:17] "GET /api/stock/suggestions?q=0 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:17] "GET /api/stock/suggestions?q=00 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:18] "GET /api/stock/suggestions?q=005 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:18] "GET /api/stock/suggestions?q=0050 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:47] "POST /api/stock/add_transaction HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:51] "POST /api/query_stock_portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:52] "GET /api/stock/suggestions?q=0 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:53] "GET /api/stock/suggestions?q=00 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:53] "GET /api/stock/suggestions?q=009 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:54] "GET /api/stock/suggestions?q=0098 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:55] "GET /api/stock/suggestions?q=00981 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:57] "GET /api/stock/suggestions?q=00981a HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:57] "GET /api/stock/suggestions?q=00981 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:58] "GET /api/stock/suggestions?q=00981ㄇ HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:03:59] "GET /api/stock/suggestions?q=00981 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:04:00] "GET /api/stock/suggestions?q=00981a HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:04:14] "POST /api/stock/add_transaction HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:04:18] "POST /api/query_stock_portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:04:20] "POST /api/query_stock_portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:04:30] "POST /api/query_stock_portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:04:41] "GET /api/stock/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:04:58] "GET /api/stock/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:05:34] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:05:34] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:05:34] "GET /static/css/style.css?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:05:34] "GET /static/js/app.js?v=4.0 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:05:34] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:05:35] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:05:37] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:05:37] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:05:37] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:05:44] "GET /api/stock/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:05:46] "POST /api/query_stock_portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:05:57] "GET /api/stock/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:06:10] "GET /api/stock/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:16:54] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:16:54] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:16:54] "GET /static/css/style.css?v=4.1 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:16:54] "GET /static/js/app.js?v=4.1 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:16:54] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:16:55] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:16:58] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:16:59] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:16:59] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:17:07] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:17:07] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:17:07] "GET /static/css/style.css?v=4.1 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:17:07] "GET /static/js/app.js?v=4.1 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:17:07] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:17:08] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:17:11] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:17:11] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:17:11] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:21:28] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:28] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:21:28] "GET /static/css/style.css?v=4.1 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:28] "GET /static/js/app.js?v=4.1 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:28] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:29] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:33] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:34] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:34] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:21:42] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:42] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:21:42] "GET /static/css/style.css?v=4.1 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:42] "GET /static/js/app.js?v=4.1 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:42] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:43] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:46] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:47] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:47] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:21:59] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:21:59] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:22:00] "GET /static/css/style.css?v=4.1 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:22:00] "GET /static/js/app.js?v=4.1 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:22:00] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:22:01] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:22:02] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:22:02] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:22:02] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:22:33] "[32mGET /logout HTTP/1.1[0m" 302 -
-127.0.0.1 - - [22/May/2026 12:22:33] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:22:34] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:22:34] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:22:34] "[36mGET /static/css/style.css?v=4.1 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:22:37] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:22:42] "[32mGET /login HTTP/1.1[0m" 302 -
-127.0.0.1 - - [22/May/2026 12:23:03] "[32mGET /callback?state=nfXdPWxtJdCtcRZ38E7xGgLfutRVPf&iss=https://accounts.google.com&code=4/0AeoWuM-2sMAQEYsOYXcnXobcRSMEae10H64Xp7ntxzmPc5ha7sGKA-YB1H3Rk5sx4Sr7_A&scope=email%20profile%20https://www.googleapis.com/auth/drive.file%20https://www.googleapis.com/auth/spreadsheets%20https://www.googleapis.com/auth/calendar%20https://www.googleapis.com/auth/userinfo.profile%20https://www.googleapis.com/auth/userinfo.email%20openid&authuser=0&prompt=consent HTTP/1.1[0m" 302 -
-127.0.0.1 - - [22/May/2026 12:23:03] "[32mGET /callback?state=nfXdPWxtJdCtcRZ38E7xGgLfutRVPf&iss=https://accounts.google.com&code=4/0AeoWuM_ZY97lmq5M2FYdiuhGmikodpKxMe-SWtygLOFdgASjz3TdSBXRNm2kDCg7f6KTnQ&scope=email%20profile%20https://www.googleapis.com/auth/drive.file%20https://www.googleapis.com/auth/spreadsheets%20https://www.googleapis.com/auth/calendar%20https://www.googleapis.com/auth/userinfo.profile%20https://www.googleapis.com/auth/userinfo.email%20openid&authuser=0&prompt=consent HTTP/1.1[0m" 302 -
-127.0.0.1 - - [22/May/2026 12:23:04] "[32mGET /callback?state=nfXdPWxtJdCtcRZ38E7xGgLfutRVPf&iss=https://accounts.google.com&code=4/0AeoWuM-M9iz1VV-vrJajC7GjKeuwaBecbk5vugdVn1FxGZBJRzEgzQtrSZY6gOZrXxqELw&scope=email%20profile%20https://www.googleapis.com/auth/drive.file%20https://www.googleapis.com/auth/spreadsheets%20https://www.googleapis.com/auth/calendar%20https://www.googleapis.com/auth/userinfo.profile%20https://www.googleapis.com/auth/userinfo.email%20openid&authuser=0&prompt=consent HTTP/1.1[0m" 302 -
-127.0.0.1 - - [22/May/2026 12:23:05] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:23:06] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:23:07] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:23:07] "[36mGET /static/css/style.css?v=4.1 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:23:07] "[36mGET /static/js/app.js?v=4.1 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:23:07] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:23:08] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:23:10] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:23:11] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
---- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
-Success: Loaded backup credentials from service_account.json
-[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
-[Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...
-[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
-[Stock Sync] 資料清洗完成，共計 11761 檔有效標的。開始寫入 TiDB...
-[Stock Sync] 同步大成功！共 11761 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+[Stock Sync] 資料清洗完成，共計 11671 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11671 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
 [DEBUG INDEX SESSION] Current session keys and values:
   _permanent: True
   ai_points: 9999
-  code_verifier: _9xpGxy1J0ye4Zp-ARIHQjs-7.pkkqMserB7hO4zxrI7grrlZkrQ42lA8g3pYo3R.QMNRKsxcvhFI8IK0XY-O_jh2NDLRK1XW12V6a9EJ3QaI7XBiWtB-0SDHOUOREkp
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
   enable_period: True
   has_stock_record: True
   is_subscribed: True
   is_trial_active: False
   sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
   spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
-  state: uwRiQX2kTB9xoncpuLrh239O1D88GX
-  subscription_expires_at: 2027-05-22 12:02:56
-  subscription_type: YEARLY_AI
-  timezone: Asia/Taipei
-  trial_expires_at: None
-  user_email: ulir976272866@gmail.com
-  user_gender: girl
-Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
-[TiDB Marketing] 已標記 ulir976272866@gmail.com 的 has_stock_record = TRUE
-[TiDB Marketing] 已標記 ulir976272866@gmail.com 的 has_stock_record = TRUE
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 9999
-  code_verifier: _9xpGxy1J0ye4Zp-ARIHQjs-7.pkkqMserB7hO4zxrI7grrlZkrQ42lA8g3pYo3R.QMNRKsxcvhFI8IK0XY-O_jh2NDLRK1XW12V6a9EJ3QaI7XBiWtB-0SDHOUOREkp
-  enable_period: True
-  has_stock_record: True
-  is_subscribed: True
-  is_trial_active: False
-  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
-  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
-  state: uwRiQX2kTB9xoncpuLrh239O1D88GX
-  subscription_expires_at: 2027-05-22 12:05:34
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-23 23:53:55
   subscription_type: YEARLY_AI
   timezone: Asia/Taipei
   trial_expires_at: None
@@ -641,15 +410,32 @@ Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 [DEBUG INDEX SESSION] Current session keys and values:
   _permanent: True
   ai_points: 9999
-  code_verifier: _9xpGxy1J0ye4Zp-ARIHQjs-7.pkkqMserB7hO4zxrI7grrlZkrQ42lA8g3pYo3R.QMNRKsxcvhFI8IK0XY-O_jh2NDLRK1XW12V6a9EJ3QaI7XBiWtB-0SDHOUOREkp
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
   enable_period: True
   has_stock_record: True
   is_subscribed: True
   is_trial_active: False
   sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
   spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
-  state: uwRiQX2kTB9xoncpuLrh239O1D88GX
-  subscription_expires_at: 2027-05-22 12:16:53
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-23 23:55:01
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-23 23:55:08
   subscription_type: YEARLY_AI
   timezone: Asia/Taipei
   trial_expires_at: None
@@ -659,15 +445,15 @@ Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 [DEBUG INDEX SESSION] Current session keys and values:
   _permanent: True
   ai_points: 9999
-  code_verifier: _9xpGxy1J0ye4Zp-ARIHQjs-7.pkkqMserB7hO4zxrI7grrlZkrQ42lA8g3pYo3R.QMNRKsxcvhFI8IK0XY-O_jh2NDLRK1XW12V6a9EJ3QaI7XBiWtB-0SDHOUOREkp
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
   enable_period: True
   has_stock_record: True
   is_subscribed: True
   is_trial_active: False
   sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
   spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
-  state: uwRiQX2kTB9xoncpuLrh239O1D88GX
-  subscription_expires_at: 2027-05-22 12:17:06
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-23 23:57:30
   subscription_type: YEARLY_AI
   timezone: Asia/Taipei
   trial_expires_at: None
@@ -677,15 +463,15 @@ Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 [DEBUG INDEX SESSION] Current session keys and values:
   _permanent: True
   ai_points: 9999
-  code_verifier: _9xpGxy1J0ye4Zp-ARIHQjs-7.pkkqMserB7hO4zxrI7grrlZkrQ42lA8g3pYo3R.QMNRKsxcvhFI8IK0XY-O_jh2NDLRK1XW12V6a9EJ3QaI7XBiWtB-0SDHOUOREkp
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
   enable_period: True
   has_stock_record: True
   is_subscribed: True
   is_trial_active: False
   sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
   spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
-  state: uwRiQX2kTB9xoncpuLrh239O1D88GX
-  subscription_expires_at: 2027-05-22 12:21:28
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-23 23:58:03
   subscription_type: YEARLY_AI
   timezone: Asia/Taipei
   trial_expires_at: None
@@ -695,15 +481,15 @@ Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 [DEBUG INDEX SESSION] Current session keys and values:
   _permanent: True
   ai_points: 9999
-  code_verifier: _9xpGxy1J0ye4Zp-ARIHQjs-7.pkkqMserB7hO4zxrI7grrlZkrQ42lA8g3pYo3R.QMNRKsxcvhFI8IK0XY-O_jh2NDLRK1XW12V6a9EJ3QaI7XBiWtB-0SDHOUOREkp
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
   enable_period: True
   has_stock_record: True
   is_subscribed: True
   is_trial_active: False
   sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
   spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
-  state: uwRiQX2kTB9xoncpuLrh239O1D88GX
-  subscription_expires_at: 2027-05-22 12:21:42
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-23 23:58:25
   subscription_type: YEARLY_AI
   timezone: Asia/Taipei
   trial_expires_at: None
@@ -713,483 +499,161 @@ Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 [DEBUG INDEX SESSION] Current session keys and values:
   _permanent: True
   ai_points: 9999
-  code_verifier: _9xpGxy1J0ye4Zp-ARIHQjs-7.pkkqMserB7hO4zxrI7grrlZkrQ42lA8g3pYo3R.QMNRKsxcvhFI8IK0XY-O_jh2NDLRK1XW12V6a9EJ3QaI7XBiWtB-0SDHOUOREkp
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
   enable_period: True
   has_stock_record: True
   is_subscribed: True
   is_trial_active: False
   sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
   spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
-  state: uwRiQX2kTB9xoncpuLrh239O1D88GX
-  subscription_expires_at: 2027-05-22 12:21:59
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-24 00:05:52
   subscription_type: YEARLY_AI
   timezone: Asia/Taipei
   trial_expires_at: None
   user_email: ulir976272866@gmail.com
   user_gender: girl
 Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
-User email captured: inming339@gmail.com
-User email captured: inming339@gmail.com
-Loaded existing spreadsheet_id from TiDB: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-Loaded existing spreadsheet_id from TiDB: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-User email captured: inming339@gmail.com
-Loaded existing spreadsheet_id from TiDB: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
 [DEBUG INDEX SESSION] Current session keys and values:
   _permanent: True
-  ai_points: 1000
-  code_verifier: Z0j1hGordKrY6nhbvyBfdykmh6p3rtWImENQrC13bto_KkN5T22tH-7FHJkdQnatZRJs3PkxSJHE8FFCQ0eAfJWKG.FIbTHxXLBtgChBxE_WK87AjC~AQ7FMPke-maps
-  has_stock_record: True
-  is_subscribed: True
-  is_trial_active: False
-  spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-  state: nfXdPWxtJdCtcRZ38E7xGgLfutRVPf
-  subscription_expires_at: 2028-12-31 23:59:59
-  subscription_type: YEARLY_AI
-  trial_expires_at: None
-  user_email: inming339@gmail.com
-  sheet_gids: {'記帳': 2080917918, '待辦': 994391060, '日記': 1518502652, '願望': 1662587896, '生理紀錄': 222552533, 'AI_指令集': 1935869253}
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 1000
-  code_verifier: Z0j1hGordKrY6nhbvyBfdykmh6p3rtWImENQrC13bto_KkN5T22tH-7FHJkdQnatZRJs3PkxSJHE8FFCQ0eAfJWKG.FIbTHxXLBtgChBxE_WK87AjC~AQ7FMPke-maps
-  has_stock_record: True
-  is_subscribed: True
-  is_trial_active: False
-  spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-  state: nfXdPWxtJdCtcRZ38E7xGgLfutRVPf
-  subscription_expires_at: 2028-12-31 23:59:59
-  subscription_type: YEARLY_AI
-  trial_expires_at: None
-  user_email: inming339@gmail.com
-  sheet_gids: {'記帳': 2080917918, '待辦': 994391060, '日記': 1518502652, '願望': 1662587896, '生理紀錄': 222552533, 'AI_指令集': 1935869253}
-Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 1000
-  code_verifier: Z0j1hGordKrY6nhbvyBfdykmh6p3rtWImENQrC13bto_KkN5T22tH-7FHJkdQnatZRJs3PkxSJHE8FFCQ0eAfJWKG.FIbTHxXLBtgChBxE_WK87AjC~AQ7FMPke-maps
-  enable_period: True
-  has_stock_record: True
-  is_subscribed: True127.0.0.1 - - [22/May/2026 12:25:43] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:25:44] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:25:44] "GET /static/css/style.css?v=4.2 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:25:44] "GET /static/js/app.js?v=4.2 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:25:44] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:25:45] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:25:47] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:25:47] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:25:47] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:26:26] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:26:26] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:26:26] "GET /static/css/style.css?v=4.2 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:26:26] "GET /static/js/app.js?v=4.2 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:26:26] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:26:27] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:26:29] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:26:30] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:26:30] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
- * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
-
-  is_trial_active: False
-  sheet_gids: {'記帳': 2080917918, '待辦': 994391060, '日記': 1518502652, '願望': 1662587896, '生理紀錄': 222552533, 'AI_指令集': 1935869253}
-  spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-  state: nfXdPWxtJdCtcRZ38E7xGgLfutRVPf
-  subscription_expires_at: 2028-12-31 23:59:59
-  subscription_type: YEARLY_AI
-  timezone: Asia/Taipei
-  trial_expires_at: None
-  user_email: inming339@gmail.com
-  user_gender: girl
-Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 1000
-  code_verifier: Z0j1hGordKrY6nhbvyBfdykmh6p3rtWImENQrC13bto_KkN5T22tH-7FHJkdQnatZRJs3PkxSJHE8FFCQ0eAfJWKG.FIbTHxXLBtgChBxE_WK87AjC~AQ7FMPke-maps
+  ai_points: 9999
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
   enable_period: True
   has_stock_record: True
   is_subscribed: True
   is_trial_active: False
-  sheet_gids: {'記帳': 2080917918, '待辦': 994391060, '日記': 1518502652, '願望': 1662587896, '生理紀錄': 222552533, 'AI_指令集': 1935869253}
-  spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-  state: nfXdPWxtJdCtcRZ38E7xGgLfutRVPf
-  subscription_expires_at: 2028-12-31 23:59:59
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-24 00:06:45
   subscription_type: YEARLY_AI
   timezone: Asia/Taipei
   trial_expires_at: None
-  user_email: inming339@gmail.com
+  user_email: ulir976272866@gmail.com
   user_gender: girl
 Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
- * Restarting with stat
-/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
-  warnings.warn(message, FutureWarning)
-/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:81: FutureWarning: 
-
-All support for the `google.generativeai` package has ended. It will no longer be receiving 
-updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
-See README for more details:
-
-https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
-
-  import google.generativeai as genai
- * Debugger is active!
- * Debugger PIN: 493-899-119
- * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
---- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
-Success: Loaded backup credentials from service_account.json
-[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
-[Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...
-[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
-[Stock Sync] 資料清洗完成，共計 11761 檔有效標的。開始寫入 TiDB...
-[Stock Sync] 同步大成功！共 11761 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
- * Restarting with stat
-/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
-  warnings.warn(message, FutureWarning)
-/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:81: FutureWarning: 
-
-All support for the `google.generativeai` package has ended. It will no longer be receiving 
-updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
-See README for more details:
-
-https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
-
-  import google.generativeai as genai
- * Debugger is active!
- * Debugger PIN: 493-899-119
- * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
---- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
-Success: Loaded backup credentials from service_account.json
-[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
-[Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...
-[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
-[Stock Sync] 資料清洗完成，共計 11761 檔有效標的。開始寫入 TiDB...
-[Stock Sync] 同步大成功！共 11761 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
- * Restarting with stat
-/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
-  warnings.warn(message, FutureWarning)
-/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:81: FutureWarning: 
-
-All support for the `google.generativeai` package has ended. It will no longer be receiving 
-updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
-See README for more details:
-
-https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
-
-  import google.generativeai as genai
- * Debugger is active!
- * Debugger PIN: 493-899-119
- * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
---- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
-Success: Loaded backup credentials from service_account.json
-[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
-[Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...
-[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
-[Stock Sync] 資料清洗完成，共計 11761 檔有效標的。開始寫入 TiDB...
-[Stock Sync] 同步大成功！共 11761 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
- * Restarting with stat
-/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
-  warnings.warn(message, FutureWarning)
-/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:81: FutureWarning: 
-
-All support for the `google.generativeai` package has ended. It will no longer be receiving 
-updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
-See README for more details:
-
-https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
-
-  import google.generativeai as genai
- * Debugger is active!
- * Debugger PIN: 493-899-119
-127.0.0.1 - - [22/May/2026 12:31:04] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:05] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:31:05] "GET /static/js/app.js?v=4.3 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:05] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:05] "GET /static/css/style.css?v=4.3 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:06] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:08] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:08] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:08] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:31:28] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:28] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:31:28] "GET /static/css/style.css?v=4.3 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:28] "GET /static/js/app.js?v=4.3 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:28] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:29] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:32] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:32] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:32] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:31:40] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:40] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:31:40] "[36mGET /static/css/style.css?v=4.3 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:31:40] "[36mGET /static/js/app.js?v=4.3 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:31:40] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:31:41] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:43] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:31:43] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:31:43] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:35:21] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:35:21] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [22/May/2026 12:35:21] "GET /static/js/app.js?v=4.4 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:35:21] "GET /static/css/style.css?v=4.4 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:35:21] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:35:22] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:35:24] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:35:25] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 12:35:25] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 12:35:43] "GET /api/stock/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 23:15:03] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 23:15:03] "GET /static/css/style.css?v=4.4 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 23:15:03] "GET /static/js/app.js?v=4.4 HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 23:15:03] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 23:15:04] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 23:15:04] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 23:15:04] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [22/May/2026 23:15:07] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 23:15:12] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 23:15:12] "[36mGET /static/css/style.css?v=4.4 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [22/May/2026 23:15:12] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
- * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
---- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
-Success: Loaded backup credentials from service_account.json
-[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
-[Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...
-[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
-[Stock Sync] 資料清洗完成，共計 11761 檔有效標的。開始寫入 TiDB...
-[Stock Sync] 同步大成功！共 11761 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
 [DEBUG INDEX SESSION] Current session keys and values:
   _permanent: True
-  ai_points: 1000
-  code_verifier: Z0j1hGordKrY6nhbvyBfdykmh6p3rtWImENQrC13bto_KkN5T22tH-7FHJkdQnatZRJs3PkxSJHE8FFCQ0eAfJWKG.FIbTHxXLBtgChBxE_WK87AjC~AQ7FMPke-maps
+  ai_points: 9999
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
   enable_period: True
   has_stock_record: True
   is_subscribed: True
   is_trial_active: False
-  sheet_gids: {'記帳': 2080917918, '待辦': 994391060, '日記': 1518502652, '願望': 1662587896, '生理紀錄': 222552533, 'AI_指令集': 1935869253}
-  spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-  state: nfXdPWxtJdCtcRZ38E7xGgLfutRVPf
-  subscription_expires_at: 2028-12-31 23:59:59
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-24 00:08:05
   subscription_type: YEARLY_AI
   timezone: Asia/Taipei
   trial_expires_at: None
-  user_email: inming339@gmail.com
+  user_email: ulir976272866@gmail.com
   user_gender: girl
 Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 [DEBUG INDEX SESSION] Current session keys and values:
   _permanent: True
-  ai_points: 1000
-  code_verifier: Z0j1hGordKrY6nhbvyBfdykmh6p3rtWImENQrC13bto_KkN5T22tH-7FHJkdQnatZRJs3PkxSJHE8FFCQ0eAfJWKG.FIbTHxXLBtgChBxE_WK87AjC~AQ7FMPke-maps
+  ai_points: 9999
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
   enable_period: True
   has_stock_record: True
   is_subscribed: True
   is_trial_active: False
-  sheet_gids: {'記帳': 2080917918, '待辦': 994391060, '日記': 1518502652, '願望': 1662587896, '生理紀錄': 222552533, 'AI_指令集': 1935869253}
-  spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-  state: nfXdPWxtJdCtcRZ38E7xGgLfutRVPf
-  subscription_expires_at: 2028-12-31 23:59:59
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-24 00:08:44
   subscription_type: YEARLY_AI
   timezone: Asia/Taipei
   trial_expires_at: None
-  user_email: inming339@gmail.com
+  user_email: ulir976272866@gmail.com
   user_gender: girl
 Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 [DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 1000
-  code_verifier: Z0j1hGordKrY6nhbvyBfdykmh6p3rtWImENQrC13bto_KkN5T22tH-7FHJkdQnatZRJs3PkxSJHE8FFCQ0eAfJWKG.FIbTHxXLBtgChBxE_WK87AjC~AQ7FMPke-maps
-  enable_period: True
-  has_stock_record: True
-  is_subscribed: True
-  is_trial_active: False
-  sheet_gids: {'記帳': 2080917918, '待辦': 994391060, '日記': 1518502652, '願望': 1662587896, '生理紀錄': 222552533, 'AI_指令集': 1935869253}
-  spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-  state: nfXdPWxtJdCtcRZ38E7xGgLfutRVPf
-  subscription_expires_at: 2028-12-31 23:59:59
-  subscription_type: YEARLY_AI
-  timezone: Asia/Taipei
-  trial_expires_at: None
-  user_email: inming339@gmail.com
-  user_gender: girl
-Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 1000
-  code_verifier: Z0j1hGordKrY6nhbvyBfdykmh6p3rtWImENQrC13bto_KkN5T22tH-7FHJkdQnatZRJs3PkxSJHE8FFCQ0eAfJWKG.FIbTHxXLBtgChBxE_WK87AjC~AQ7FMPke-maps
-  enable_period: True
-  has_stock_record: True
-  is_subscribed: True
-  is_trial_active: False
-  sheet_gids: {'記帳': 2080917918, '待辦': 994391060, '日記': 1518502652, '願望': 1662587896, '生理紀錄': 222552533, 'AI_指令集': 1935869253}
-  spreadsheet_id: 1V6F2moyxJaY2P0J1iC8Ov9TQe9cTDFF6xEUAOBAN4Uk
-  state: nfXdPWxtJdCtcRZ38E7xGgLfutRVPf
-  subscription_expires_at: 2028-12-31 23:59:59
-  subscription_type: YEARLY_AI
-  timezone: Asia/Taipei
-  trial_expires_at: None
-  user_email: inming339@gmail.com
-  user_gender: girl
-Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
-[Stock Guard] 偵測到用戶試算表缺少「💰股票投資組合」分頁，啟動自動增量升級...
-[Stock Guard] 成功自動建立並初始化「💰股票投資組合」分頁與表頭！
-[Stock Guard] 成功為「💰股票投資組合」新增表頭與 H/I 即時欄位警告保護鎖！
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 500
-  code_verifier: bxHEDvHAB0aSuXZ_GtUUTyppY0eJZ~8OXEPyr7S_621pZtNkSUTTj5HSiQv4xEich0wUyT9vkAlUe.M-XdTdondwcleQdttB1QnQf3oXK6tH~Ixfn5b5L2BrdC~Xwbyo
-  enable_period: True
-  has_stock_record: False
-  is_subscribed: True
-  is_trial_active: True
-  sheet_gids: {'AI_指令集': 357513400, '口袋': 538126821, '待辦': 301763192, '日記': 561303158, '生理紀錄': 255722188, '記帳': 1831167999, '願望': 462623667, '💰股票投資組合': 1113476585}
-  spreadsheet_id: 1ioPgQguBGWHfr9shTMpl7tFzp4KFZukcrRARLP6xhQI
-  state: GoYTUjhyPIDoaI4HsqvX1PWBzX3E3w
-  subscription_expires_at: None
-  subscription_type: MONTHLY_AI
-  timezone: Asia/Taipei
-  trial_expires_at: 2026-05-24 22:55:27
-  user_email: min272866@gmail.com
-  user_gender: girl
-Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
-[Global Lock Guard Error] Central header/lock healer failed: <HttpError 403 when requesting https://sheets.googleapis.com/v4/spreadsheets/1ioPgQguBGWHfr9shTMpl7tFzp4KFZukcrRARLP6xhQI?alt=json returned "The caller does not have permission". Details: "The caller does not have permission">
- * Restarting with stat
-/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
-  warnings.warn(message, FutureWarning)
-/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:81: FutureWarning: 
-
-All support for the `google.generativeai` package has ended. It will no longer be receiving 
-updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
-See README for more details:
-
-https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
-
-  import google.generativeai as genai
- * Debugger is active!
- * Debugger PIN: 493-899-119
- * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
---- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
-Success: Loaded backup credentials from service_account.json
-[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
-[Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...
-[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
-[Stock Sync] 資料清洗完成，共計 11670 檔有效標的。開始寫入 TiDB...
-[Stock Sync] 同步大成功！共 11670 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
- * Restarting with stat
-/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
-  warnings.warn(message, FutureWarning)
-/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:81: FutureWarning: 
-
-All support for the `google.generativeai` package has ended. It will no longer be receiving 
-updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
-See README for more details:
-
-https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
-
-  import google.generativeai as genai
- * Debugger is active!
- * Debugger PIN: 493-899-119
- * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
---- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
-Success: Loaded backup credentials from service_account.json
-[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
-[Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...
-[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
-[Stock Sync] 資料清洗完成，共計 11670 檔有效標的。開始寫入 TiDB...
-[Stock Sync] 同步大成功！共 11670 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
- * Restarting with stat
-/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
-  warnings.warn(message, FutureWarning)
-/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:81: FutureWarning: 
-
-All support for the `google.generativeai` package has ended. It will no longer be receiving 
-updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
-See README for more details:
-
-https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
-
-  import google.generativeai as genai
- * Debugger is active!
- * Debugger PIN: 493-899-119
- * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
---- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
-Success: Loaded backup credentials from service_account.json
-[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
-[Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...
-[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
-[Stock Sync] 資料清洗完成，共計 11670 檔有效標的。開始寫入 TiDB...
-[Stock Sync] 同步大成功！共 11670 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
- * Restarting with stat
-/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
-  warnings.warn(message, FutureWarning)
-/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:81: FutureWarning: 
-
-All support for the `google.generativeai` package has ended. It will no longer be receiving 
-updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
-See README for more details:
-
-https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
-
-  import google.generativeai as genai
- * Debugger is active!
- * Debugger PIN: 493-899-119
-127.0.0.1 - - [23/May/2026 00:04:29] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [23/May/2026 00:04:30] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [23/May/2026 00:04:30] "GET /static/css/style.css?v=4.4 HTTP/1.1" 200 -
-127.0.0.1 - - [23/May/2026 00:04:30] "GET /static/js/app.js?v=4.4 HTTP/1.1" 200 -
-127.0.0.1 - - [23/May/2026 00:04:30] "GET /static/manifest.json HTTP/1.1" 200 -
-127.0.0.1 - - [23/May/2026 00:04:31] "GET /static/icons/icon.png HTTP/1.1" 200 -
-127.0.0.1 - - [23/May/2026 00:04:31] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [23/May/2026 00:04:32] "POST /api/sync_profile HTTP/1.1" 200 -
-127.0.0.1 - - [23/May/2026 00:04:32] "POST /api/chat HTTP/1.1" 200 -
-127.0.0.1 - - [23/May/2026 00:05:50] "POST /api/tax/upload_receipt HTTP/1.1" 200 -
-127.0.0.1 - - [23/May/2026 00:05:52] "[35m[1mPOST /api/manual_action HTTP/1.1[0m" 500 -
-127.0.0.1 - - [23/May/2026 00:07:08] "[32mGET /logout HTTP/1.1[0m" 302 -
-127.0.0.1 - - [23/May/2026 00:07:09] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [23/May/2026 00:07:09] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
-127.0.0.1 - - [23/May/2026 00:07:09] "[36mGET /static/css/style.css?v=4.4 HTTP/1.1[0m" 304 -
-127.0.0.1 - - [23/May/2026 00:07:09] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
-127.0.0.1 - - [23/May/2026 00:07:09] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
-127.0.0.1 - - [23/May/2026 00:07:11] "[32mGET /login HTTP/1.1[0m" 302 -
- * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
---- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
-Success: Loaded backup credentials from service_account.json
-[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
-[Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...
-[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
-[Stock Sync] 資料清洗完成，共計 11670 檔有效標的。開始寫入 TiDB...
-[Stock Sync] 同步大成功！共 11670 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
-[DEBUG INDEX SESSION] Current session keys and values:
-  _permanent: True
-  ai_points: 500
-  code_verifier: bxHEDvHAB0aSuXZ_GtUUTyppY0eJZ~8OXEPyr7S_621pZtNkSUTTj5HSiQv4xEich0wUyT9vkAlUe.M-XdTdondwcleQdttB1QnQf3oXK6tH~Ixfn5b5L2BrdC~Xwbyo
-  enable_period: True
-  has_stock_record: False
-  is_subscribed: True
-  is_trial_active: True
-  sheet_gids: {'AI_指令集': 357513400, '口袋': 538126821, '待辦': 301763192, '日記': 561303158, '生理紀錄': 255722188, '記帳': 1831167999, '願望': 462623667, '💰股票投資組合': 1113476585}
-  spreadsheet_id: 1ioPgQguBGWHfr9shTMpl7tFzp4KFZukcrRARLP6xhQI
-  state: GoYTUjhyPIDoaI4HsqvX1PWBzX3E3w
-  subscription_expires_at: None
-  subscription_type: MONTHLY_AI
-  timezone: Asia/Taipei
-  trial_expires_at: 2026-05-24 22:55:27
-  user_email: min272866@gmail.com
-  user_gender: girl
-[Global Lock Guard Error] Central header/lock healer failed: <HttpError 403 when requesting https://sheets.googleapis.com/v4/spreadsheets/1ioPgQguBGWHfr9shTMpl7tFzp4KFZukcrRARLP6xhQI?alt=json returned "The caller does not have permission". Details: "The caller does not have permission">
-Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
-[Tax Upload] 成功上傳公益收據 2026052301_qbz.png (ID: 1ub2b475UEFYz5V2gzveNoZ2X5Kdbx6DY) 至年度資料夾 2026
-Manual Action Error: <HttpError 403 when requesting https://sheets.googleapis.com/v4/spreadsheets/1ioPgQguBGWHfr9shTMpl7tFzp4KFZukcrRARLP6xhQI/values/%E8%A8%98%E5%B8%B3%21A%3AG:append?valueInputOption=USER_ENTERED&alt=json returned "The caller does not have permission". Details: "The caller does not have permission">
- * Restarting with stat
-/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
-  warnings.warn(message, FutureWarning)
-/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:81: FutureWarning: 
-
-All support for the `google.generativeai` package has ended. It will no longer be receiving 
-updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
-See README for more details:
-
-https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
-
-  import google.generativeai as genai
- * Debugger is active!
- * Debugger PIN: 493-899-119
-/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/multiprocessing/resource_tracker.py:224: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
-  warnings.warn('resource_tracker: There appear to be %d '
-/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/multiprocessing/resource_tracker.py:224: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
-  warnings.warn('resource_tracker: There appear to be %d '
+127.0.0.1 - - [24/May/2026 00:10:23] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:10:23] "[36mGET /static/css/style.css?v=4.9 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:10:23] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:10:23] "GET /static/js/app.js?v=6.6 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:10:23] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:10:23] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:10:23] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:10:24] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:10:32] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:11:26] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:11:26] "[36mGET /static/css/style.css?v=4.9 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:11:26] "[36mGET /static/js/app.js?v=6.6 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:11:26] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:11:26] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:11:26] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:11:27] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:11:27] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:11:33] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:12:50] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:12:50] "[36mGET /static/css/style.css?v=4.9 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:12:50] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:12:50] "GET /static/js/app.js?v=6.6 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:12:51] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:12:51] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:12:52] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:13:06] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:13:52] "GET /api/todo HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:14:21] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:14:21] "[36mGET /static/css/style.css?v=4.9 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:14:21] "[36mGET /static/js/app.js?v=6.6 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:14:21] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:14:21] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:14:21] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:14:22] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:14:23] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:14:49] "GET /api/todo HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:16:26] "POST /api/query_schedule HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:16:34] "POST /api/query_schedule HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:16:51] "POST /api/update_event HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:17:20] "POST /api/memo HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:17:48] "GET /api/todo HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:18:22] "GET /api/todo HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:19:10] "GET /api/todo HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:20:49] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:21:03] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:21:03] "GET /static/css/style.css?v=5.0 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:21:03] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:21:03] "GET /static/js/app.js?v=6.7 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:21:04] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:21:05] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:21:05] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:21:21] "GET /api/todo HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:22:19] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:22:19] "GET /static/js/app.js?v=6.7 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:22:19] "GET /static/css/style.css?v=5.0 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:22:19] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:22:20] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:22:20] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:22:20] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:22:20] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:22:31] "GET /api/todo HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:22:43] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:24:07] "GET /api/health/info HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:24:19] "GET /api/health/info HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:24:37] "GET /api/stock/portfolio HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:24:42] "GET /api/stock/portfolio HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:25:19] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:19] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:19] "GET /static/css/style.css?v=5.0 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:19] "GET /static/js/app.js?v=6.7 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:19] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:20] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:20] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:26:20] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:21] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:25] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:42] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:42] "GET /static/css/style.css?v=5.0 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:42] "GET /static/js/app.js?v=6.7 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:42] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:43] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:43] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:26:43] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:44] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:26:50] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:27:11] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:27:23] "GET /api/pocket/list HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:27:36] "GET /api/pocket/list HTTP/1.1" 200 -

@@ -290,6 +290,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const dropdown = document.getElementById('expense_cat_dropdown');
             if (dropdown) dropdown.classList.remove('show');
         }
+
+        // ✅ 點擊外部關閉口袋名單分類下拉選單 (V6.2 Fix)
+        const pocketSelector = document.getElementById('custom_cat_dropdown');
+        if (pocketSelector && !pocketSelector.contains(e.target)) {
+            const pocketDropdown = document.getElementById('cat_options');
+            if (pocketDropdown) pocketDropdown.classList.remove('show');
+        }
+
+        // ✅ 點擊外部關閉待辦清單分類下拉選單 (V6.5 Fix)
+        const todoSelector = document.getElementById('todo_category_selector');
+        const todoDropdown = document.getElementById('todo_cat_dropdown');
+        if (todoSelector && todoDropdown && !todoSelector.contains(e.target) && !todoDropdown.contains(e.target)) {
+            todoDropdown.classList.remove('show');
+        }
     });
 
     window.suggestExpenseEmoji = (text) => {
@@ -613,7 +627,12 @@ document.addEventListener('DOMContentLoaded', () => {
         '酒店': ['🏨', '🍻', '🍷', '🥂', '🍹', '🎤', '🛌'],
         '小吃': ['🍢', '🍟', '🥟', '🍘', '🍗', '🍜', '🍱'],
         '涼水': ['🧋', '🥤', '🍹', '🍧', '🍨', '🍵', '🧊'],
-        '飲料': ['🧋', '🥤', '🍹', '🧉', '🍵', '🍋', '🧊']
+        '飲料': ['🧋', '🥤', '🍹', '🧉', '🍵', '🍋', '🧊'],
+        '精舍': ['🪷', '🛕', '🙏', '📿', '✨', '🧧'],
+        '停車場': ['🅿️', '🚗', '🚙', '🚘', '🛵'],
+        '停車': ['🅿️', '🚗', '🚙', '🚘', '🛵'],
+        '家': ['🏠', '🏡', '🏢', '🔑', '🛋️'],
+        '公司': ['🏢', '💼', '💻', '📈', '🏬']
     };
 
     window.suggestEmoji = (text) => {
@@ -1400,6 +1419,19 @@ document.addEventListener('DOMContentLoaded', () => {
     window.removeTodoCategory = async (catName) => {
         const catObj = window.todoCategories.find(c => c.name === catName) || { name: catName, icon: '📝' };
 
+        // 🔒 安全保護機制：如果目前待辦清單中還有未完成任務歸類在此類別下，則禁止刪除！
+        if (window.cachedTodos && window.cachedTodos.length > 0) {
+            const hasActiveTodos = window.cachedTodos.some(todo => todo.分類 === catName && todo.狀態 === '未完成');
+            if (hasActiveTodos) {
+                await window.customAlert(
+                    '無法刪除類別 ⚠️',
+                    `類別「${catObj.icon} ${catName}」中目前還有未完成的任務正在使用它，因此無法刪除！<br><br><span style="font-size: 0.8rem; color: #64748b;">💡 溫馨提示：請先將這些任務完成、刪除或重新分類後，再來刪除此類別喔。</span>`,
+                    '⚠️',
+                    '我知道了'
+                );
+                return;
+            }
+        }
 
         const confirmed = await window.customConfirm(
             '確定刪除類別？',
@@ -1419,8 +1451,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.selectTodoCategory('任務', '📝');
             }
 
+            // 3. 🚀 零延遲本地渲染更新 (不再需要呼叫 loadTodos() 的雲端網路載入)
             window.renderTodoCatDropdown();
-            window.loadTodos();
+            window.syncTodoFilterBar();
         }
     };
 
@@ -1444,16 +1477,47 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('deletedTodoCats', JSON.stringify(deleted));
             }
 
+            // 🚀 零延遲本地渲染更新 (不用等候 loadTodos() 網路請求)
             window.renderTodoCatDropdown();
             window.selectTodoCategory(result.name, result.icon || '📌');
-            window.loadTodos();
+            window.syncTodoFilterBar();
         }
     };
 
     const todoTitleInput = document.getElementById('todo_title');
     if (todoTitleInput) {
         todoTitleInput.oninput = updateTodoSubmitButtonState;
+
+        // 🛡️ 解決待辦輸入框點擊不關閉下拉選單的 Bug (V6.5)
+        todoTitleInput.addEventListener('focus', () => {
+            const todoDropdown = document.getElementById('todo_cat_dropdown');
+            if (todoDropdown) todoDropdown.classList.remove('show');
+        });
+        todoTitleInput.addEventListener('click', () => {
+            const todoDropdown = document.getElementById('todo_cat_dropdown');
+            if (todoDropdown) todoDropdown.classList.remove('show');
+        });
     }
+
+    window.syncTodoFilterBar = (filterCategory = '全部') => {
+        const filterSelect = document.getElementById('todo_filter_cat');
+        if (!filterSelect) return;
+
+        const deletedCats = JSON.parse(localStorage.getItem('deletedTodoCats') || '[]');
+        const activeTodos = (window.cachedTodos || []).filter(i => i.狀態 === '未完成');
+        const activeCats = [...new Set(activeTodos.map(i => i.分類 || '任務'))];
+        const customCats = window.todoCategories.map(c => c.name).filter(c => !deletedCats.includes(c));
+        const allFilterCats = ['全部', ...new Set([...activeCats, ...customCats])].filter(c => !deletedCats.includes(c) || c === '全部');
+
+        filterSelect.innerHTML = allFilterCats.map(cat => {
+            let icon = '🌟';
+            if (cat !== '全部') {
+                const found = window.todoCategories.find(c => c.name === cat);
+                icon = found ? found.icon : '📝';
+            }
+            return `<option value="${cat}" ${filterCategory === cat ? 'selected' : ''}>${icon} ${cat === '全部' ? '全部任務' : cat}</option>`;
+        }).join('');
+    };
 
     window.loadTodos = async (filterCategory = '全部') => {
         const list = document.getElementById('todo_list');
@@ -1475,26 +1539,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (!Array.isArray(data)) throw new Error('資料錯誤');
 
+            window.cachedTodos = data; // ✅ 快取至全域 (用於刪除類別的安全阻擋 check)
             const activeTodos = data.filter(i => i.狀態 === '未完成');
 
-            // --- 動態生成篩選列 (V10.9 統一下拉式) ---
-            const filterSelect = document.getElementById('todo_filter_cat');
-            if (filterSelect) {
-                const deletedCats = JSON.parse(localStorage.getItem('deletedTodoCats') || '[]');
-                // 找出目前有任務的類別 + 使用者自定義類別
-                const activeCats = [...new Set(activeTodos.map(i => i.分類 || '任務'))];
-                const customCats = window.todoCategories.map(c => c.name).filter(c => !deletedCats.includes(c));
-                const allFilterCats = ['全部', ...new Set([...activeCats, ...customCats])].filter(c => !deletedCats.includes(c) || c === '全部');
-
-                filterSelect.innerHTML = allFilterCats.map(cat => {
-                    let icon = '🌟';
-                    if (cat !== '全部') {
-                        const found = window.todoCategories.find(c => c.name === cat);
-                        icon = found ? found.icon : '📝';
-                    }
-                    return `<option value="${cat}" ${filterCategory === cat ? 'selected' : ''}>${icon} ${cat === '全部' ? '全部任務' : cat}</option>`;
-                }).join('');
-            }
+            // --- 動態生成篩選列 ---
+            window.syncTodoFilterBar(filterCategory);
 
             // 過濾與排序
             let filteredTodos = activeTodos;
@@ -3415,21 +3464,32 @@ document.addEventListener('DOMContentLoaded', () => {
         { name: '住宿', icon: '🏨' },
         { name: '購物', icon: '🛍️' },
         { name: '宮廟', icon: '⛩️' },
-        { name: '寺廟', icon: '🛕' }
+        { name: '寺廟', icon: '🛕' },
+        { name: '精舍', icon: '🪷' },
+        { name: '停車場', icon: '🅿️' },
+        { name: '家', icon: '🏠' }
     ];
     let loadedPocketCats = localStorage.getItem('pocketCategories');
     if (loadedPocketCats) {
         try {
             let parsed = JSON.parse(loadedPocketCats);
             let changed = false;
-            if (!parsed.some(c => c.name === '宮廟')) {
-                parsed.push({ name: '宮廟', icon: '⛩️' });
-                changed = true;
-            }
-            if (!parsed.some(c => c.name === '寺廟')) {
-                parsed.push({ name: '寺廟', icon: '🛕' });
-                changed = true;
-            }
+            let deletedCats = JSON.parse(localStorage.getItem('deletedPocketCats') || '[]');
+
+            // 智慧遷移：僅在分類「既不存在於目前清單，且也從未被使用者刪除」時才進行補入，防止刪除後重載復活！
+            const checkAndPush = (name, icon) => {
+                if (!parsed.some(c => c.name === name) && !deletedCats.includes(name)) {
+                    parsed.push({ name, icon });
+                    changed = true;
+                }
+            };
+
+            checkAndPush('宮廟', '⛩️');
+            checkAndPush('寺廟', '🛕');
+            checkAndPush('精舍', '🪷');
+            checkAndPush('停車場', '🅿️');
+            checkAndPush('家', '🏠');
+
             if (changed) {
                 localStorage.setItem('pocketCategories', JSON.stringify(parsed));
             }
@@ -3574,14 +3634,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function renderCatOptions(categories) {
+        window.lastDbPocketCategories = categories || [];
         const optionsDiv = document.getElementById('cat_options');
         if (!optionsDiv) return;
 
         const deletedCats = JSON.parse(localStorage.getItem('deletedPocketCats') || '[]');
-        const allCats = [...window.pocketCategories].filter(c => !deletedCats.includes(c.name));
+        // 確保排除 '常用' 與 空字串 分類
+        const allCats = [...window.pocketCategories].filter(c => !deletedCats.includes(c.name) && c.name !== '常用' && c.name !== '');
 
-        // 合併資料庫中已有的分類
-        const dbCats = [...new Set(categories)].filter(c => !allCats.find(ac => ac.name === c));
+        // 合併資料庫中已有的分類，並同樣過濾掉 '常用' 與 空字串
+        const dbCats = [...new Set(categories)].filter(c => c !== '常用' && c !== '' && !allCats.find(ac => ac.name === c));
         const finalCats = [...allCats, ...dbCats.map(c => ({ name: c, icon: '📍' }))];
 
         optionsDiv.innerHTML = finalCats.map(catObj => `
@@ -3600,7 +3662,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.deleteCategory = async (catName) => {
+        // 額外防禦：禁止手動刪除 '常用' 分類
+        if (catName === '常用') return;
+
         const catObj = window.pocketCategories.find(c => c.name === catName) || { name: catName, icon: '📍' };
+
+        // 🔒 安全保護機制：如果目前口袋名單中還有景點歸類在此類別下，則禁止刪除！
+        if (window.cachedPocketItems && window.cachedPocketItems.length > 0) {
+            const hasItems = window.cachedPocketItems.some(item => item.category === catName && item.is_fav !== '1');
+            if (hasItems) {
+                await window.customAlert(
+                    '無法刪除類別 ⚠️',
+                    `類別「${catObj.icon} ${catName}」中目前還有景點正在使用它，因此無法刪除！<br><br><span style="font-size: 0.8rem; color: #64748b;">💡 溫馨提示：請先將這些景點刪除或重新歸類至其他分類後，再來刪除此類別喔。</span>`,
+                    '⚠️',
+                    '我知道了'
+                );
+                return;
+            }
+        }
+
         const confirmed = await window.customConfirm(
             '確定刪除類別？',
             `您即將刪除「${catObj.icon} ${catName}」類別。`,
@@ -3622,11 +3702,13 @@ document.addEventListener('DOMContentLoaded', () => {
             window.selectCategory('', '📍');
         }
 
-        // 4. 重新渲染選單 (V10.9 修復正確路徑)
-        const response = await fetch('/api/pocket/list');
-        const data = await response.json();
-        const dbCategories = [...new Set((data.data || []).map(item => item.category))];
-        renderCatOptions(dbCategories);
+        // 4. 🚀 零延遲立即在本地重新渲染下拉選單 (免去 Google Sheets API 數秒的網路等待！)
+        renderCatOptions(window.lastDbPocketCategories || []);
+
+        // 5. 🚀 同步重新渲染口袋清單與篩選列
+        if (window.cachedPocketItems) {
+            window.renderPocketListDirectly(window.cachedPocketItems);
+        }
     };
 
     function parseAddressToArea(place) {
@@ -3674,6 +3756,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         nameInput.oninput = updateSubmitButtonState;
+
+        // 🛡️ 解決 Google Autocomplete 阻止冒泡導致下拉選單不關閉的 Bug (V6.3)
+        const inputs = ['pocket_name', 'pocket_location', 'pocket_note'];
+        inputs.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('focus', () => {
+                    const pocketDropdown = document.getElementById('cat_options');
+                    if (pocketDropdown) pocketDropdown.classList.remove('show');
+                });
+                el.addEventListener('click', () => {
+                    const pocketDropdown = document.getElementById('cat_options');
+                    if (pocketDropdown) pocketDropdown.classList.remove('show');
+                });
+            }
+        });
     };
 
     window.currentPocketFilter = '全部';
@@ -3684,7 +3782,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const select = document.getElementById('pocket_filter_cat');
         if (!select) return;
         const currentVal = window.currentPocketFilter;
-        const allCats = ['全部', ...new Set(categories)];
+        // 過濾掉 '常用' 與 空字串 分類
+        const allCats = ['全部', ...new Set(categories.filter(c => c !== '常用' && c !== ''))];
         select.innerHTML = allCats.map(cat => `
             <option value="${cat}" ${currentVal === cat ? 'selected' : ''}>
                 ${cat === '全部' ? '類別' : cat}
@@ -3808,17 +3907,57 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    window.openPocketMoveBackModal = (itemName) => {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('pocketMoveBackModal');
+            const nameSpan = document.getElementById('move_back_item_name');
+            const select = document.getElementById('move_back_category_select');
+            const customInput = document.getElementById('move_back_custom_category');
+            
+            if (modal && nameSpan && select && customInput) {
+                nameSpan.innerText = itemName;
+                customInput.value = '';
+                
+                // 動態渲染可選的類別下拉選單 (排除 '常用')
+                const deletedCats = JSON.parse(localStorage.getItem('deletedPocketCats') || '[]');
+                const availableCats = window.pocketCategories.filter(c => !deletedCats.includes(c.name) && c.name !== '常用' && c.name !== '');
+                
+                select.innerHTML = availableCats.map(c => `
+                    <option value="${c.name}">${c.icon} ${c.name}</option>
+                `).join('') + `<option value="其他">📍 其他</option>`;
+                
+                // 預設選擇第一項或景點
+                const defaultSel = availableCats.find(c => c.name === '景點') ? '景點' : (availableCats.length > 0 ? availableCats[0].name : '其他');
+                select.value = defaultSel;
+                
+                modal.classList.add('show');
+                
+                window.closePocketMoveBackModal = (confirmed) => {
+                    modal.classList.remove('show');
+                    if (!confirmed) {
+                        resolve(null);
+                    } else {
+                        const customVal = customInput.value.trim();
+                        if (customVal) {
+                            resolve(customVal);
+                        } else {
+                            resolve(select.value);
+                        }
+                    }
+                };
+            } else {
+                resolve(null);
+            }
+        });
+    };
+
     window.moveToFavorites = async (id, name, targetCategory) => {
         const isMovingToFav = targetCategory === '常用';
         
         let finalCategory = targetCategory;
         if (!isMovingToFav) {
-            // 移回口袋景點時，讓使用者選擇要歸類的類別，不直接死板地變成「其他」
-            const chosen = prompt(
-                `請問要將「${name}」移回口袋景點的哪一個分類？\n` +
-                `（預設分類：美食、咖啡、景點、住宿、購物、宮廟、寺廟，或自訂新分類）`,
-                '景點'
-            );
+            // 使用全新的優雅自訂彈窗取代原生的 ugly prompt
+            const chosen = await window.openPocketMoveBackModal(name);
             if (chosen === null) return; // 使用者點選取消
             finalCategory = chosen.trim() || '其他';
         }

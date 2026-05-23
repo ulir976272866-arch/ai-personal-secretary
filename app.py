@@ -3592,11 +3592,26 @@ def handle_pocket(action, data=None):
                     if not area_val and loc_val:
                         cities = ["台北市", "新北市", "桃園市", "台中市", "台南市", "高雄市", 
                                   "基隆市", "新竹市", "嘉義市", "新竹縣", "苗栗縣", "彰化縣", "南投縣", 
-                                  "雲林縣", "嘉義縣", "屏東縣", "宜蘭縣", "花蓮縣", "台東縣", "澎湖縣", "金門縣", "連江縣"]
+                                  "雲林縣", "嘉義縣", "屏東縣", "宜蘭縣", "花蓮縣", "台東縣", "澎湖縣", "金門縣", "連江縣",
+                                  "臺北市", "臺南市", "臺中市"]
                         for city in cities:
                             if city in loc_val:
                                 area_val = city
                                 break
+                        
+                        # 🛡️ 增強行政區解析對應 (解決 Google 格式省略縣市直接呈現行政區的問題)
+                        if not area_val:
+                            taipei_d = ["萬華區", "信義區", "大安區", "中山區", "松山區", "內湖區", "士林區", "北投區", "文山區", "南港區", "中正區", "大同區"]
+                            ntpc_d = ["板橋區", "三重區", "中和區", "永和區", "新莊區", "新店區", "土城區", "蘆洲區", "汐止區", "樹林區", "淡水區", "五股區", "泰山區", "林口區"]
+                            for dist in taipei_d:
+                                if dist in loc_val:
+                                    area_val = "台北市"
+                                    break
+                            if not area_val:
+                                for dist in ntpc_d:
+                                    if dist in loc_val:
+                                        area_val = "新北市"
+                                        break
                                 
                     pocket_list.append({
                         'id': row[0],
@@ -3631,11 +3646,26 @@ def handle_pocket(action, data=None):
             if not area and location:
                 cities = ["台北市", "新北市", "桃園市", "台中市", "台南市", "高雄市", 
                           "基隆市", "新竹市", "嘉義市", "新竹縣", "苗栗縣", "彰化縣", "南投縣", 
-                          "雲林縣", "嘉義縣", "屏東縣", "宜蘭縣", "花蓮縣", "台東縣", "澎湖縣", "金門縣", "連江縣"]
+                          "雲林縣", "嘉義縣", "屏東縣", "宜蘭縣", "花蓮縣", "台東縣", "澎湖縣", "金門縣", "連江縣",
+                          "臺北市", "臺南市", "臺中市"]
                 for city in cities:
                     if city in location:
                         area = city
                         break
+                
+                # 🛡️ 增強行政區解析對應 (解決 Google 格式省略縣市直接呈現行政區的問題)
+                if not area:
+                    taipei_d = ["萬華區", "信義區", "大安區", "中山區", "松山區", "內湖區", "士林區", "北投區", "文山區", "南港區", "中正區", "大同區"]
+                    ntpc_d = ["板橋區", "三重區", "中和區", "永和區", "新莊區", "新店區", "土城區", "蘆洲區", "汐止區", "樹林區", "淡水區", "五股區", "泰山區", "林口區"]
+                    for dist in taipei_d:
+                        if dist in location:
+                            area = "台北市"
+                            break
+                    if not area:
+                        for dist in ntpc_d:
+                            if dist in location:
+                                area = "新北市"
+                                break
             
             note = data.get('note', '')
             create_time = datetime.now(TW_TZ).strftime('%Y-%m-%d %H:%M')

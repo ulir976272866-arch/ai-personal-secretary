@@ -765,15 +765,22 @@ select.form-input {
         max-height: 94vh;
         height: auto;
         margin: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
     }
 
     .modal-header {
         padding: calc(15px + env(safe-area-inset-top, 0px)) 15px 15px;
         background: white;
+        flex-shrink: 0;
     }
 
     .modal-body {
         padding: 0 25px 25px;
+        overflow-y: auto !important;
+        max-height: 60vh; /* 確保內容超出時強制啟動垂直滾動條，儲存按鈕永不被遮擋 */
+        -webkit-overflow-scrolling: touch;
     }
 
     .modal-footer {
@@ -2496,6 +2503,118 @@ select.form-input {
         padding-left: 12px !important;
         padding-right: 12px !important;
     }
+}
+
+
+/* =================================================================
+   系統設定高級控制項 (Premium Form Controls)
+   ================================================================= */
+
+/* 1. 性別偏好單選按鈕樣式 */
+.setting-radio-group {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    padding: 6px 0;
+}
+.setting-radio-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.92rem;
+    color: #475569;
+    font-weight: 700;
+    user-select: none;
+}
+.setting-radio-label input[type="radio"] {
+    display: none; /* 隱藏原生單選框 */
+}
+.radio-custom {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #cbd5e1;
+    border-radius: 50%;
+    margin-right: 8px;
+    display: inline-block;
+    position: relative;
+    transition: all 0.25s ease;
+    background: white;
+}
+.setting-radio-label input[type="radio"]:checked + .radio-custom {
+    border-color: #00bfaf; /* 蒂芬妮綠 */
+}
+.setting-radio-label input[type="radio"]:checked + .radio-custom::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    background: #00bfaf;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation: radioScaleIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes radioScaleIn {
+    from { transform: translate(-50%, -50%) scale(0); }
+    to { transform: translate(-50%, -50%) scale(1); }
+}
+
+/* 2. iOS 風格 Toggle Switch 滑動開關 */
+.premium-switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+}
+.premium-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #cbd5e1;
+    transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 34px;
+}
+.switch-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+.premium-switch input:checked + .switch-slider {
+    background-color: #00bfaf; /* 啟用時為主題蒂芬妮綠 */
+}
+.premium-switch input:checked + .switch-slider:before {
+    transform: translateX(22px);
+}
+
+/* 3. 待辦清單與口袋名單篩選下拉選單 - 質感 chevron 箭頭優化 (V6.7) */
+#todo_filter_cat, #pocket_filter_cat, #pocket_filter_area {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background: #f8fafc url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>") no-repeat right 12px center !important;
+    background-size: 16px !important;
+    padding: 10px 36px 10px 12px !important;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+#todo_filter_cat:focus, #pocket_filter_cat:focus, #pocket_filter_area:focus {
+    border-color: #00bfaf !important;
+    box-shadow: 0 0 0 3px rgba(0, 191, 175, 0.1);
 }
 
 
