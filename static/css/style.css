@@ -378,12 +378,21 @@ body {
 }
 
 .event-actions {
-    width: 105px; /* 固定操作區寬度 */
+    width: auto; /* 動態自適應寬度，容納右側彈出按鈕 */
+    min-width: 105px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     gap: 10px;
+}
+
+.event-buttons-group {
+    display: flex;
+    flex-direction: row; /* 橫向排列 */
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
 }
 
 .action-links {
@@ -402,12 +411,13 @@ body {
 .action-link.edit { color: #3b82f6; }
 .action-link.delete { color: #ef4444; }
 
+/* 方形打勾元件 */
 .done-btn {
-    width: 50px; /* 固定寬度，兼容 ✓ 與 完成 */
+    width: 54px; /* 固定寬度 */
     height: 32px;
     border-radius: 10px;
     background: #f1f5f9; /* 初始灰色 */
-    color: #cbd5e1;
+    color: #cbd5e1; /* 預設顯示打勾圖案 */
     border: none;
     cursor: pointer;
     font-size: 0.9rem;
@@ -419,17 +429,72 @@ body {
     flex-shrink: 0;
 }
 
+/* 點擊打勾亮起來狀態 */
 .done-btn.completed {
-    background: #10b981; /* 完成後綠色 */
-    color: white;
-    font-size: 0.75rem;
+    background: #10b981 !important; /* 完成後綠色 */
+    color: white !important;
+    font-size: 0.9rem !important;
     box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+}
+
+/* 彈出的確認完成隱藏按鈕 */
+.confirm-hide-btn {
+    display: none; /* 預設完全隱藏 */
+    background: linear-gradient(135deg, #10b981, #059669); /* 質感漸層綠 */
+    color: white;
+    border: none;
+    font-size: 0.8rem;
+    font-weight: 800;
+    width: 54px; /* 與 done-btn 寬度一致 */
+    height: 32px; /* 與 done-btn 高度一致 */
+    padding: 0;
+    border-radius: 10px; /* 與 done-btn 圓角一致 */
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: all 0.2s;
+}
+
+.confirm-hide-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
+}
+
+.confirm-hide-btn:active {
+    transform: translateY(1px);
+}
+
+/* 當父層 schedule-item 處於 checked-off 狀態時，顯示此按鈕 */
+.schedule-item.checked-off .confirm-hide-btn {
+    display: inline-flex;
+}
+
+/* 行程主題刪除線與變暗效果 */
+.schedule-item.checked-off .event-title-row {
+    text-decoration: line-through;
+    color: #94a3b8 !important;
+    opacity: 0.65;
+    transition: all 0.3s ease;
+}
+
+.schedule-item.checked-off .event-time-row {
+    color: #cbd5e1 !important;
+    transition: all 0.3s ease;
+}
+
+@keyframes popIn {
+    0% { opacity: 0; transform: scale(0.6); }
+    100% { opacity: 1; transform: scale(1); }
 }
 
 .schedule-item.fade-out {
     opacity: 0;
     transform: translateX(20px);
     pointer-events: none;
+    transition: all 0.3s ease;
 }
 
 /* 計算機區域 */
@@ -1008,6 +1073,10 @@ select.form-input {
     display: none;
 }
 
+#cat_emoji_suggestions::-webkit-scrollbar {
+    display: none;
+}
+
 .priority-opt {
     flex: 0 0 auto;
     padding: 8px 16px;
@@ -1088,6 +1157,23 @@ select.form-input {
     border: 1px solid rgba(241, 245, 249, 0.8);
     margin-top: 8px;
     animation: dropdownFade 0.25s cubic-bezier(0.165, 0.84, 0.44, 1);
+    /* ✅ 修復：當分類過多時可以正常滾動 */
+    max-height: 220px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.todo-dropdown-content::-webkit-scrollbar {
+    width: 4px;
+}
+.todo-dropdown-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+.todo-dropdown-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 8px;
 }
 
 .todo-dropdown-content.show {
@@ -1378,17 +1464,44 @@ select.form-input {
 .health-action-btn.start {
     background: #fff1f2;
     color: #e11d48;
+    border: 1px solid #ffe4e6;
 }
 .health-action-btn.start:hover { background: #ffe4e6; }
 
 .health-action-btn.end {
-    background: #f1f5f9;
-    color: #94a3b8; /* 預設為灰色 */
+    background: #f8fafc;
+    color: #cbd5e1;
+    cursor: not-allowed;
+    pointer-events: none;
+    border: 1px dashed #e2e8f0;
+}
+
+.health-action-btn.end.active {
+    background: #fff1f2;
+    color: #e11d48;
+    cursor: pointer;
+    pointer-events: auto;
+    border: 1px solid #ffe4e6;
+}
+.health-action-btn.end.active:hover {
+    background: #ffe4e6;
+}
+
+.health-action-btn.disabled,
+.health-action-btn[disabled] {
+    background: #f8fafc !important;
+    color: #cbd5e1 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    opacity: 0.6 !important;
+    box-shadow: none !important;
+    border: 1px dashed #e2e8f0 !important;
 }
 
 .health-action-btn.symptom {
     background: #f0fdf4;
     color: #16a34a;
+    border: 1px solid #dcfce7;
 }
 .health-action-btn.symptom:hover { background: #dcfce7; }
 
@@ -1745,69 +1858,146 @@ select.form-input {
 /* =================================================================
    Header User Profile Badge
    ================================================================= */
-.user-profile-badge {
+/* 極致緊湊 Header 佈局 (V19.0 Premium Left-Aligned Layout) */
+.header {
+    padding: 10px 16px 8px 16px !important;
+}
+
+.header-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+}
+
+.header-left-group {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    border-radius: 50px;
-    padding: 6px 14px 6px 6px;
-    margin-bottom: 20px;
-    align-self: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
 }
 
 .user-avatar {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid white;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    border: 1.5px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .user-text-info {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     text-align: left;
 }
 
+.user-name-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .user-name {
-    font-size: 0.85rem;
-    font-weight: 800;
-    color: #1e293b;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0f172a;
     line-height: 1.2;
 }
 
 .user-email {
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     color: #64748b;
     font-weight: 500;
-    max-width: 130px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    margin-top: 2px;
+    display: block;
 }
 
-.logout-link-btn {
-    text-decoration: none;
-    font-size: 1.1rem;
+/* 右側組：按鈕與點數垂直排列 */
+.header-right-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.action-icon-btn {
+    background: none;
+    border: none;
+    padding: 5px;
+    color: #64748b;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: #f1f5f9;
-    transition: all 0.2s ease;
-    cursor: pointer;
+    transition: all 0.2s;
 }
 
-.logout-link-btn:hover {
-    background: #ffe4e6;
+.action-icon-btn:hover {
+    color: #0f172a;
     transform: scale(1.1);
+}
+
+.action-icon-btn.logout-btn:hover {
+    color: #ef4444;
+}
+
+/* 輕巧點數膠囊 (Pill Layout) */
+.ai-points-mini-pill {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.01);
+}
+
+.ai-points-mini-pill span {
+    font-weight: 800;
+    color: #1e40af;
+}
+
+.ai-points-mini-pill:hover {
+    background: rgba(255, 255, 255, 0.65);
+    transform: translateY(-1px);
+}
+
+/* 下方主副標題緊湊化 */
+.header-titles-row {
+    margin-top: 6px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.35);
+    padding-top: 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+}
+
+.header-titles-row .main-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.header-titles-row .sub-title {
+    margin: 0;
+    font-size: 0.7rem;
+    color: #64748b;
+    font-weight: 500;
 }
 
 /* =================================================================
@@ -2047,8 +2237,25 @@ select.form-input {
     50% { box-shadow: 0 0 18px rgba(245, 158, 11, 0.45); transform: scale(1.02); }
 }
 
-/* 2. 🥇 旗艦版會員 (香檳金漸層 + 暗金字) */
+/* 2. 👑 年費版會員 (奢華紫金漸層 + 深紫金字) */
 .user-badge-yearly {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #4c1d95; /* 深紫羅蘭 */
+    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 50%, #fef3c7 100%); /* 紫金雙色漸層 */
+    border: 1px solid rgba(139, 92, 246, 0.5);
+    padding: 2px 7px;
+    border-radius: 99px;
+    margin-top: 4px;
+    width: fit-content;
+    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.22);
+}
+
+/* 2b. 🥇 旗艦版會員 (金黃琥珀漸層 + 暗金字) */
+.user-badge-premium {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -2064,21 +2271,21 @@ select.form-input {
     box-shadow: 0 2px 6px rgba(251, 191, 36, 0.15);
 }
 
-/* 3. 🥈 基礎版會員 (海洋藍漸層 + 深藍字) */
+/* 3. 🥈 基礎版會員 (湖水綠漸層 + 蒂芬妮深綠字) */
 .user-badge-monthly {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     font-size: 0.68rem;
     font-weight: 800;
-    color: #1e3a8a; /* 深皇家藍 */
-    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); /* 冰洋藍 */
-    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: #0f766e; /* 蒂芬妮深綠 */
+    background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); /* 湖水綠 */
+    border: 1px solid rgba(20, 184, 166, 0.35);
     padding: 2px 7px;
     border-radius: 99px;
     margin-top: 4px;
     width: fit-content;
-    box-shadow: 0 2px 6px rgba(56, 189, 248, 0.1);
+    box-shadow: 0 2px 6px rgba(20, 184, 166, 0.12);
 }
 
 /* 4. 🥉 免費基礎帳戶 (銀石灰漸層 + 灰黑字) */
@@ -2098,63 +2305,132 @@ select.form-input {
 }
 
 /* =================================================================
-   💎 融合於綠色表頭之高階毛玻璃點數卡片樣式
+   💎 融合於綠色表頭之高階毛玻璃點數卡片樣式已升級為 .ai-points-mini-pill
    ================================================================= */
-.header .ai-points-card {
+
+/* =================================================================
+   🌸 生理健康助理動態月曆樣式
+   ================================================================= */
+.cal-nav-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    border: 1px solid #ffe4e6;
+    background: #fff8f8;
+    color: #e11d48;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    outline: none;
+}
+.cal-nav-btn:hover {
+    background: #ffe4e6;
+}
+.cal-day-cell {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
     position: relative;
-    margin: 8px 0 0 0 !important; /* 精緻外邊距 */
-    border-radius: 12px !important; /* 圓角收細，更精緻 */
-    background: rgba(255, 255, 255, 0.12) !important; /* 半透明白 */
-    backdrop-filter: blur(12px) !important; /* 磨砂玻璃 */
-    -webkit-backdrop-filter: blur(12px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.18) !important; /* 精緻邊框 */
-    padding: 6px 12px !important; /* 超窄 padding，高度極低！ */
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
-    width: fit-content !important; /* 🔴 寬度自適應內容，不再是滿版！ */
-    max-width: 100% !important;
-    overflow: hidden;
+    transition: all 0.2s;
+}
+.cal-day-cell:hover {
+    background: #fff1f2;
+}
+.cal-day-cell.other-month {
+    color: #cbd5e1;
+    opacity: 0.5;
+}
+.cal-day-cell.selected {
+    background: rgba(225, 29, 72, 0.1) !important;
+    border: 1.5px solid #e11d48;
+    transform: scale(1.05);
+    z-index: 5;
+}
+.cal-day-cell.today {
+    box-shadow: inset 0 0 0 2px #00bfaf;
+}
+.cal-day-cell.recorded-period {
+    background: linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%) !important;
+    color: #9f1239 !important;
+}
+.cal-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    position: absolute;
+    bottom: 3px;
+}
+.cal-dot.predicted-period {
+    background-color: #f43f5e;
+}
+.cal-dot.ovulation {
+    background-color: #a855f7;
+}
+.cal-dot.fertile {
+    background-color: #f59e0b;
 }
 
-/* 提高 header 底部 padding，完美包覆點數卡片 */
-.header {
-    padding-bottom: 16px !important; /* 稍微收小 padding */
+/* =================================================================
+   🌸 生理月曆高級骨架加載與旋轉動畫 (V20.1 Shimmer Loader)
+   ================================================================= */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+.premium-spinner {
+    animation: spin 1s linear infinite;
 }
 
-/* 文字與點數對比與顏色優化 */
-.header .ai-points-card .ai-points-text {
-    color: rgba(255, 255, 255, 0.85) !important;
-    font-size: 0.72rem !important;
-    font-weight: 600 !important;
+@keyframes calShimmer {
+    0%, 100% { background-color: rgba(255, 241, 242, 0.4); color: #fda4af; }
+    50% { background-color: rgba(255, 228, 230, 0.85); color: #f43f5e; }
+}
+.cal-day-cell.skeleton {
+    animation: calShimmer 1.8s infinite ease-in-out;
+    pointer-events: none; /* 載入中防呆禁止點選 */
 }
 
-.header .ai-points-card .points-num {
-    color: #1e40af !important; /* 💎 尊貴深寶藍色，在半透明毛玻璃上對比度極高！ */
-    font-size: 1.05rem !important; /* 稍微放大，更清晰！ */
-    font-weight: 800 !important;
-    margin-left: 2px;
-    margin-right: 2px;
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8) !important; /* 白色亮底陰影，讓寶藍色字體更加立體跳出！ */
+
+/* --- 動態性別背景配色 (Morandi Theme V20 - Transparent Softness) --- */
+.header.gender-girl {
+    background: rgba(255, 235, 240, 0.95) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+    box-shadow: 0 8px 32px rgba(255, 141, 169, 0.08) !important;
+    border-bottom: 1.5px solid rgba(255, 255, 255, 0.5) !important;
 }
 
-/* 升級加購按鈕改為高階極小透明質感 */
-.header .ai-points-card .ai-points-upgrade-btn {
-    background: rgba(255, 255, 255, 0.18) !important;
-    color: #ffffff !important;
-    border: 1px solid rgba(255, 255, 255, 0.25) !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
-    backdrop-filter: blur(5px) !important;
-    -webkit-backdrop-filter: blur(5px) !important;
-    font-size: 0.68rem !important; /* 極小字體 */
-    padding: 4px 10px !important; /* 極小內襯 */
-    border-radius: 8px !important;
-    font-weight: 700 !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+.header.gender-boy {
+    background: linear-gradient(135deg, rgba(224, 242, 254, 0.95) 0%, rgba(240, 249, 255, 0.9) 100%) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+    box-shadow: 0 8px 32px rgba(186, 230, 253, 0.08) !important;
+    border-bottom: 1.5px solid rgba(255, 255, 255, 0.5) !important;
 }
 
-.header .ai-points-card .ai-points-upgrade-btn:hover {
-    background: #ffffff !important;
-    color: #115e59 !important; /* 變為表頭主題綠字 */
-    border-color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3) !important;
-    transform: translateY(-0.5px) !important;
+/* --- 免費版升級膠囊動態效果 --- */
+.free-upgrade-wrapper {
+    animation: freeUpgradePulse 3s infinite ease-in-out;
 }
+
+@keyframes freeUpgradePulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.35);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 10px 4px rgba(124, 58, 237, 0.18);
+        transform: scale(1.03);
+    }
+}
+

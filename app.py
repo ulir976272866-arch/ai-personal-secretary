@@ -5,9 +5,37 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 import json
 import uuid
+import hashlib
+import urllib.parse
 import requests
 import pymysql
 from datetime import datetime, time, timedelta, timezone
+
+# ============================================================
+# 🏦 綠界科技（ECPay）金流串接設定（測試環境）
+# ============================================================
+ECPAY_MERCHANT_ID = '2000132'
+ECPAY_HASH_KEY    = '5294y06JbISpM5x9'   # 官方正確測試 HashKey
+ECPAY_HASH_IV     = 'v77hoKGq4kWxNNIS'   # 官方正確測試 HashIV
+ECPAY_API_URL     = 'https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5'
+
+def generate_check_mac_value(params: dict) -> str:
+    """
+    依照綠界官方規範計算 CheckMacValue：
+    1. 排序（參數名稱 ASCII 升冪）
+    2. 組成字串：HashKey={key}&k1=v1&...&HashIV={iv}
+    3. URL Encode（UrlEncode 規範）後轉小寫
+    4. SHA256 雜湊後轉大寫
+    """
+    # Step 1：依參數名稱升冪排序
+    sorted_params = sorted(params.items(), key=lambda x: x[0].lower())
+    # Step 2：組成待簽章字串
+    raw = f"HashKey={ECPAY_HASH_KEY}&" + "&".join(f"{k}={v}" for k, v in sorted_params) + f"&HashIV={ECPAY_HASH_IV}"
+    # Step 3：URL Encode 後轉小寫（符合 .NET UrlEncode 規範）
+    encoded = urllib.parse.quote_plus(raw).lower()
+    # Step 4：SHA256 雜湊後轉大寫（EncryptType=1 使用 SHA256）
+    return hashlib.sha256(encoded.encode('utf-8')).hexdigest().upper()
+
 from PIL import Image
 
 # 定義台灣時區 (UTC+8) 的動態時區委託代理 (Dynamic Timezone Proxy)
@@ -43,7 +71,8 @@ class DynamicTimezone(tzinfo):
         if dt is None:
             return None
         naive_dt = dt.replace(tzinfo=None) if dt.tzinfo else dt
-        return self.get_inner_tz().dst(naive_dt)
+        res = self.get_inner_tz().dst(naive_dt)
+        return res if res is not None else timedelta(0)
 
 TW_TZ = DynamicTimezone()
 
@@ -228,17 +257,34 @@ def get_db_connection():
         ssl={"ssl_ca": "/etc/ssl/cert.pem"} if os.path.exists("/etc/ssl/cert.pem") else {}
     )
 
+def is_payment_allowed():
+    """從 system_config 查詢是否開放全網點數儲值與訂閱"""
+    try:
+        conn = get_db_connection()
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            cursor.execute("SELECT config_value FROM system_config WHERE config_key = 'allow_payment';")
+            row = cursor.fetchone()
+            if row:
+                val = str(row['config_value']).strip()
+                return val == '1'
+    except Exception as e:
+        print(f"[DB Error] 查詢 system_config 失敗: {e}")
+    # 預設為 True，確保資料庫故障時能降級運行
+    return True
+
 def get_user_by_email(email):
     """從 TiDB 查詢使用者，若為單人模式或開發者白名單信箱則直接回傳開發者模擬 VIP 帳號"""
     developer_emails = {'ulir976272866@gmail.com'}
     if os.getenv("SINGLE_USER_MODE", "false").lower() == "true" or (email and email.lower() in developer_emails):
+        from datetime import datetime, timedelta
         return {
             "user_id": "uid_owner",
             "email": email,
             "is_subscribed": True,
             "subscription_type": "YEARLY_AI",
             "ai_points": 9999,
-            "has_stock_record": True
+            "has_stock_record": True,
+            "subscription_expires_at": datetime.now() + timedelta(days=365)
         }
     
     try:
@@ -246,6 +292,86 @@ def get_user_by_email(email):
         with conn.cursor(pymysql.cursors.DictCursor) as cursor:
             cursor.execute("SELECT * FROM users WHERE email = %s;", (email,))
             user = cursor.fetchone()
+            
+            # 🌟 誤遷移試用用戶自動反向自癒還原 🌟
+            # 如果使用者的 subscription_expires_at 與註冊時間相差小於等於 8 天，說明這是個 7天試用帳戶，先前被誤遷移成了正式訂閱。我們必須將其還原為試用狀態！
+            if user and user.get('subscription_expires_at') and user.get('created_at'):
+                from datetime import datetime, timedelta
+                sub_exp = user.get('subscription_expires_at')
+                created_at = user.get('created_at')
+                if isinstance(sub_exp, str):
+                    try: sub_exp = datetime.strptime(sub_exp, "%Y-%m-%d %H:%M:%S")
+                    except ValueError: pass
+                if isinstance(created_at, str):
+                    try: created_at = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
+                    except ValueError: pass
+                
+                if sub_exp and created_at and (sub_exp - created_at).days <= 8:
+                    print(f"[TiDB Self-Healing] 偵測到誤遷移的試用用戶 {email}，正在自動將其還原為試用狀態...")
+                    cursor.execute(
+                        "UPDATE users SET trial_expires_at = %s, subscription_expires_at = NULL WHERE email = %s;",
+                        (sub_exp, email)
+                    )
+                    conn.commit()
+                    # 重新獲取還原後的最新資料
+                    cursor.execute("SELECT * FROM users WHERE email = %s;", (email,))
+                    user = cursor.fetchone()
+
+            # 🌟 補救手動修改資料庫漏填時間的自癒守衛 🌟
+            # 如果是訂閱狀態，但資料庫中「正式到期日」與「試用到期日」皆為空，說明是手動變更權限時漏填了時間。
+            # 系統會自動以註冊時間 (created_at) 為基礎，自癒補填對應天數（基礎版補 30 天，旗艦版補 365 天）！
+            if user and user.get('is_subscribed') and user.get('subscription_type') in ['YEARLY_AI', 'MONTHLY_AI', 'PREMIUM_MONTHLY'] and not user.get('subscription_expires_at') and not user.get('trial_expires_at'):
+                from datetime import datetime, timedelta
+                created_at = user.get('created_at') or datetime.now()
+                if isinstance(created_at, str):
+                    try: created_at = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
+                    except ValueError: created_at = datetime.now()
+                
+                if user.get('subscription_type') == 'YEARLY_AI':
+                    healed_exp = created_at + timedelta(days=365)
+                elif user.get('subscription_type') == 'PREMIUM_MONTHLY':
+                    healed_exp = created_at + timedelta(days=30)
+                else:
+                    healed_exp = created_at + timedelta(days=30)
+                
+                print(f"[TiDB Self-Healing] 偵測到用戶 {email} 訂閱欄位漏填到期時間，正在自動自癒補填為 {healed_exp}...")
+                cursor.execute(
+                    "UPDATE users SET subscription_expires_at = %s WHERE email = %s;",
+                    (healed_exp, email)
+                )
+                conn.commit()
+                # 重新獲取自癒後的最新資料
+                cursor.execute("SELECT * FROM users WHERE email = %s;", (email,))
+                user = cursor.fetchone()
+
+            # 🌟 舊用戶正式訂閱屬性自動遷移自癒 (如果 subscription_expires_at 為 NULL 且是訂閱用戶) 🌟
+            if user and user.get('is_subscribed') and user.get('subscription_type') in ['YEARLY_AI', 'MONTHLY_AI', 'PREMIUM_MONTHLY'] and not user.get('subscription_expires_at'):
+                from datetime import datetime, timedelta
+                old_expiry = user.get('trial_expires_at')
+                if old_expiry and isinstance(old_expiry, str):
+                    try:
+                        old_expiry = datetime.strptime(old_expiry, "%Y-%m-%d %H:%M:%S")
+                    except ValueError:
+                        pass
+                
+                # 只有當舊的試用日期大於「現在時間 + 30 天」時，才代表這是舊系統用來充當正式訂閱的遙遠未來 mock 日期（如 2028-12-31）
+                # 如果是小於等於 30 天（例如註冊贈送的 7天試用），則【絕對不能】誤遷移成正式訂閱！
+                new_sub_expiry = None
+                if old_expiry and old_expiry > datetime.now() + timedelta(days=30):
+                    new_sub_expiry = old_expiry
+                
+                if new_sub_expiry:
+                    # 將舊的試用到期日強制重設為已過期 (防止卡在試用狀態)，並更新正式訂閱時間
+                    expired_trial = datetime.now() - timedelta(days=1)
+                    print(f"[TiDB Migration] 自動自癒！將舊用戶 {email} 遷移至正式訂閱。到期日: {new_sub_expiry}")
+                    cursor.execute(
+                        "UPDATE users SET subscription_expires_at = %s, trial_expires_at = %s WHERE email = %s;",
+                        (new_sub_expiry, expired_trial, email)
+                    )
+                    conn.commit()
+                    # 重新獲取自癒後的最新資料，避免後續屬性錯誤
+                    cursor.execute("SELECT * FROM users WHERE email = %s;", (email,))
+                    user = cursor.fetchone()
             
             # 🌟 7天旗艦版免費試用過期安全降級守衛 🌟
             if user and user.get('trial_expires_at'):
@@ -257,9 +383,43 @@ def get_user_by_email(email):
                     except ValueError:
                         pass
                 
-                # 如果試用期限已過，且使用者目前的 subscription_type 不是 NONE，則降級為免費版
-                if expires_at and datetime.now() > expires_at and user.get('subscription_type') != 'NONE':
+                # 檢查使用者是否處於有效的正式訂閱期內，若是，則不受試用過期影響
+                is_formally_subscribed = False
+                if user.get('subscription_expires_at'):
+                    sub_exp = user.get('subscription_expires_at')
+                    if isinstance(sub_exp, str):
+                        try:
+                            sub_exp = datetime.strptime(sub_exp, "%Y-%m-%d %H:%M:%S")
+                        except ValueError:
+                            pass
+                    if sub_exp and datetime.now() < sub_exp:
+                        is_formally_subscribed = True
+                
+                # 如果試用期限已過，且使用者目前的 subscription_type 不是 NONE，且使用者「沒有」處於有效的正式訂閱期內，則降級為免費版
+                if expires_at and datetime.now() > expires_at and user.get('subscription_type') != 'NONE' and not is_formally_subscribed:
                     print(f"[TiDB Guard] 使用者 {email} 的 7天試用已過期！自動安全降級為免費基礎版 (NONE)")
+                    cursor.execute(
+                        "UPDATE users SET is_subscribed = FALSE, subscription_type = 'NONE', ai_points = 0 WHERE email = %s;",
+                        (email,)
+                    )
+                    conn.commit()
+                    # 重新拉取已降級的最新資料
+                    cursor.execute("SELECT * FROM users WHERE email = %s;", (email,))
+                    user = cursor.fetchone()
+
+            # 🌟 正式訂閱過期安全降級守衛 🌟
+            if user and user.get('subscription_expires_at'):
+                from datetime import datetime
+                sub_expires_at = user.get('subscription_expires_at')
+                if isinstance(sub_expires_at, str):
+                    try:
+                        sub_expires_at = datetime.strptime(sub_expires_at, "%Y-%m-%d %H:%M:%S")
+                    except ValueError:
+                        pass
+                
+                # 如果訂閱期限已過，且使用者目前的 subscription_type 不是 NONE，則降級為免費版
+                if sub_expires_at and datetime.now() > sub_expires_at and user.get('subscription_type') != 'NONE':
+                    print(f"[TiDB Guard] 使用者 {email} 的正式訂閱已過期！自動安全降級為免費基礎版 (NONE)")
                     cursor.execute(
                         "UPDATE users SET is_subscribed = FALSE, subscription_type = 'NONE', ai_points = 0 WHERE email = %s;",
                         (email,)
@@ -415,7 +575,15 @@ def get_sheet_urls():
         
     gids = session.get('sheet_gids', {})
     
-    if (not gids or '💰股票投資組合' not in gids) and spreadsheet_id:
+    required_titles = ['記帳', '💰股票投資組合', '日記', '待辦', '願望', '口袋', '生理紀錄', 'AI_指令集']
+    has_all_gids = gids and all(
+        (t in gids) or 
+        (t == '口袋' and '口袋名單' in gids) or 
+        (t == '願望' and '願望清單' in gids) 
+        for t in required_titles
+    )
+    
+    if (not has_all_gids) and spreadsheet_id:
         try:
             sheets_service = get_sheets_service()
             sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
@@ -437,9 +605,22 @@ def get_sheet_urls():
             
     def get_url_with_gid(title, default_sheet_id=None):
         current_sheet_id = default_sheet_id if (is_owner and default_sheet_id) else spreadsheet_id
-        if is_owner and default_sheet_id:
-            return f"https://docs.google.com/spreadsheets/d/{current_sheet_id}/edit"
+        
+        # 尋找對應的分頁 GID
         gid = gids.get(title)
+        
+        # 口袋名單別名雙向相容
+        if gid is None and title == '口袋':
+            gid = gids.get('口袋名單')
+        elif gid is None and title == '口袋名單':
+            gid = gids.get('口袋')
+            
+        # 願望清單別名雙向相容
+        if gid is None and title == '願望':
+            gid = gids.get('願望清單')
+        elif gid is None and title == '願望清單':
+            gid = gids.get('願望')
+
         if gid is not None:
             return f"https://docs.google.com/spreadsheets/d/{current_sheet_id}/edit#gid={gid}"
         return f"https://docs.google.com/spreadsheets/d/{current_sheet_id}/edit"
@@ -491,18 +672,70 @@ def ensure_user_spreadsheet():
             print(f"Found existing spreadsheet in user drive: {spreadsheet_id}")
             if 'user_email' in session:
                 update_user_sheet_id(session['user_email'], spreadsheet_id)
-            # 確保 session 中有 gids
-            if 'sheet_gids' not in session:
-                try:
+            
+            # 🛡️ 主動式缺頁自癒修復機制 (Proactive Missing Sheet Self-Healing Guard)
+            try:
+                sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+                existing_titles = [s['properties']['title'] for s in sheet_meta.get('sheets', [])]
+                
+                required_sheets = {
+                    '記帳': [['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別']],
+                    '待辦': [['建立日期', '事項/內容', '分類', '狀態', '唯一 ID', '建立時間', '優先級']],
+                    '日記': [['日期', '內容', '天氣', '心情', '時間']],
+                    '願望': [['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間']],
+                    '生理紀錄': [['年度', '月份', '日期', '動作', '症狀/心情', '週期', '備註']],
+                    '口袋': [['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度', '常用']],
+                    'AI_指令集': [['觸發語句', '執行動作']],
+                    '💰股票投資組合': [['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']]
+                }
+                
+                # 兼容「願望清單」或「願望」
+                if '願望' in existing_titles or '願望清單' in existing_titles:
+                    if '願望' in required_sheets:
+                        del required_sheets['願望']
+                
+                # 兼容「口袋」或「口袋名單」
+                if '口袋' in existing_titles or '口袋名單' in existing_titles:
+                    if '口袋' in required_sheets:
+                        del required_sheets['口袋']
+                
+                missing_sheets = [title for title in required_sheets.keys() if title not in existing_titles]
+                
+                if missing_sheets:
+                    print(f"[Self-Healing] Missing sheets detected: {missing_sheets}. Repairing...")
+                    add_requests = [{'addSheet': {'properties': {'title': title}}} for title in missing_sheets]
+                    sheets_service.spreadsheets().batchUpdate(
+                        spreadsheetId=spreadsheet_id,
+                        body={'requests': add_requests}
+                    ).execute()
+                    
+                    # 寫入修復頁的表頭
+                    for title in missing_sheets:
+                        header_values = required_sheets[title]
+                        range_name = f"{title}!A1"
+                        sheets_service.spreadsheets().values().update(
+                            spreadsheetId=spreadsheet_id,
+                            range=range_name,
+                            valueInputOption='USER_ENTERED',
+                            body={'values': header_values}
+                        ).execute()
+                        print(f"[Self-Healing] Successfully restored sheet '{title}' and headers!")
+                    
+                    # 重新獲取最新的 sheet meta 以更新 GIDs
                     sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
-                    gids = {}
-                    for s in sheet_meta.get('sheets', []):
-                        title = s['properties']['title']
-                        gids[title] = s['properties']['sheetId']
-                    session['sheet_gids'] = gids
-                    print(f"Restored existing GIDs into session: {gids}")
-                except Exception as ex:
-                    print(f"Error restoring GIDs: {ex}")
+                
+                # 確保 session 中有最新、完整的 GIDs
+                gids = {}
+                for s in sheet_meta.get('sheets', []):
+                    title = s['properties']['title']
+                    gids[title] = s['properties']['sheetId']
+                session['sheet_gids'] = gids
+                session.modified = True
+                print(f"Restored and verified all GIDs in session: {gids}")
+                
+            except Exception as ex:
+                print(f"Error in sheet self-healing mechanism: {ex}")
+                
             return spreadsheet_id
             
         print("Spreadsheet not found in user drive. Creating and initializing a brand new one...")
@@ -543,7 +776,7 @@ def ensure_user_spreadsheet():
             '日記!A1:E1': [['日期', '內容', '天氣', '心情', '時間']],
             '願望!A1:F1': [['唯一 ID', '願望名稱', '預算', '狀態', '實際花費', '建立時間']],
             '生理紀錄!A1:G1': [['年度', '月份', '日期', '動作', '症狀/心情', '週期', '備註']],
-            '口袋!A1:I1': [['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度']],
+            '口袋!A1:J1': [['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度', '常用']],
             'AI_指令集!A1:B1': [['觸發語句', '執行動作']]
         }
         
@@ -682,12 +915,81 @@ def append_to_sheet(range_name, values, spreadsheet_id=None):
         else:
             raise e
 
+def self_heal_missing_sheet_values(range_name, spreadsheet_id, service, original_err):
+    # 取得工作表名稱
+    sheet_title = range_name.split('!')[0] if '!' in range_name else range_name
+    
+    # 核心通用自癒對照表
+    standard_headers_map = {
+        '生理紀錄': ['年度', '月份', '日期', '動作', '症狀/心情', '週期', '備註'],
+        '記帳': ['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別'],
+        '待辦': ['建立日期', '事項/內容', '分類', '狀態', '唯一 ID', '建立時間', '優先級'],
+        '日記': ['日期', '內容', '天氣', '心情', '時間'],
+        '願望': ['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間'],
+        '願望清單': ['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間'],
+        '口袋': ['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度', '常用'],
+        '口袋名單': ['ID', '類別', '名稱', '地點', '地點區域', '備註', '建立時間', '緯度', '經度', '常用'],
+        'AI_指令集': ['觸發語句', '執行動作'],
+        '💰股票投資組合': ['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']
+    }
+    
+    err_msg = str(original_err)
+    is_range_error = "400" in err_msg or "Unable to parse range" in err_msg or "not found" in err_msg.lower()
+    
+    if is_range_error and sheet_title in standard_headers_map:
+        print(f"[Real-Time Self-Healing] 檢測到核心分頁 '{sheet_title}' 不存在或被誤刪！正在為您即時建立並寫入表頭...")
+        try:
+            # 1. 建立分頁
+            body = {
+                'requests': [{
+                    'addSheet': {
+                        'properties': {
+                            'title': sheet_title
+                        }
+                    }
+                }]
+            }
+            service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
+            
+            # 2. 寫入標準表頭
+            headers = standard_headers_map[sheet_title]
+            col_letter = chr(ord('A') + len(headers) - 1)
+            service.spreadsheets().values().update(
+                spreadsheetId=spreadsheet_id,
+                range=f"{sheet_title}!A1:{col_letter}1",
+                valueInputOption='USER_ENTERED',
+                body={'values': [headers]}
+            ).execute()
+            
+            # 3. 立即重試讀取並傳回數據
+            result = service.spreadsheets().values().get(
+                spreadsheetId=spreadsheet_id,
+                range=range_name
+            ).execute()
+            
+            # 4. 清除 Session 中的 GIDs 快取，促使重新生成最新 GID (V11.2)
+            try:
+                from flask import session as flask_session
+                if flask_session:
+                    flask_session.pop('sheet_gids', None)
+                    flask_session.modified = True
+                    print(f"[Real-Time Self-Healing] 核心分頁 '{sheet_title}' 重建成功，已成功清除 GID 快取以實時同步！")
+            except Exception as session_err:
+                print(f"[Real-Time Self-Healing GID Cache Warning] 清除 session 快取失敗: {session_err}")
+
+            return result.get('values', [])
+        except Exception as heal_err:
+            print(f"[Real-Time Self-Healing Error] 重建分頁 '{sheet_title}' 失敗: {heal_err}")
+            raise original_err
+    else:
+        raise original_err
+
 def get_sheet_values(range_name, spreadsheet_id=None):
     if not spreadsheet_id:
         spreadsheet_id = get_spreadsheet_id()
     service = get_sheets_service()
     
-    # 智慧地自動匹配「願望清單」與「願望」分頁名以防讀取報錯
+    # 智慧地自動匹配「願望清單」與「願望」分頁名，以及「口袋名單」與「口袋」分頁名以防讀取報錯
     try:
         result = service.spreadsheets().values().get(
             spreadsheetId=spreadsheet_id,
@@ -703,7 +1005,7 @@ def get_sheet_values(range_name, spreadsheet_id=None):
                 ).execute()
                 range_name = new_range
             except Exception:
-                raise e
+                return self_heal_missing_sheet_values(range_name, spreadsheet_id, service, e)
         elif '願望' in range_name:
             new_range = range_name.replace('願望', '願望清單')
             try:
@@ -713,9 +1015,29 @@ def get_sheet_values(range_name, spreadsheet_id=None):
                 ).execute()
                 range_name = new_range
             except Exception:
-                raise e
+                return self_heal_missing_sheet_values(range_name, spreadsheet_id, service, e)
+        elif '口袋名單' in range_name:
+            new_range = range_name.replace('口袋名單', '口袋')
+            try:
+                result = service.spreadsheets().values().get(
+                    spreadsheetId=spreadsheet_id,
+                    range=new_range
+                ).execute()
+                range_name = new_range
+            except Exception:
+                return self_heal_missing_sheet_values(range_name, spreadsheet_id, service, e)
+        elif '口袋' in range_name:
+            new_range = range_name.replace('口袋', '口袋名單')
+            try:
+                result = service.spreadsheets().values().get(
+                    spreadsheetId=spreadsheet_id,
+                    range=new_range
+                ).execute()
+                range_name = new_range
+            except Exception:
+                return self_heal_missing_sheet_values(range_name, spreadsheet_id, service, e)
         else:
-            raise e
+            return self_heal_missing_sheet_values(range_name, spreadsheet_id, service, e)
             
     values = result.get('values', [])
     
@@ -731,7 +1053,8 @@ def get_sheet_values(range_name, spreadsheet_id=None):
                 '日記': ['日期', '內容', '天氣', '心情', '時間'],
                 '願望': ['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間'],
                 '願望清單': ['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間'],
-                '口袋': ['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度'],
+                '口袋': ['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度', '常用'],
+                '口袋名單': ['ID', '類別', '名稱', '地點', '地點區域', '備註', '建立時間', '緯度', '經度', '常用'],
                 'AI_指令集': ['觸發語句', '執行動作'],
                 '💰股票投資組合': ['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']
             }
@@ -1073,6 +1396,7 @@ def index():
                 "picture": "https://lh3.googleusercontent.com/a/default-user"
             },
             spreadsheet_id=SPREADSHEET_ID,
+            allow_payment=is_payment_allowed(),
             **urls
         )
         
@@ -1089,6 +1413,60 @@ def index():
             logged_in = False
         else:
             urls = get_sheet_urls()
+            
+            # 🚀 確保 session 中最新的會員規格與試用期狀態隨時與資料庫同步！
+            user_email = session.get('user_email') or (user_info.get('email') if user_info else None)
+            if user_email:
+                session['user_email'] = user_email
+                user = get_user_by_email(user_email)
+                if user:
+                    session['is_subscribed'] = bool(user.get('is_subscribed'))
+                    session['subscription_type'] = user.get('subscription_type', 'NONE')
+                    session['ai_points'] = user.get('ai_points', 0)
+                    session['has_stock_record'] = bool(user.get('has_stock_record'))
+                    
+                    if user.get('trial_expires_at'):
+                        from datetime import datetime
+                        expires_at = user.get('trial_expires_at')
+                        if isinstance(expires_at, str):
+                            try:
+                                expires_at = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S")
+                            except ValueError:
+                                pass
+                        if expires_at and datetime.now() < expires_at:
+                            session['is_trial_active'] = True
+                            session['trial_expires_at'] = expires_at.strftime("%Y-%m-%d %H:%M:%S")
+                        else:
+                            session['is_trial_active'] = False
+                            session['trial_expires_at'] = None
+                    else:
+                        session['is_trial_active'] = False
+                        session['trial_expires_at'] = None
+
+                    # 注入訂閱過期時間
+                    if user.get('subscription_expires_at'):
+                        from datetime import datetime
+                        sub_expires_at = user.get('subscription_expires_at')
+                        if isinstance(sub_expires_at, str):
+                            try:
+                                sub_expires_at = datetime.strptime(sub_expires_at, "%Y-%m-%d %H:%M:%S")
+                            except ValueError:
+                                pass
+                        if sub_expires_at:
+                            session['subscription_expires_at'] = sub_expires_at.strftime("%Y-%m-%d %H:%M:%S")
+                        else:
+                            session['subscription_expires_at'] = None
+                    else:
+                        session['subscription_expires_at'] = None
+
+                    if user.get('google_spreadsheet_id'):
+                        session['spreadsheet_id'] = user.get('google_spreadsheet_id')
+            
+            # 印出目前 session 用於除錯
+            print("[DEBUG INDEX SESSION] Current session keys and values:")
+            for k, v in dict(session).items():
+                if k != 'credentials': # 避免印出敏感 token
+                    print(f"  {k}: {v}")
             
             # 🚀 在主線程預先獲取已授權的 sheets service 物件，避免背景線程失去 Session 上下文
             try:
@@ -1111,6 +1489,7 @@ def index():
         logged_in=logged_in, 
         user_info=user_info,
         spreadsheet_id=SPREADSHEET_ID,
+        allow_payment=is_payment_allowed(),
         **urls
     )
 
@@ -1178,7 +1557,7 @@ def callback():
                         from datetime import datetime, timedelta
                         trial_expiry = datetime.now() + timedelta(days=7)
                         cursor.execute(
-                            "INSERT INTO users (user_id, email, is_subscribed, subscription_type, ai_points, trial_used, trial_expires_at, has_stock_record) VALUES (%s, %s, TRUE, 'YEARLY_AI', 100, TRUE, %s, TRUE);",
+                            "INSERT INTO users (user_id, email, is_subscribed, subscription_type, ai_points, trial_used, trial_expires_at, has_stock_record, subscription_expires_at) VALUES (%s, %s, TRUE, 'YEARLY_AI', 100, TRUE, %s, TRUE, NULL);",
                             (new_uid, user_email, trial_expiry)
                         )
                         conn.commit()
@@ -1208,10 +1587,29 @@ def callback():
                             pass
                     if expires_at and datetime.now() < expires_at:
                         session['is_trial_active'] = True
+                        session['trial_expires_at'] = expires_at.strftime("%Y-%m-%d %H:%M:%S")
                     else:
                         session['is_trial_active'] = False
+                        session['trial_expires_at'] = None
                 else:
                     session['is_trial_active'] = False
+                    session['trial_expires_at'] = None
+
+                # 注入訂閱過期時間
+                if user.get('subscription_expires_at'):
+                    from datetime import datetime
+                    sub_expires_at = user.get('subscription_expires_at')
+                    if isinstance(sub_expires_at, str):
+                        try:
+                            sub_expires_at = datetime.strptime(sub_expires_at, "%Y-%m-%d %H:%M:%S")
+                        except ValueError:
+                            pass
+                    if sub_expires_at:
+                        session['subscription_expires_at'] = sub_expires_at.strftime("%Y-%m-%d %H:%M:%S")
+                    else:
+                        session['subscription_expires_at'] = None
+                else:
+                    session['subscription_expires_at'] = None
 
                 if user.get('google_spreadsheet_id'):
                     session['spreadsheet_id'] = user.get('google_spreadsheet_id')
@@ -1251,7 +1649,7 @@ def dev_switch_role():
         role = request.args.get('role', 'FREE').upper()
         email = request.args.get('email')
 
-    # 映射到三組真實的沙盒信箱與會員特權
+    # 映射到真實的沙盒信箱與會員特權
     role_mapping = {
         'FREE': {
             'email': 'mina976272866@gmail.com',
@@ -1270,8 +1668,22 @@ def dev_switch_role():
         'PREMIUM': {
             'email': 'inming399@gmail.com',
             'is_subscribed': True,
+            'subscription_type': 'PREMIUM_MONTHLY',
+            'ai_points': 1000,
+            'has_stock_record': True
+        },
+        'YEARLY': {
+            'email': 'yearly.premium@gmail.com',
+            'is_subscribed': True,
             'subscription_type': 'YEARLY_AI',
             'ai_points': 1000,
+            'has_stock_record': True
+        },
+        'TRIAL': {
+            'email': 'trial.chen.xstar.sg@gmail.com',
+            'is_subscribed': True,
+            'subscription_type': 'YEARLY_AI',
+            'ai_points': 650,
             'has_stock_record': True
         },
         'DEVELOPER': {
@@ -1290,38 +1702,82 @@ def dev_switch_role():
             target = role_mapping['FREE']
         elif role in ['MONTHLY_AI', 'BASIC']:
             target = role_mapping['BASIC']
-        elif role in ['YEARLY_AI', 'PREMIUM']:
+        elif role in ['PREMIUM_MONTHLY', 'PREMIUM']:
             target = role_mapping['PREMIUM']
+        elif role in ['YEARLY_AI', 'YEARLY']:
+            target = role_mapping['YEARLY']
+        elif role == 'TRIAL':
+            target = role_mapping['TRIAL']
         else:
             return jsonify({"status": "error", "message": "無效的角色參數"}), 400
             
     # 如果傳入了自訂的信箱，覆蓋預設的沙盒信箱，並進行自動註冊
     user_email = email if email else target['email']
     
-    # 檢查該自訂信箱在 TiDB 中是否存在，若不存在且非單人模式則進行自動註冊
+    # 檢查該自訂信箱在 TiDB 中是否存在，若不存在且非單人模式則進行自動註冊與狀態覆寫，確保測試順利
     if os.getenv("SINGLE_USER_MODE", "false").lower() != "true":
-        user = get_user_by_email(user_email)
-        if not user:
-            try:
-                conn = get_db_connection()
-                with conn.cursor() as cursor:
+        try:
+            conn = get_db_connection()
+            with conn.cursor() as cursor:
+                # 確保自癒新增 subscription_expires_at 欄位
+                try:
+                    cursor.execute("ALTER TABLE users ADD COLUMN subscription_expires_at TIMESTAMP NULL DEFAULT NULL;")
+                    conn.commit()
+                except Exception:
+                    pass
+
+                cursor.execute("SELECT * FROM users WHERE email = %s;", (user_email,))
+                user_exists = cursor.fetchone()
+                
+                is_sub = target['is_subscribed']
+                sub_type = target['subscription_type']
+                points = target['ai_points']
+                
+                from datetime import datetime, timedelta
+                now = datetime.now()
+                if role == 'TRIAL':
+                    sub_expires = None
+                    trial_expiry = now + timedelta(days=7)
+                else:
+                    if sub_type in ['MONTHLY_AI', 'PREMIUM_MONTHLY']:
+                        sub_expires = now + timedelta(days=30) # 精準 30 天
+                    elif sub_type == 'YEARLY_AI':
+                        sub_expires = now + timedelta(days=365)
+                    else:
+                        sub_expires = None
+
+                    # 支援自訂天數參數，以利測試即將到期之警告狀態
+                    days_arg = request.args.get('days') or (request.json.get('days') if request.json else None)
+                    if days_arg and is_sub:
+                        try:
+                            sub_expires = now + timedelta(days=int(days_arg))
+                        except ValueError:
+                            pass
+
+                    # 若是測試訂閱身分，試用設為已結束/過期，確保呈現訂閱版計時器
+                    trial_expiry = now - timedelta(days=1) if is_sub else now + timedelta(days=7)
+
+                if not user_exists:
                     new_uid = f"uid_{uuid.uuid4().hex[:12]}"
-                    is_sub = target['is_subscribed']
-                    sub_type = target['subscription_type']
-                    points = target['ai_points']
-                    from datetime import datetime, timedelta
-                    trial_expiry = datetime.now() + timedelta(days=7)
                     cursor.execute(
-                        "INSERT INTO users (user_id, email, is_subscribed, subscription_type, ai_points, trial_used, trial_expires_at, has_stock_record) VALUES (%s, %s, %s, %s, %s, TRUE, %s, TRUE);",
-                        (new_uid, user_email, is_sub, sub_type, points, trial_expiry)
+                        "INSERT INTO users (user_id, email, is_subscribed, subscription_type, ai_points, trial_used, trial_expires_at, has_stock_record, subscription_expires_at) VALUES (%s, %s, %s, %s, %s, TRUE, %s, TRUE, %s);",
+                        (new_uid, user_email, is_sub, sub_type, points, trial_expiry, sub_expires)
                     )
                     conn.commit()
-                print(f"Successfully registered custom test user via switch_role: {user_email}")
-            except Exception as ex:
-                print(f"Failed to auto register custom test user via switch_role: {ex}")
-            finally:
-                if 'conn' in locals() and conn:
-                    conn.close()
+                    print(f"Successfully registered custom test user via switch_role: {user_email}")
+                else:
+                    # 覆寫已有帳號的權限與到期日，以利完整測試不同 UI
+                    cursor.execute(
+                        "UPDATE users SET is_subscribed = %s, subscription_type = %s, ai_points = %s, trial_expires_at = %s, subscription_expires_at = %s WHERE email = %s;",
+                        (is_sub, sub_type, points, trial_expiry, sub_expires, user_email)
+                    )
+                    conn.commit()
+                    print(f"Successfully updated custom test user state via switch_role: {user_email}")
+        except Exception as ex:
+            print(f"Failed to manage test user state via switch_role: {ex}")
+        finally:
+            if 'conn' in locals() and conn:
+                conn.close()
 
     # 再次查詢使用者狀態，以獲得寫入資料庫後的精準資料
     user = get_user_by_email(user_email)
@@ -1343,10 +1799,29 @@ def dev_switch_role():
                     pass
             if expires_at and datetime.now() < expires_at:
                 session['is_trial_active'] = True
+                session['trial_expires_at'] = expires_at.strftime("%Y-%m-%d %H:%M:%S")
             else:
                 session['is_trial_active'] = False
+                session['trial_expires_at'] = None
         else:
             session['is_trial_active'] = False
+            session['trial_expires_at'] = None
+
+        # 注入訂閱過期時間
+        if user.get('subscription_expires_at'):
+            from datetime import datetime
+            sub_expires_at = user.get('subscription_expires_at')
+            if isinstance(sub_expires_at, str):
+                try:
+                    sub_expires_at = datetime.strptime(sub_expires_at, "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    pass
+            if sub_expires_at:
+                session['subscription_expires_at'] = sub_expires_at.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                session['subscription_expires_at'] = None
+        else:
+            session['subscription_expires_at'] = None
 
         if user.get('google_spreadsheet_id'):
             session['spreadsheet_id'] = user.get('google_spreadsheet_id')
@@ -1376,6 +1851,417 @@ def dev_switch_role():
     })
 
 
+@app.route('/api/subscription/upgrade_preview', methods=['GET'])
+def upgrade_preview():
+    """計算基礎版中途補差價直升旗艦版所需之天數折算、折抵金額與應付金額"""
+    email = session.get('user_email')
+    if not email:
+        return jsonify({"status": "error", "message": "尚未登入"}), 401
+    
+    user = get_user_by_email(email)
+    if not user:
+        return jsonify({"status": "error", "message": "找不到該用戶"}), 404
+        
+    sub_type = user.get('subscription_type', 'NONE')
+    if sub_type != 'MONTHLY_AI':
+        return jsonify({
+            "status": "error", 
+            "message": "只有基礎版訂閱用戶才可以補差價直升旗艦版喔！"
+        }), 400
+        
+    sub_exp = user.get('subscription_expires_at')
+    if not sub_exp:
+        return jsonify({"status": "error", "message": "無效的訂閱到期日"}), 400
+        
+    from datetime import datetime
+    if isinstance(sub_exp, str):
+        try:
+            sub_exp = datetime.strptime(sub_exp, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            pass
+            
+    now = datetime.now()
+    diff_days = 0
+    if sub_exp > now:
+        diff_days = (sub_exp - now).days + 1
+        
+    # 剩餘天數日均價值： 119 元 / 30 天 = 3.9667
+    discount = round(diff_days * (119.0 / 30.0))
+    # 應付差額 = max(100, 1990 - discount)
+    price = max(100, 1990 - discount)
+    
+    return jsonify({
+        "status": "success",
+        "remaining_days": diff_days,
+        "discount": discount,
+        "upgrade_price": price
+    })
+
+
+@app.route('/mock/checkout', methods=['GET'])
+def mock_checkout():
+    if not is_payment_allowed():
+        return "<h3>系統當前已關閉儲值與訂閱交易功能。造成您的不便，敬請見諒！</h3>", 403
+
+    tier = request.args.get('tier', 'BASIC')
+    email = request.args.get('email', '')
+    
+    # 防呆：若沒傳入 email，自動取 session 登入之信箱
+    if not email:
+        email = session.get('user_email', '')
+        
+    price = 119
+    product_name = "基礎版"
+    product_desc = "全面解鎖行程、備忘錄與經期看板，並獲得 500 點 AI 額度！"
+    
+    if tier == 'PREMIUM_MONTHLY':
+        price = 199
+        product_name = "旗艦版"
+        product_desc = "解鎖「智慧存股損益」、尊榮一鍵 AI 健檢與 650 點 AI 額度！"
+    elif tier == 'PREMIUM':
+        price = 1990
+        product_name = "尊榮版"
+        product_desc = "解鎖全部功能！包含「智慧存股損益」、AI 一鍵健檢與 650 點 AI 額度！採年繳計費超划算！"
+    elif tier == 'PREMIUM_UPGRADE':
+        # 進行伺服器端補差價計算
+        from datetime import datetime
+        user = get_user_by_email(email)
+        sub_exp = user.get('subscription_expires_at') if user else None
+        
+        if sub_exp:
+            if isinstance(sub_exp, str):
+                try: sub_exp = datetime.strptime(sub_exp, "%Y-%m-%d %H:%M:%S")
+                except ValueError: pass
+                
+            now = datetime.now()
+            diff_days = 0
+            if sub_exp > now:
+                diff_days = (sub_exp - now).days + 1
+            
+            discount = round(diff_days * (119.0 / 30.0))
+            price = max(100, 1990 - discount)
+        else:
+            price = 1990
+            
+        product_name = "直升尊榮版"
+        product_desc = "折抵您基礎方案未用完天數價值，今日補差價直升尊榮版，即刻享有全功能並加贈 650 點 AI 額度！"
+    elif tier == 'POINTS_300':
+        price = 70
+        product_name = "AI 智慧點數 300 點加購"
+        product_desc = "為您的生活與秘書助理充值 300 點 AI 智慧對話額度，永不過期！"
+    elif tier == 'POINTS_600':
+        price = 120
+        product_name = "AI 智慧點數 600 點加購"
+        product_desc = "為您的生活與秘書助理充值 600 點 AI 智慧對話額度，極致劃算，永不過期！"
+        
+    return render_template(
+        'checkout.html',
+        tier=tier,
+        email=email,
+        price=price,
+        product_name=product_name,
+        product_desc=product_desc
+    )
+
+
+@app.route('/api/mock/payment/process', methods=['POST'])
+def api_mock_payment_process():
+    data = request.json or {}
+    email = data.get('email', '')
+    tier = data.get('tier', 'BASIC')
+    payment_status = data.get('payment_status', '')
+    
+    if not email:
+        return jsonify({"status": "error", "message": "缺少用戶信箱"}), 400
+        
+    if payment_status != 'success':
+        return jsonify({"status": "error", "message": "付款未完成"}), 400
+        
+    try:
+        conn = get_db_connection()
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            # 獲取當前用戶狀態
+            cursor.execute("SELECT * FROM users WHERE email = %s;", (email,))
+            user = cursor.fetchone()
+            if not user:
+                return jsonify({"status": "error", "message": "找不到該用戶"}), 404
+                
+            current_points = user.get('ai_points', 0)
+            current_sub_type = user.get('subscription_type', 'NONE')
+            
+            from datetime import datetime, timedelta
+            now = datetime.now()
+            
+            # 根據購買的商品做處理
+            if tier == 'BASIC':
+                is_sub = 1
+                sub_type = 'MONTHLY_AI'
+                new_points = current_points + 500
+                sub_expires = now + timedelta(days=30)
+                
+                cursor.execute(
+                    "UPDATE users SET is_subscribed = %s, subscription_type = %s, ai_points = %s, subscription_expires_at = %s WHERE email = %s;",
+                    (is_sub, sub_type, new_points, sub_expires, email)
+                )
+            elif tier == 'PREMIUM_MONTHLY':
+                is_sub = 1
+                sub_type = 'PREMIUM_MONTHLY'
+                new_points = current_points + 650
+                sub_expires = now + timedelta(days=30)
+                
+                cursor.execute(
+                    "UPDATE users SET is_subscribed = %s, subscription_type = %s, ai_points = %s, subscription_expires_at = %s WHERE email = %s;",
+                    (is_sub, sub_type, new_points, sub_expires, email)
+                )
+            elif tier in ['PREMIUM', 'PREMIUM_UPGRADE']:
+                is_sub = 1
+                sub_type = 'YEARLY_AI'
+                new_points = current_points + 650
+                sub_expires = now + timedelta(days=365)
+                
+                cursor.execute(
+                    "UPDATE users SET is_subscribed = %s, subscription_type = %s, ai_points = %s, subscription_expires_at = %s WHERE email = %s;",
+                    (is_sub, sub_type, new_points, sub_expires, email)
+                )
+            elif tier == 'POINTS_300':
+                new_points = current_points + 300
+                cursor.execute(
+                    "UPDATE users SET ai_points = %s WHERE email = %s;",
+                    (new_points, email)
+                )
+                is_sub = user.get('is_subscribed', 0)
+                sub_type = current_sub_type
+                sub_expires = user.get('subscription_expires_at')
+            elif tier == 'POINTS_600':
+                new_points = current_points + 600
+                cursor.execute(
+                    "UPDATE users SET ai_points = %s WHERE email = %s;",
+                    (new_points, email)
+                )
+                is_sub = user.get('is_subscribed', 0)
+                sub_type = current_sub_type
+                sub_expires = user.get('subscription_expires_at')
+            else:
+                return jsonify({"status": "error", "message": "不支援的購買方案"}), 400
+                
+            conn.commit()
+            
+            # 更新 session，確保回到首頁立即生效！
+            if session.get('user_email') == email:
+                session['is_subscribed'] = bool(is_sub)
+                session['subscription_type'] = sub_type
+                session['ai_points'] = new_points
+                if sub_expires:
+                    if isinstance(sub_expires, str):
+                        session['subscription_expires_at'] = sub_expires
+                    else:
+                        session['subscription_expires_at'] = sub_expires.strftime("%Y-%m-%d %H:%M:%S")
+                else:
+                    session['subscription_expires_at'] = None
+                    
+            print(f"[Gold Payment Success] 用戶 {email} 購買 {tier} 成功！AI點數增至 {new_points}，訂閱期更新。")
+            return jsonify({"status": "success", "message": "付款處理成功！"})
+            
+    except Exception as e:
+        print(f"[Gold Payment Error] 處理付款失敗: {e}")
+        return jsonify({"status": "error", "message": f"資料庫處理異常: {str(e)}"}), 500
+    finally:
+        if 'conn' in locals() and conn:
+            conn.close()
+
+
+# ============================================================
+# 🏦 綠界科技（ECPay）金流串接路由 (測試環境)
+# ============================================================
+
+def _ecpay_get_price_for_tier(tier: str, email: str) -> tuple:
+    """依 tier 回傳 (price, product_name, trade_desc)，供 /ecpay/checkout 使用"""
+    if tier == 'PREMIUM':
+        return 1990, "尊榮版", "UniTask 尊榮版訂閱 - 解鎖全功能與 650 點 AI 額度"
+    elif tier == 'PREMIUM_MONTHLY':
+        return 199, "旗艦版", "UniTask 旗艦版月費訂閱 - 解鎖智慧存股與 650 點 AI 額度"
+    elif tier == 'PREMIUM_UPGRADE':
+        user = get_user_by_email(email)
+        sub_exp = user.get('subscription_expires_at') if user else None
+        if sub_exp:
+            if isinstance(sub_exp, str):
+                try:
+                    sub_exp = datetime.strptime(sub_exp, "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    pass
+            now = datetime.now()
+            diff_days = max(0, (sub_exp - now).days + 1) if sub_exp > now else 0
+            discount = round(diff_days * (119.0 / 30.0))
+            price = max(100, 1990 - discount)
+        else:
+            price = 1990
+        return price, "直升尊榮版", "UniTask 基礎版中途直升尊榮版 - 即刻享全功能與 650 點 AI 額度"
+    elif tier == 'POINTS_300':
+        return 70, "AI智慧點數300點", "UniTask-AI智慧點數300點加購-永不過期"
+    elif tier == 'POINTS_600':
+        return 120, "AI智慧點數600點", "UniTask-AI智慧點數600點加購-極致划算永不過期"
+    else:
+        return 119, "基礎版", "UniTask 基礎版月費訂閱 - 解鎖行程備忘錄與 500 點 AI 額度"
+
+
+@app.route('/ecpay/checkout', methods=['POST'])
+def ecpay_checkout():
+    """
+    接收前端 JSON，計算 CheckMacValue 並回傳自動送出的隱藏表單 HTML，
+    瀏覽器注入後立即 submit 至綠界測試 API。
+    """
+    if not is_payment_allowed():
+        return jsonify({"status": "error", "message": "目前系統已關閉儲值與訂閱功能，目前不開放交易。"}), 403
+
+    data = request.json or {}
+    email = data.get('email', session.get('user_email', ''))
+    tier  = data.get('tier', 'BASIC')
+
+    price, product_name, trade_desc = _ecpay_get_price_for_tier(tier, email)
+
+    # 產生唯一訂單號（格式：UTK + yyyymmddHHMMSS + 4位亂數，≤ 20 碼）
+    now_str = datetime.now().strftime('%Y%m%d%H%M%S')
+    rand4   = uuid.uuid4().hex[:4].upper()
+    trade_no = f"UTK{now_str}{rand4}"  # 22 chars total... trim to 20
+    trade_no = trade_no[:20]
+
+    trade_date = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+
+    # 本地測試：OrderResultURL 使用 127.0.0.1；ReturnURL 需公開 IP，暫用佔位
+    base_url = request.host_url.rstrip('/')
+    order_result_url = f"{base_url}/ecpay/result"
+    # ReturnURL 本地測試時綠界無法回調，填入 localhost 佔位（不影響前端流程）
+    return_url = f"{base_url}/ecpay/return"
+
+    params = {
+        'MerchantID':        ECPAY_MERCHANT_ID,
+        'MerchantTradeNo':   trade_no,
+        'MerchantTradeDate': trade_date,
+        'PaymentType':       'aio',
+        'TotalAmount':       str(price),
+        'TradeDesc':         trade_desc,   # 純文字！URL Encode 由 generate_check_mac_value 統一處理
+        'ItemName':          product_name,
+        'ReturnURL':         return_url,
+        'OrderResultURL':    order_result_url,
+        'ChoosePayment':     'Credit',
+        'EncryptType':       '1',
+        'CustomField1':      email,
+        'CustomField2':      tier,
+    }
+
+    check_mac = generate_check_mac_value(params)
+    params['CheckMacValue'] = check_mac
+
+    # 動態產生含所有欄位的隱藏表單，前端注入後立即 submit
+    fields_html = '\n'.join(
+        f'<input type="hidden" name="{k}" value="{v}">'
+        for k, v in params.items()
+    )
+    form_html = f'''
+    <form id="ecpay-auto-form" method="POST" action="{ECPAY_API_URL}" style="display:none;">
+        {fields_html}
+    </form>
+    '''
+    print(f"[ECPay Checkout] 訂單 {trade_no} 建立，金額 NT${price}，方案 {tier}，Email {email}")
+    return form_html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+
+
+@app.route('/ecpay/return', methods=['POST'])
+def ecpay_return():
+    """
+    綠界伺服器背景通知（ReturnURL）。
+    本地測試時綠界無法主動回調此路由；此路由為生產環境預留。
+    必須回傳純文字 '1|OK' 讓綠界確認已收到通知。
+    """
+    data = request.form.to_dict()
+    rtn_code = data.get('RtnCode', '')
+    trade_no = data.get('MerchantTradeNo', '')
+    amount   = data.get('TradeAmt', '')
+    print(f"[ECPay ReturnURL] 收到背景通知 | 訂單: {trade_no} | 金額: {amount} | RtnCode: {rtn_code}")
+    print(f"[ECPay ReturnURL] 完整參數: {data}")
+    return '1|OK', 200
+
+
+@app.route('/ecpay/result', methods=['GET', 'POST'])
+def ecpay_result():
+    """
+    綠界付款完成後將使用者導回此頁（OrderResultURL）。
+    解析 RtnCode，若成功（=1）則更新 DB 訂閱狀態並重導回 /?payment=success。
+    """
+    # 綠界以 POST form 或 GET querystring 導回
+    data = request.form.to_dict() if request.method == 'POST' else request.args.to_dict()
+    rtn_code = data.get('RtnCode', '')
+    rtn_msg  = data.get('RtnMsg', '')
+    trade_no = data.get('MerchantTradeNo', '')
+    email    = data.get('CustomField1', '')
+    tier     = data.get('CustomField2', 'BASIC')
+
+    print(f"[ECPay Result] 訂單: {trade_no} | RtnCode: {rtn_code} | RtnMsg: {rtn_msg} | Email: {email} | Tier: {tier}")
+
+    if rtn_code == '1':
+        # 付款成功 → 複用既有的 DB 更新邏輯
+        try:
+            conn = get_db_connection()
+            with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                cursor.execute("SELECT * FROM users WHERE email = %s;", (email,))
+                user = cursor.fetchone()
+                if user:
+                    current_points = user.get('ai_points', 0)
+                    current_sub    = user.get('subscription_type', 'NONE')
+                    now = datetime.now()
+
+                    if tier in ['BASIC']:
+                        sub_type   = 'MONTHLY_AI'
+                        new_points = current_points + 500
+                        sub_expires = now + timedelta(days=30)
+                        cursor.execute(
+                            "UPDATE users SET is_subscribed=1, subscription_type=%s, ai_points=%s, subscription_expires_at=%s WHERE email=%s;",
+                            (sub_type, new_points, sub_expires, email)
+                        )
+                    elif tier in ['PREMIUM', 'PREMIUM_UPGRADE']:
+                        sub_type   = 'YEARLY_AI'
+                        new_points = current_points + 650
+                        sub_expires = now + timedelta(days=365)
+                        cursor.execute(
+                            "UPDATE users SET is_subscribed=1, subscription_type=%s, ai_points=%s, subscription_expires_at=%s WHERE email=%s;",
+                            (sub_type, new_points, sub_expires, email)
+                        )
+                    elif tier == 'POINTS_300':
+                        new_points = current_points + 300
+                        sub_type   = current_sub
+                        sub_expires = user.get('subscription_expires_at')
+                        cursor.execute("UPDATE users SET ai_points=%s WHERE email=%s;", (new_points, email))
+                    elif tier == 'POINTS_600':
+                        new_points = current_points + 600
+                        sub_type   = current_sub
+                        sub_expires = user.get('subscription_expires_at')
+                        cursor.execute("UPDATE users SET ai_points=%s WHERE email=%s;", (new_points, email))
+
+                    conn.commit()
+
+                    # 同步更新 session（若為當前登入用戶）
+                    if session.get('user_email') == email:
+                        session['is_subscribed'] = True
+                        session['subscription_type'] = sub_type
+                        session['ai_points'] = new_points
+                        if sub_expires:
+                            session['subscription_expires_at'] = (
+                                sub_expires if isinstance(sub_expires, str)
+                                else sub_expires.strftime("%Y-%m-%d %H:%M:%S")
+                            )
+                    print(f"[ECPay Result] 付款成功！用戶 {email} 方案 {tier} 已更新。")
+        except Exception as e:
+            print(f"[ECPay Result Error] DB 更新失敗: {e}")
+        finally:
+            if 'conn' in locals() and conn:
+                conn.close()
+
+        return redirect('/?payment=success')
+    else:
+        print(f"[ECPay Result] 付款失敗或取消。RtnCode={rtn_code}, RtnMsg={rtn_msg}")
+        return redirect('/?payment=fail')
+
+
 @app.route('/api/sync_profile', methods=['POST'])
 def sync_profile():
     """同步前端設定的性別、生理期啟用狀態與時區"""
@@ -1400,6 +2286,30 @@ def sync_profile():
 @app.route('/api/chat', methods=['POST'])
 def chat():
     """處理前端送來的對話訊息 (支援文字與圖片)"""
+    email = session.get('user_email', '')
+    developer_emails = {'ulir976272866@gmail.com', 'mina.chen.xstar.sg@gmail.com'}
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "false" and email:
+        sub_type = session.get('subscription_type', 'NONE')
+        # 如果不是無限點數方案且不在開發者白名單中
+        if sub_type not in ['YEARLY_AI', 'PREMIUM_MONTHLY'] and email.lower() not in developer_emails:
+            current_points = session.get('ai_points', 0)
+            try:
+                conn = get_db_connection()
+                with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                    cursor.execute("SELECT ai_points FROM users WHERE email = %s;", (email,))
+                    user = cursor.fetchone()
+                    if user:
+                        current_points = user.get('ai_points', 0)
+            except Exception as e:
+                print(f"[Points Check Error in Chat] {e}")
+            
+            if current_points <= 0:
+                return jsonify({
+                    "status": "error",
+                    "message": "🚨 您的 AI 智慧對話點數不足！您的對話額度已用完 (0點)，請立即儲值加購點數，或升級為無限對話的尊榮會員方案！",
+                    "points_depleted": True
+                })
+
     user_text = ""
     image_file = None
     
@@ -1520,7 +2430,10 @@ def chat():
         {cycle_info_str}
         
         【視覺掃描規則】：
-        - 如果是收據：優先尋找「NT$」後的金額。
+        - 如果是收據或發票：
+          1. 必須以「使用者實際支付的總金額（真正從口袋掏出或行動支付、信用卡付出的總額）」為準！
+          2. 注意：有些收據上會包含「代售/代收商品/代收款項」（例如 2 元的垃圾袋、兩用袋或代售車票）。店家的發票明細「實付金額」或「應稅/免稅小計」可能只列出商店開立發票的金額（如 114 元），但下方會另有「代收/代售合計」或在支付明細顯示「掃碼付_街口」、「LINE Pay」、「信用卡」、「實付/合計」為 116 元。此時你【必須選擇包含代收商品在內的最終實際總支付金額 116 元】，千萬不要漏掉用戶實際付出的任何一毛錢！
+          3. 金額優先順序：用戶實際支付的最終總額（如「掃碼付_街口」、「行動支付明細」、「信用卡/現金實付總計」、「合計」包含代收費用後的金額） > 店家發票發行小計。
         - 如果是行程：提取標題、時間與地點。
         
         【意圖判斷】：
@@ -1561,6 +2474,12 @@ def chat():
             data = json.loads(text)
             parsed_data = data[0] if isinstance(data, list) and len(data) > 0 else data
             print(f"Parsed AI response: {parsed_data}")
+            
+            # 扣除 1 點 AI 對話點數 (非無限版且非 bypass)
+            if os.getenv("SINGLE_USER_MODE", "false").lower() == "false" and email:
+                sub_type = session.get('subscription_type', 'NONE')
+                if sub_type not in ['YEARLY_AI', 'PREMIUM_MONTHLY'] and email.lower() not in developer_emails:
+                    check_and_deduct_points(email, 1)
         except Exception as e:
             print(f"Gemini AI Error: {e}")
             return jsonify({"status": "error", "message": "AI 處理失敗，請稍後再試。"})
@@ -1672,6 +2591,15 @@ def chat():
             msg = f"{emoji} 已記{label}：{parsed_data.get('item')} ${parsed_data.get('amount')}\n\n{cat_report}"
             if ai_response_message:
                 msg = f"{ai_response_message}\n\n{msg}"
+                
+            # 💖 報稅公益收據上傳防呆引導 (Paid Only)
+            if parsed_data.get('category') == '公益':
+                sub_type = session.get('subscription_type', 'NONE')
+                if os.getenv("SINGLE_USER_MODE", "false").lower() == "true" or sub_type != 'NONE' or email.lower() in developer_emails:
+                    msg += "<br><br><button onclick='window.triggerChatReceiptUpload()' style='padding: 12px 20px; border-radius: 16px; border: none; background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); color: white; font-weight: 800; font-size: 0.9rem; cursor: pointer; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3); display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0;'>📸 立即拍照上傳收據</button>"
+                else:
+                    msg += "<br><br><span style='color: #64748b; font-size: 0.85rem; display: block; border-top: 1px dashed #e2e8f0; padding-top: 10px;'>💡 升級為 <b>尊榮付費會員</b>，即可解鎖「發票收據自動命名歸檔」與「雲端年度報稅管理」特權，五月申報免煩惱！</span>"
+                    
             return jsonify({"status": "success", "type": "expense", "message": msg, "chart_data": cat_dict})
 
         elif intent_type == "query_schedule":
@@ -1738,11 +2666,11 @@ def chat():
                 db.close()
                 
             WHITELIST_EMAILS = ['ulir976272866@gmail.com', 'mina.chen.xstar.sg@gmail.com']
-            if sub_type != 'YEARLY_AI' and user_email not in WHITELIST_EMAILS:
+            if sub_type not in ['YEARLY_AI', 'PREMIUM_MONTHLY'] and user_email not in WHITELIST_EMAILS:
                 return jsonify({
                     "status": "success",
                     "type": "stock_locked",
-                    "message": "🔒 「智慧股票投資記帳」為尊榮旗艦版 (YEARLY_AI) 獨享功能，請升級後體驗語音智慧自動填單功能喔！"
+                    "message": "🔒 「智慧股票投資記帳」為尊榮旗艦版獨享功能，請升級後體驗語音智慧自動填單功能喔！"
                 })
                 
             ticker = parsed_data.get('ticker')
@@ -2634,9 +3562,21 @@ def handle_pocket(action, data=None):
     sheet_id = get_pocket_sheet_id()
     service = get_sheets_service()
 
+    # 🔍 動態探測實際工作表名稱 (口袋 或 口袋名單)
+    pocket_title = '口袋'
+    try:
+        spreadsheet_metadata = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+        titles = [sheet['properties']['title'] for sheet in spreadsheet_metadata.get('sheets', [])]
+        if '口袋名單' in titles:
+            pocket_title = '口袋名單'
+        elif '口袋' in titles:
+            pocket_title = '口袋'
+    except Exception as e:
+        print(f"Error resolving pocket sheet title: {e}")
+
     if action == 'list':
         try:
-            rows = get_sheet_values('口袋', spreadsheet_id=sheet_id)
+            rows = get_sheet_values(pocket_title, spreadsheet_id=sheet_id)
             if not rows: return []
             pocket_list = []
             for row in rows[1:]: # 跳過表頭
@@ -2661,7 +3601,8 @@ def handle_pocket(action, data=None):
                         'note': row[5] if len(row) > 5 else '',
                         'time': row[6] if len(row) > 6 else '',
                         'lat': row[7] if len(row) > 7 else None,
-                        'lng': row[8] if len(row) > 8 else None
+                        'lng': row[8] if len(row) > 8 else None,
+                        'is_fav': row[9] if len(row) > 9 else ''
                     })
             return pocket_list
         except Exception as e:
@@ -2672,6 +3613,10 @@ def handle_pocket(action, data=None):
         try:
             item_id = str(uuid.uuid4())[:8] # 簡短 ID
             category = data.get('category', '其他')
+            is_fav = data.get('is_fav', '')
+            if category == '常用':
+                category = '其他'
+                is_fav = '1'
             name = data.get('name', '')
             location = data.get('location', '')
             area = data.get('area', '')
@@ -2695,10 +3640,10 @@ def handle_pocket(action, data=None):
             if lat is None or lng is None:
                 lat, lng = get_lat_lng(location or name)
             
-            values = [[item_id, category, name, location, area, note, create_time, lat, lng]]
+            values = [[item_id, category, name, location, area, note, create_time, lat, lng, is_fav]]
             body = {'values': values}
             service.spreadsheets().values().append(
-                spreadsheetId=sheet_id, range='口袋!A2',
+                spreadsheetId=sheet_id, range=f'{pocket_title}!A2',
                 valueInputOption='RAW', body=body).execute()
             return True
         except Exception as e:
@@ -2708,18 +3653,18 @@ def handle_pocket(action, data=None):
     elif action == 'delete':
         try:
             target_id = data.get('id')
-            # 1. 先獲取試算表資訊，找出「口袋」分頁的 sheetId
+            # 1. 先獲取試算表資訊，找出工作分頁的 sheetId
             spreadsheet_metadata = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
             pocket_sheet_id = None
             for sheet in spreadsheet_metadata['sheets']:
-                if sheet['properties']['title'] == '口袋':
+                if sheet['properties']['title'] == pocket_title:
                     pocket_sheet_id = sheet['properties']['sheetId']
                     break
             if pocket_sheet_id is None:
                 pocket_sheet_id = spreadsheet_metadata['sheets'][0]['properties']['sheetId']
 
             # 2. 找出 ID 所在的行號 (利用 get_sheet_values 觸發自癒，且定位為 0-based)
-            rows = get_sheet_values('口袋', spreadsheet_id=sheet_id)
+            rows = get_sheet_values(pocket_title, spreadsheet_id=sheet_id)
             row_index = -1
             if rows:
                 for i, row in enumerate(rows):
@@ -2752,9 +3697,10 @@ def handle_pocket(action, data=None):
     elif action == 'update_category':
         try:
             target_id = data.get('id')
-            new_cat = data.get('category', '常用')
+            new_cat = data.get('category')
+            is_fav = data.get('is_fav') # '1' or '' or None
 
-            rows = get_sheet_values('口袋', spreadsheet_id=sheet_id)
+            rows = get_sheet_values(pocket_title, spreadsheet_id=sheet_id)
             row_index = -1
             if rows:
                 for i, row in enumerate(rows):
@@ -2765,13 +3711,20 @@ def handle_pocket(action, data=None):
             if row_index == -1:
                 return False
 
-            body = {'values': [[new_cat]]}
-            service.spreadsheets().values().update(
-                spreadsheetId=sheet_id, range=f'口袋!B{row_index}',
-                valueInputOption='RAW', body=body).execute()
+            if new_cat is not None:
+                body = {'values': [[new_cat]]}
+                service.spreadsheets().values().update(
+                    spreadsheetId=sheet_id, range=f'{pocket_title}!B{row_index}',
+                    valueInputOption='RAW', body=body).execute()
+
+            if is_fav is not None:
+                body = {'values': [[is_fav]]}
+                service.spreadsheets().values().update(
+                    spreadsheetId=sheet_id, range=f'{pocket_title}!J{row_index}',
+                    valueInputOption='RAW', body=body).execute()
             return True
         except Exception as e:
-            print(f"Error updating pocket item category: {e}")
+            print(f"Error updating pocket item category/fav: {e}")
             return False
 
     elif action == 'update_note':
@@ -2780,7 +3733,7 @@ def handle_pocket(action, data=None):
             new_note = data.get('note', '')
             new_name = data.get('name')
 
-            rows = get_sheet_values('口袋', spreadsheet_id=sheet_id)
+            rows = get_sheet_values(pocket_title, spreadsheet_id=sheet_id)
             row_index = -1
             if rows:
                 for i, row in enumerate(rows):
@@ -2791,17 +3744,17 @@ def handle_pocket(action, data=None):
             if row_index == -1:
                 return False
 
-            # 更新自訂稱呼 (Column F，即 '口袋!F' + row_index)
+            # 更新自訂稱呼 (Column F，即 '{pocket_title}!F' + row_index)
             body_note = {'values': [[new_note]]}
             service.spreadsheets().values().update(
-                spreadsheetId=sheet_id, range=f'口袋!F{row_index}',
+                spreadsheetId=sheet_id, range=f'{pocket_title}!F{row_index}',
                 valueInputOption='RAW', body=body_note).execute()
 
-            # 若有傳入主要名稱，更新主要名稱 (Column C，即 '口袋!C' + row_index)
+            # 若有傳入主要名稱，更新主要名稱 (Column C，即 '{pocket_title}!C' + row_index)
             if new_name is not None:
                 body_name = {'values': [[new_name]]}
                 service.spreadsheets().values().update(
-                    spreadsheetId=sheet_id, range=f'口袋!C{row_index}',
+                    spreadsheetId=sheet_id, range=f'{pocket_title}!C{row_index}',
                     valueInputOption='RAW', body=body_name).execute()
 
             return True
@@ -3151,7 +4104,7 @@ def check_disclaimer():
     return jsonify({"status": "success", "agreed": False})
 
 def is_premium_user():
-    """判斷使用者是否為 YEARLY_AI (Premium) 旗艦版尊榮會員"""
+    """判斷使用者是否為 旗艦版 或 年費版 尊榮會員"""
     if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
         return True  # 本機單人模式完全開放
     
@@ -3160,7 +4113,7 @@ def is_premium_user():
     if email and email.lower() in developer_emails:
         return True # 開發者白名單豁免
         
-    return session.get('subscription_type') == 'YEARLY_AI'
+    return session.get('subscription_type') in ['YEARLY_AI', 'PREMIUM_MONTHLY']
 
 def check_and_deduct_points(email, cost_points):
     """
@@ -3383,7 +4336,8 @@ def ensure_all_sheets_warning_protected(spreadsheet_id, service=None):
             '日記': ['日期', '內容', '天氣', '心情', '時間'],
             '願望': ['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間'],
             '願望清單': ['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間'],
-            '口袋': ['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度'],
+            '口袋': ['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度', '常用'],
+            '口袋名單': ['ID', '類別', '名稱', '地點', '地點區域', '備註', '建立時間', '緯度', '經度', '常用'],
             'AI_指令集': ['觸發語句', '執行動作'],
             '💰股票投資組合': ['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']
         }
@@ -3587,7 +4541,7 @@ def query_stock_portfolio_api():
     if not is_premium_user():
         return jsonify({
             "status": "success", 
-            "message": "🔒 「智慧股票投資記帳」為尊榮旗艦版 (YEARLY_AI) 獨享功能，請升級後體驗語音與一鍵資產看板功能！"
+            "message": "🔒 「智慧股票投資記帳」為尊榮旗艦版獨享功能，請升級後體驗語音與一鍵資產看板功能！"
         })
         
     spreadsheet_id = get_spreadsheet_id()
@@ -3688,11 +4642,10 @@ def get_stock_portfolio():
                 portfolio[ticker] = {
                     "ticker": ticker,
                     "name": name,
-                    "net_shares": 0,
+                    "net_shares": 0.0,
                     "total_cost": 0.0,
                     "live_price": 0.0,
-                    "total_roi": 0.0,
-                    "avg_cost": 0.0,
+                    "realized_pnl": 0.0,
                     "dividends": 0.0
                 }
                 
@@ -3701,73 +4654,215 @@ def get_stock_portfolio():
                 p["net_shares"] += shares
                 p["total_cost"] += (shares * price + fee)
             elif tx_type == "賣出":
-                p["net_shares"] -= shares
-                p["total_cost"] -= (shares * price - fee) # 賣出收回資金，減少成本
+                # 移動平均成本法 (Weighted Average Cost) 精算已實現損益與剩餘庫存成本
+                if p["net_shares"] > 0:
+                    avg_buy_cost = p["total_cost"] / p["net_shares"]
+                    cost_of_sold = shares * avg_buy_cost
+                    revenue_from_sold = shares * price - fee
+                    realized = revenue_from_sold - cost_of_sold
+                    p["realized_pnl"] += realized
+                    
+                    p["net_shares"] -= shares
+                    p["total_cost"] -= cost_of_sold
+                    if p["net_shares"] <= 0.001:
+                        p["net_shares"] = 0.0
+                        p["total_cost"] = 0.0
+                else:
+                    p["realized_pnl"] += (shares * price - fee)
             elif tx_type in ["股息", "配息"]:
-                # 股息收入：不增減股數與部位成本，但計入該檔持股與全域的累計已領股息
                 dividend_amt = price * (shares if shares > 0 else 1.0)
-                if "dividends" not in p:
-                    p["dividends"] = 0.0
                 p["dividends"] += dividend_amt
                 
-            # 保持最新的即時價格
             if live_price > 0:
                 p["live_price"] = live_price
                 
-        # 刪除已出清的持股 (避免除以零且精簡顯示)
         active_portfolio = {}
-        total_cost = 0.0
-        total_value = 0.0
-        total_roi = 0.0
+        closed_portfolio = {}
+        total_unrealized_cost = 0.0
+        total_unrealized_value = 0.0
+        total_unrealized_roi = 0.0
+        total_realized_pnl = 0.0
         total_dividends = 0.0
         
         for t, p in portfolio.items():
-            # 統計全域已領股息 (包含即使目前已出清的股票所領的股息)
             total_dividends += p.get("dividends", 0.0)
+            total_realized_pnl += p.get("realized_pnl", 0.0)
             
-            if p["net_shares"] > 0:
+            p["realized_pnl"] = round(p.get("realized_pnl", 0.0), 2)
+            p["dividends"] = round(p.get("dividends", 0.0), 2)
+            
+            if p["net_shares"] > 0.001:
                 p["avg_cost"] = round(p["total_cost"] / p["net_shares"], 2)
-                # 若 Google Sheet 還沒跑出 GOOGLEFINANCE，使用當前交易單價作為預估
                 if p["live_price"] <= 0:
-                    # 拿最後一筆交易的價格
                     ticker_txs = [tx for tx in transactions if tx["ticker"] == t]
                     if ticker_txs:
                         p["live_price"] = ticker_txs[-1]["price"]
                         
                 p["current_value"] = round(p["net_shares"] * p["live_price"], 2)
-                p["total_roi"] = round(p["current_value"] - p["total_cost"], 2)
+                p["unrealized_roi"] = round(p["current_value"] - p["total_cost"], 2)
+                p["total_roi"] = round(p["unrealized_roi"] + p["realized_pnl"] + p["dividends"], 2)
                 
-                # 加總
-                total_cost += p["total_cost"]
-                total_value += p["current_value"]
-                total_roi += p["total_roi"]
+                total_unrealized_cost += p["total_cost"]
+                total_unrealized_value += p["current_value"]
+                total_unrealized_roi += p["unrealized_roi"]
                 
-                # 四捨五入數值
                 p["total_cost"] = round(p["total_cost"], 2)
                 p["live_price"] = round(p["live_price"], 2)
                 p["net_shares"] = round(p["net_shares"], 2)
-                p["dividends"] = round(p.get("dividends", 0.0), 2)
                 
                 active_portfolio[t] = p
+            else:
+                # 已結清部位 (Closed Positions)
+                p["unrealized_roi"] = 0.0
+                p["current_value"] = 0.0
+                p["total_roi"] = round(p["realized_pnl"] + p["dividends"], 2)
+                p["net_shares"] = 0.0
+                p["total_cost"] = 0.0
+                p["avg_cost"] = 0.0
                 
-        total_roi_rate = round((total_roi / total_cost) * 100, 2) if total_cost > 0 else 0.0
+                ticker_txs = [tx for tx in transactions if tx["ticker"] == t]
+                p["close_date"] = ticker_txs[-1]["date"] if ticker_txs else "未知"
+                
+                closed_portfolio[t] = p
+
+        # 全局總回報率
+        global_total_roi = total_unrealized_roi + total_realized_pnl + total_dividends
+        global_roi_rate = round((global_total_roi / total_unrealized_cost) * 100, 2) if total_unrealized_cost > 0 else 0.0
         
         return jsonify({
             "status": "success",
-            "transactions": transactions[-10:], # 回傳最後 10 筆明細
+            "transactions": transactions[-15:], # 回傳最近 15 筆明細
             "portfolio": active_portfolio,
+            "closed_portfolio": closed_portfolio,
             "summary": {
-                "total_cost": round(total_cost, 2),
-                "total_value": round(total_value, 2),
-                "total_roi": round(total_roi, 2),
-                "total_roi_rate": total_roi_rate,
-                "total_dividends": round(total_dividends, 2)
+                "total_cost": round(total_unrealized_cost, 2),
+                "total_value": round(total_unrealized_value, 2),
+                "total_unrealized_roi": round(total_unrealized_roi, 2),
+                "total_realized_pnl": round(total_realized_pnl, 2),
+                "total_dividends": round(total_dividends, 2),
+                "global_total_roi": round(global_total_roi, 2),
+                "total_roi_rate": global_roi_rate
             }
         })
         
     except Exception as e:
         print(f"[Stock API Error] {e}")
         return jsonify({"status": "error", "message": f"載入證券失敗: {str(e)}"})
+
+def get_or_create_drive_folder(service, folder_name, parent_id=None):
+    """查詢或在 Google Drive 建立指定資料夾"""
+    query = f"mimeType = 'application/vnd.google-apps.folder' and name = '{folder_name}' and trashed = false"
+    if parent_id:
+        query += f" and '{parent_id}' in parents"
+    else:
+        query += " and 'root' in parents"
+        
+    try:
+        results = service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+        files = results.get('files', [])
+        if files:
+            return files[0]['id']
+        
+        # 不存在則新增
+        file_metadata = {
+            'name': folder_name,
+            'mimeType': 'application/vnd.google-apps.folder'
+        }
+        if parent_id:
+            file_metadata['parents'] = [parent_id]
+            
+        folder = service.files().create(body=file_metadata, fields='id').execute()
+        return folder.get('id')
+    except Exception as e:
+        print(f"[Drive Folder Error] {e}")
+        raise e
+
+def count_today_receipts(service, folder_id, today_str):
+    """查詢某天在資料夾中已經有多少個收據，以遞增序號"""
+    query = f"'{folder_id}' in parents and name contains '{today_str}' and trashed = false"
+    try:
+        results = service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+        files = results.get('files', [])
+        return len(files)
+    except Exception as e:
+        print(f"[Drive List Error] {e}")
+        return 0
+
+@app.route('/api/tax/upload_receipt', methods=['POST'])
+def upload_tax_receipt():
+    """
+    💎 旗艦付費會員專屬特權：
+    收據/發票拍照雲端歸檔，自動依格式 YYYYMMDDXX[1-999] 命名，並依交易年度自動歸檔在 Google Drive 主目錄中。
+    """
+    import random
+    import string
+    from googleapiclient.http import MediaIoBaseUpload
+    import io
+    
+    # 商業特權防線：非付費會員直接阻斷
+    sub_type = session.get('subscription_type', 'NONE')
+    email = session.get('user_email', '')
+    developer_emails = {'ulir976272866@gmail.com', 'mina.chen.xstar.sg@gmail.com'}
+    
+    if os.getenv("SINGLE_USER_MODE", "false").lower() == "false":
+        if sub_type == 'NONE' and email.lower() not in developer_emails:
+            return jsonify({"status": "locked", "message": "報稅雲端歸檔功能為付費版會員特權，請先升級方案！"}), 403
+            
+    if 'file' not in request.files:
+        return jsonify({"status": "error", "message": "無上傳檔案"}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"status": "error", "message": "未選取檔案"}), 400
+        
+    try:
+        service_drive = get_drive_service()
+        if not service_drive:
+            return jsonify({"status": "error", "message": "無法取得 Google Drive 雲端服務，請先授權連線！"}), 500
+            
+        now = datetime.now(TW_TZ)
+        today_str = now.strftime("%Y%m%d")
+        year_str = now.strftime("%Y")
+        
+        # 1. 取得或建立主資料夾「報稅公益收據管理」
+        main_folder_id = get_or_create_drive_folder(service_drive, "報稅公益收據管理")
+        
+        # 2. 取得或建立年度子資料夾
+        year_folder_id = get_or_create_drive_folder(service_drive, year_str, parent_id=main_folder_id)
+        
+        # 3. 檔名計數自動生成序號 (純流水編號)
+        count = count_today_receipts(service_drive, year_folder_id, today_str)
+        seq_num = f"{count + 1:02d}"
+        
+        filename = f"{today_str}{seq_num}.png"
+        
+        # 4. 上傳二進位資料至雲端硬碟
+        file_stream = io.BytesIO(file.read())
+        media = MediaIoBaseUpload(file_stream, mimetype='image/png', resumable=True)
+        
+        file_metadata = {
+            'name': filename,
+            'parents': [year_folder_id]
+        }
+        
+        uploaded_file = service_drive.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id'
+        ).execute()
+        
+        print(f"[Tax Upload] 成功上傳公益收據 {filename} (ID: {uploaded_file.get('id')}) 至年度資料夾 {year_str}")
+        return jsonify({
+            "status": "success",
+            "message": "收據成功上傳並歸檔",
+            "filename": filename,
+            "year": year_str,
+            "id": uploaded_file.get('id')
+        })
+        
+    except Exception as e:
+        print(f"[Tax Upload Error] {e}")
+        return jsonify({"status": "error", "message": f"雲端上傳失敗: {str(e)}"}), 500
 
 @app.route('/api/stock/add_transaction', methods=['POST'])
 def add_stock_transaction():
@@ -3824,6 +4919,40 @@ def add_stock_transaction():
         ]
         
         append_to_sheet('💰股票投資組合', row, spreadsheet_id=spreadsheet_id)
+        
+        # 🌟 反向同步：將股票交易同步寫入記帳試算表 (0 成本免 AI)
+        try:
+            service_sheets = get_sheets_service()
+            tx_is_income = (tx_type == '賣出')
+            
+            # 總金額計算：買進為 (股數 * 單價) + 手續費；賣出為 (股數 * 單價) - 手續費
+            subtotal = shares * price
+            total_amount = (subtotal - fee) if tx_is_income else (subtotal + fee)
+            
+            item_desc = f"股票賣出: {name} ({ticker})" if tx_is_income else f"股票買進: {name} ({ticker})"
+            cat_label = "投資獲利" if tx_is_income else "投資"
+            
+            tx_dt = datetime.strptime(date_str, "%Y-%m-%d")
+            
+            body_book = {'values': [[
+                str(tx_dt.year),
+                f"'{tx_dt.month:02d}",
+                tx_dt.strftime("%Y/%m/%d"),
+                item_desc if tx_is_income else "",
+                "" if tx_is_income else item_desc,
+                round(total_amount, 2),
+                format_category_with_emoji(cat_label, tx_is_income)
+            ]]}
+            
+            service_sheets.spreadsheets().values().append(
+                spreadsheetId=spreadsheet_id,
+                range='記帳!A:G',
+                valueInputOption='USER_ENTERED',
+                body=body_book
+            ).execute()
+            print(f"[Stock Reverse Sync] 成功同步回填記帳表：{item_desc} ${total_amount}")
+        except Exception as e:
+            print(f"[Stock Reverse Sync Error] {e}")
         
         # 🌟 更新 TiDB 的 has_stock_record 標籤做為再行銷依據
         email = session.get('user_email', '')
@@ -3971,11 +5100,21 @@ def record_health_start():
         service_sheets = get_sheets_service()
         rows = get_sheet_values('生理紀錄', spreadsheet_id=health_id)
         
-        # 1. 檢查是否已經在進行中
+        # 1. 檢查是否已經在進行中 (動態搜尋非 SYSTEM 的進行中紀錄)
+        has_ongoing = False
         if len(rows) > 1:
-             latest_end = rows[1][3] if len(rows[1]) > 3 else "進行中"
-             if latest_end == "進行中" or latest_end.strip() == "":
-                 return jsonify({"status": "error", "message": "目前已經有進行中的紀錄囉！"})
+             for row in rows[1:]:
+                 if len(row) > 0 and row[0] == "SYSTEM":
+                     continue
+                 start_str = row[2] if len(row) > 2 else ""
+                 if not start_str or start_str == "SYSTEM_NOTICE":
+                     continue
+                 latest_end = row[3] if len(row) > 3 else ""
+                 if latest_end == "進行中" or latest_end.strip() == "":
+                     has_ongoing = True
+                     break
+        if has_ongoing:
+             return jsonify({"status": "error", "message": "目前已經有進行中的紀錄囉！"})
                  
         # 計算平均天數
         cycles = []
@@ -3991,14 +5130,24 @@ def record_health_start():
         now = datetime.now(TW_TZ)
         today_str = now.strftime("%Y/%m/%d")
         
-        # 計算週期天數 (與上一次的間距)
+        # 計算週期天數 (動態尋找上一筆非 SYSTEM 的有效生理期紀錄)
         cycle_days = ""
-        if len(rows) > 1 and len(rows[1]) > 2:
-             last_start_str = rows[1][2]
-             try:
-                 last_dt = datetime.strptime(last_start_str, "%Y/%m/%d").replace(tzinfo=TW_TZ)
-                 cycle_days = str((now - last_dt).days)
-             except: pass
+        prev_row_idx = None
+        if len(rows) > 1:
+             for idx, row in enumerate(rows):
+                 if idx == 0:
+                     continue
+                 if len(row) > 0 and row[0] == "SYSTEM":
+                     continue
+                 start_str = row[2] if len(row) > 2 else ""
+                 if not start_str or start_str == "SYSTEM_NOTICE":
+                     continue
+                 try:
+                     last_dt = datetime.strptime(start_str.strip(), "%Y/%m/%d").replace(tzinfo=TW_TZ)
+                     cycle_days = str((now - last_dt).days)
+                     prev_row_idx = idx
+                     break
+                 except: pass
              
         # 2. 寫入新紀錄到試算表 (插入在第二列)
         new_row = [now.strftime("%Y"), now.strftime("%m"), today_str, "進行中", "", "", ""]
@@ -4045,10 +5194,11 @@ def record_health_start():
             valueInputOption="USER_ENTERED", body={"values": [new_row]}
         ).execute()
         
-        # 如果有算出週期天數，更新上一筆 (原本的第2列變成第3列)
-        if cycle_days:
+        # 如果有算出週期天數，動態更新上一筆 (插入新列後其在 sheet 中的列號為 prev_row_idx + 2)
+        if cycle_days and prev_row_idx is not None:
+            prev_sheet_row = prev_row_idx + 2
             service_sheets.spreadsheets().values().update(
-                spreadsheetId=health_id, range="生理紀錄!F3",
+                spreadsheetId=health_id, range=f"生理紀錄!F{prev_sheet_row}",
                 valueInputOption="USER_ENTERED", body={"values": [[cycle_days]]}
             ).execute()
             
@@ -4112,23 +5262,38 @@ def record_health_end():
         
         if len(rows) < 2: return jsonify({"status": "error", "message": "沒有找到紀錄可以結束。"})
         
-        latest_end = rows[1][3] if len(rows[1]) > 3 else ""
-        if latest_end != "進行中" and latest_end.strip() != "":
-             return jsonify({"status": "error", "message": "最新紀錄已經結束囉！"})
+        # 動態尋找非 SYSTEM 且動作為進行中或為空的紀錄
+        ongoing_row_idx = None
+        for idx, row in enumerate(rows):
+            if idx == 0:
+                continue
+            if len(row) > 0 and row[0] == "SYSTEM":
+                continue
+            start_str = row[2] if len(row) > 2 else ""
+            if not start_str or start_str == "SYSTEM_NOTICE":
+                continue
+            end_val = row[3] if len(row) > 3 else ""
+            if end_val == "進行中" or end_val.strip() == "":
+                ongoing_row_idx = idx
+                break
+                
+        if ongoing_row_idx is None:
+            return jsonify({"status": "error", "message": "沒有找到進行中的生理紀錄，無法結束。"})
              
-        start_str = rows[1][2]
+        start_str = rows[ongoing_row_idx][2]
         now = datetime.now(TW_TZ)
         today_str = now.strftime("%Y/%m/%d")
         
         length_days = ""
         try:
-             start_dt = datetime.strptime(start_str, "%Y/%m/%d").replace(tzinfo=TW_TZ)
+             start_dt = datetime.strptime(start_str.strip(), "%Y/%m/%d").replace(tzinfo=TW_TZ)
              length_days = str((now - start_dt).days + 1)
         except: pass
         
+        row_num = ongoing_row_idx + 1
         body = {"values": [[today_str, length_days]]}
         service_sheets.spreadsheets().values().update(
-            spreadsheetId=health_id, range="生理紀錄!D2:E2",
+            spreadsheetId=health_id, range=f"生理紀錄!D{row_num}:E{row_num}",
             valueInputOption="USER_ENTERED", body=body
         ).execute()
         
@@ -4304,10 +5469,29 @@ def record_symptoms():
     symptoms_str = "、".join(selected)
     
     try:
-        # 我們假設寫入最新的一筆 (第二列)
+        # 動態尋找最新一筆非 SYSTEM 的有效生理紀錄
         service = get_sheets_service()
+        rows = get_sheet_values('生理紀錄', spreadsheet_id=health_id)
+        latest_row_idx = None
+        if rows and len(rows) > 1:
+            for idx, row in enumerate(rows):
+                if idx == 0:
+                    continue
+                if len(row) > 0 and row[0] == "SYSTEM":
+                    continue
+                start_str = row[2] if len(row) > 2 else ""
+                if not start_str or start_str == "SYSTEM_NOTICE":
+                    continue
+                try:
+                    # 測試是否為有效日期
+                    datetime.strptime(start_str.strip(), "%Y/%m/%d")
+                    latest_row_idx = idx
+                    break
+                except: pass
+                
+        target_row = (latest_row_idx + 1) if latest_row_idx is not None else 2
         service.spreadsheets().values().update(
-            spreadsheetId=health_id, range="生理紀錄!G2",
+            spreadsheetId=health_id, range=f"生理紀錄!G{target_row}",
             valueInputOption="USER_ENTERED", body={"values": [[symptoms_str]]}
         ).execute()
         return jsonify({"status": "success", "message": "症狀已記錄！🩺"})
@@ -4345,6 +5529,24 @@ def add_training_rule():
         return jsonify({"status": "success", "message": "訓練指令已寫入大腦！🧠"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
+
+def init_users_table_migration():
+    """初始化並自癒升級 users 資料表，新增 subscription_expires_at 欄位"""
+    print("[Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...")
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # 嘗試新增 subscription_expires_at 欄位
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN subscription_expires_at TIMESTAMP NULL DEFAULT NULL;")
+                conn.commit()
+                print("[Subscription DB Guard] 成功自癒升級！已為 users 表新增 subscription_expires_at 欄位。")
+            except Exception as e:
+                # 欄位已存在會報錯，直接忽略
+                pass
+        conn.close()
+    except Exception as e:
+        print(f"[Subscription DB Guard Error] 欄位檢查與自癒程序發生異常: {e}")
 
 def init_stock_suggestions_table():
     """初始化 TiDB 股票選單聯想庫"""
@@ -4501,6 +5703,8 @@ def force_sync_stocks_api():
 if __name__ == '__main__':
     # 確保 TiDB 資料庫選單表已初始化自癒
     init_stock_suggestions_table()
+    # 確保 users 表訂閱過期欄位已初始化自癒
+    init_users_table_migration()
     # 啟動背景執行緒，自動非同步與 TWSE/TPEx 同步全台灣股票與 ETF
     import threading
     threading.Thread(target=sync_taiwan_stocks_to_db, daemon=True).start()

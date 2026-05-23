@@ -64,6 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     updateDynamicDateIcons();
 
+
+
     window.defaultExpenseCategories = ["食", "衣", "住", "行", "育", "樂", "醫", "投資", "公益"];
     window.incomeCategories = ["薪資", "獎金", "投資獲利", "投資", "退款", "其他進帳"];
 
@@ -84,9 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mode === 'income') {
             finalCategories = window.incomeCategories.map(cat => ({ name: cat, icon: incomeMap[cat] || "💰" }));
         } else {
-            // 支出模式：預設 + 自訂
             const baseCats = window.defaultExpenseCategories.map(cat => ({ name: cat, icon: expenseMap[cat] || "💸" }));
-            const extraCats = customCats.map(cat => ({ name: cat, icon: cat.icon || "📝" }));
+            const extraCats = customCats.map(cat => ({ name: cat.name, icon: cat.icon || "📝" }));
             finalCategories = [...baseCats, ...extraCats];
         }
 
@@ -95,7 +96,15 @@ document.addEventListener('DOMContentLoaded', () => {
         ).join('');
         
         if (mode === 'income') select.value = '薪資';
+
+        // ✅ 同步渲染自訂下拉選單並自動選取第一個分類
+        window.renderExpenseCategoryDropdown(mode);
+        const defaultCat = mode === 'income'
+            ? { name: '薪資', icon: '💰' }
+            : { name: '食', icon: '🍔' };
+        window.selectExpenseCategoryDisplay(defaultCat.name, defaultCat.icon);
     };
+
 
     // 強制自癒並讀取資料
     window.loadExpenseCategories = () => {
@@ -125,6 +134,163 @@ document.addEventListener('DOMContentLoaded', () => {
         const type = document.getElementById('expense_type')?.value || 'expense';
         window.updateExpenseCategoryDropdown(type);
     };
+
+    // =====================================================
+    // 🎛️ 記帳自訂分類下拉選單 (V14.0 — 與待辦清單同款)
+    // =====================================================
+    window.toggleExpenseCategoryDropdown = () => {
+        const dropdown = document.getElementById('expense_cat_dropdown');
+        if (dropdown) dropdown.classList.toggle('show');
+    };
+
+    // 純 UI 更新（不觸發特殊邏輯），供 updateExpenseCategoryDropdown 初始化使用
+    window.selectExpenseCategoryDisplay = (name, icon) => {
+        const displaySpan = document.getElementById('current_expense_cat_display');
+        const hiddenInput = document.getElementById('expense_category_hidden');
+        const hiddenSelect = document.getElementById('manual_expense_category');
+        if (displaySpan) displaySpan.innerHTML = name ? `${icon} ${name}` : '請選擇';
+        if (hiddenInput) hiddenInput.value = name || '';
+        if (hiddenSelect) hiddenSelect.value = name || '';
+    };
+
+    // 選取分類（含投資/公益特殊處理）
+    window.selectExpenseCategory = async (name, icon) => {
+        const dropdown = document.getElementById('expense_cat_dropdown');
+        if (dropdown) dropdown.classList.remove('show');
+
+        // 特殊分類：投資 → paywall
+        if (name === '投資' || name === '投資獲利') {
+            if (!window.checkFeatureAccess('stock')) {
+                const confirmed = await window.customConfirm(
+                    '解鎖存股記帳雙向回填特權 💎',
+                    '偵測到您記錄了一筆投資性質的交易！升級至 旗艦尊榮會員，即可一鍵解鎖「存股標的自動回填記帳」與「存股自動看盤助手」，省去重複手動記帳的時間！',
+                    '🔒', '💎 升級尊榮方案'
+                );
+                if (confirmed) window.openModal('upgradePaywallModal');
+                return; // 不選取，直接返回
+            }
+        }
+
+        // 特殊分類：公益 → paywall + 顯示上傳區
+        if (name === '公益') {
+            if (!window.checkFeatureAccess('tax')) {
+                const confirmed = await window.customConfirm(
+                    '解鎖報稅收據雲端備份特權 💎',
+                    '偵測到您記錄了一筆公益性質的交易！升級至 旗艦尊榮會員，即可解鎖「發票收據自動命名歸檔」與「雲端公益資料夾」特權，五月報稅更輕鬆！',
+                    '🔒', '💎 升級尊榮方案'
+                );
+                if (confirmed) window.openModal('upgradePaywallModal');
+                return;
+            }
+            const uploadWrapper = document.getElementById('charity_receipt_upload_wrapper');
+            if (uploadWrapper) uploadWrapper.style.display = 'block';
+        } else {
+            const uploadWrapper = document.getElementById('charity_receipt_upload_wrapper');
+            if (uploadWrapper) uploadWrapper.style.display = 'none';
+            if (window.clearReceiptFile) window.clearReceiptFile();
+        }
+
+        // 更新 UI 顯示 + 同步 hidden inputs
+        window.selectExpenseCategoryDisplay(name, icon);
+    };
+
+    window.renderExpenseCategoryDropdown = (mode = 'expense') => {
+        const dropdown = document.getElementById('expense_cat_dropdown');
+        if (!dropdown) return;
+
+        const deletedCats = JSON.parse(localStorage.getItem('deletedExpenseCats') || '[]');
+        const customCats = window.loadExpenseCategories().filter(c => !deletedCats.includes(c.name));
+
+        const incomeMap = { "薪資": "💰", "獎金": "🧧", "投資獲利": "💹", "投資": "📈", "退款": "🔙", "其他進帳": "🪙" };
+        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "投資": "📈", "公益": "💖" };
+
+        let finalCategories = [];
+        if (mode === 'income') {
+            finalCategories = window.incomeCategories.map(cat => ({ name: cat, icon: incomeMap[cat] || "💰" }));
+        } else {
+            const baseCats = window.defaultExpenseCategories.map(cat => ({ name: cat, icon: expenseMap[cat] || "💸" }));
+            const extraCats = customCats.map(cat => ({ name: cat.name, icon: cat.icon || "📝" }));
+            finalCategories = [...baseCats, ...extraCats];
+        }
+
+        dropdown.innerHTML = finalCategories.map(cat => `
+            <div class="todo-dropdown-item" onclick="window.selectExpenseCategory('${cat.name}', '${cat.icon}')">
+                <span>${cat.icon}</span>
+                <div style="flex: 1;">${cat.name}</div>
+                ${mode !== 'income' ? `<div class="cat-delete-btn" onclick="event.stopPropagation(); window.removeExpenseCategory('${cat.name}')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                </div>` : ''}
+            </div>
+        `).join('') + `
+            <div class="todo-dropdown-item add-new" onclick="window.addNewExpenseCategoryFromDropdown()">
+                <span>＋</span> 新增分類...
+            </div>
+        `;
+    };
+
+    window.removeExpenseCategory = async (name) => {
+        const confirmed = await window.customConfirm(
+            '確定刪除分類？',
+            `您即將刪除「${name}」分類。<br><span style="font-size:0.75rem; color:#94a3b8;">(這不會影響已記錄的帳目)</span>`,
+            '🗑️'
+        );
+        if (!confirmed) return;
+
+        // 移除自訂分類
+        let current = window.loadExpenseCategories().filter(c => c.name !== name);
+        window.saveExpenseCategories(current);
+
+        // 標記為刪除（備援）
+        let deleted = JSON.parse(localStorage.getItem('deletedExpenseCats') || '[]');
+        if (!deleted.includes(name)) deleted.push(name);
+        localStorage.setItem('deletedExpenseCats', JSON.stringify(deleted));
+
+        // 如果目前選的就是被刪除的，重設為食
+        const currentVal = document.getElementById('expense_category_hidden')?.value;
+        const currentMode = document.getElementById('expense_type')?.value || 'expense';
+        if (currentVal === name) {
+            const fallback = currentMode === 'income' ? { name: '薪資', icon: '💰' } : { name: '食', icon: '🍔' };
+            window.selectExpenseCategoryDisplay(fallback.name, fallback.icon);
+        }
+
+        window.updateExpenseCategoryDropdown(currentMode);
+        showToast(`已刪除分類：${name}`, 'success');
+    };
+
+    window.addNewExpenseCategoryFromDropdown = async () => {
+        const dropdown = document.getElementById('expense_cat_dropdown');
+        if (dropdown) dropdown.classList.remove('show');
+
+        // 共用待辦清單的 customCatInput 彈窗 ✅
+        const result = await window.customCatInput();
+        if (result && result.name) {
+            let current = window.loadExpenseCategories();
+            if (!current.some(c => c.name === result.name)) {
+                current.push({ name: result.name, icon: result.icon || '💸' });
+                window.saveExpenseCategories(current);
+            }
+
+            // 若曾被標記為刪除，移除該標記
+            let deleted = JSON.parse(localStorage.getItem('deletedExpenseCats') || '[]');
+            deleted = deleted.filter(c => c !== result.name);
+            localStorage.setItem('deletedExpenseCats', JSON.stringify(deleted));
+
+            const currentMode = document.getElementById('expense_type')?.value || 'expense';
+            window.updateExpenseCategoryDropdown(currentMode);
+            // ✅ 新增後自動選取該分類
+            window.selectExpenseCategory(result.name, result.icon || '💸');
+            showToast(`已新增並選取：${result.icon || '💸'} ${result.name}`, 'success');
+        }
+    };
+
+    // 點擊外部關閉分類下拉選單
+    document.addEventListener('click', (e) => {
+        const selector = document.getElementById('expense_cat_selector');
+        if (selector && !selector.contains(e.target)) {
+            const dropdown = document.getElementById('expense_cat_dropdown');
+            if (dropdown) dropdown.classList.remove('show');
+        }
+    });
 
     window.suggestExpenseEmoji = (text) => {
         const suggestions = {
@@ -182,10 +348,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.saveExpenseCategories(current);
                 window.updateExpenseDropdown();
                 
+                // ✅ 修正：option value 是乾淨的 name（無 emoji 前綴），直接設定 name 即可選中！
                 const select = document.getElementById('manual_expense_category');
-                const targetVal = `${icon} ${name}`;
-                select.value = targetVal;
-                showToast(`已新增並選取：${targetVal}`, 'success');
+                if (select) select.value = name;
+                window.selectExpenseCategoryDisplay(name, icon);
+                showToast(`已新增並選取：${icon} ${name}`, 'success');
             } else {
                 showToast("此分類已存在喔！");
             }
@@ -269,17 +436,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 自定義確認彈窗與警告彈窗邏輯 ---
     let confirmResolver = null;
-    window.customConfirm = (title, msg, icon = '🗑️', yesText = '確定刪除') => {
+    window.customConfirm = (title, msg, icon = '🗑️', yesText = '確定刪除', showCancel = true) => {
         return new Promise((resolve) => {
             confirmResolver = resolve;
             document.getElementById('confirm_title').innerText = title;
-            document.getElementById('confirm_msg').innerText = msg;
+            document.getElementById('confirm_msg').innerHTML = msg;
 
-            // 確保取消按鈕顯示
+            const modalContent = document.querySelector('#confirmModal .modal-content');
             const cancelBtn = document.getElementById('confirm_cancel_btn');
-            if (cancelBtn) cancelBtn.style.display = 'block';
-
             const yesBtn = document.getElementById('confirm_yes_btn');
+
+            if (showCancel) {
+                if (cancelBtn) cancelBtn.style.display = 'block';
+                if (modalContent) modalContent.style.maxWidth = '320px';
+                if (yesBtn) {
+                    yesBtn.style.width = 'auto';
+                    yesBtn.style.flex = '1.2';
+                    yesBtn.style.padding = '12px';
+                    yesBtn.style.fontSize = '0.9rem';
+                }
+            } else {
+                if (cancelBtn) cancelBtn.style.display = 'none';
+                if (modalContent) modalContent.style.maxWidth = '380px'; // 讓寬度加寬以保證字體在單行呈現
+                if (yesBtn) {
+                    yesBtn.style.width = '100%';
+                    yesBtn.style.flex = 'none';
+                    yesBtn.style.padding = '14px 20px'; // 放大按鈕高度與字體
+                    yesBtn.style.fontSize = '0.95rem';
+                }
+            }
+
             if (yesBtn) {
                 yesBtn.innerText = yesText;
                 if (yesText === '移入常用地址') {
@@ -290,6 +476,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     // 綠色系 (Emerald Green) - 高顏值漸層
                     yesBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
                     yesBtn.style.boxShadow = '0 4px 15px rgba(5, 150, 105, 0.35)';
+                } else if (yesText.includes('返回') || yesText.includes('前往') || yesText.includes('確認')) {
+                    // 科技藍色系 (Blue Gradient) - 極致科技美感
+                    yesBtn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                    yesBtn.style.boxShadow = '0 4px 15px rgba(37, 99, 235, 0.35)';
                 } else {
                     // 確定刪除 (珊瑚紅/經典紅)
                     yesBtn.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
@@ -323,7 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return new Promise((resolve) => {
             confirmResolver = resolve;
             document.getElementById('confirm_title').innerText = title;
-            document.getElementById('confirm_msg').innerText = msg;
+            document.getElementById('confirm_msg').innerHTML = msg;
 
             // 隱藏取消按鈕
             const cancelBtn = document.getElementById('confirm_cancel_btn');
@@ -404,7 +594,26 @@ document.addEventListener('DOMContentLoaded', () => {
         '咖啡': ['☕', '🍵', '🥐', '🧁'],
         '住宿': ['🏨', '🛌', '🏠', '⛺'],
         '景點': ['🎡', '🎢', '🗼', '⛲', '🏛️'],
-        '醫療': ['🏥', '💊', '🩺', '🚑']
+        '醫療': ['🏥', '💊', '🩺', '🚑'],
+        // ⛩️ 新增：寺廟、廟宇、拜拜、祈福專屬圖示 (V14.1)
+        '寺廟': ['⛩️', '🛕', '🙏', '📿', '✨', '🧧'],
+        '廟宇': ['⛩️', '🛕', '🙏', '📿', '✨', '🧧'],
+        '拜拜': ['🙏', '⛩️', '🛕', '📿', '🕯️', '🧧'],
+        '祈福': ['🙏', '✨', '⛩️', '🕯️', '🧧', '🌸'],
+        // 🏪 新增：商店、超商、超市、便利商店專屬圖示 (V14.2)
+        '商店': ['🏪', '🏬', '🛒', '🛍️', '🏠', '🥤'],
+        '超商': ['🏪', '🥤', '🍞', '🍱', '🛒', '🛍️'],
+        '超市': ['🛒', '🏪', '🥦', '🍎', '🥩', '🛍️'],
+        '便利商店': ['🏪', '🥤', '🥪', '🍱', '🛍️', '☕'],
+        // 🏋️ 新增：健身房、醫院、餐廳、酒店、小吃、飲料專屬圖示 (V14.3)
+        '健身房': ['🏋️', '💪', '🏃', '🧘', '🚴', '🥊', '👟'],
+        '醫院': ['🏥', '💊', '🩺', '🚑', '💉', '🤒'],
+        '餐廳': ['🍽️', '🍴', '🍷', '🥩', '🥗', '🍝', '🍛'],
+        '飯店': ['🏨', '🛌', '🛎️', '🍽️', '🍷', '🥂'],
+        '酒店': ['🏨', '🍻', '🍷', '🥂', '🍹', '🎤', '🛌'],
+        '小吃': ['🍢', '🍟', '🥟', '🍘', '🍗', '🍜', '🍱'],
+        '涼水': ['🧋', '🥤', '🍹', '🍧', '🍨', '🍵', '🧊'],
+        '飲料': ['🧋', '🥤', '🍹', '🧉', '🍵', '🍋', '🧊']
     };
 
     window.suggestEmoji = (text) => {
@@ -494,11 +703,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const subType = window.USER_SUBSCRIPTION_TYPE || 'NONE';
         
-        // 免費版 (NONE) 鎖定：行程、備忘、健康、股票
-        const freeLockedTabs = ['schedule', 'memo', 'health', 'stock'];
+        // 免費版 (NONE) 鎖定：行程、備忘、健康、股票、報稅收據
+        const freeLockedTabs = ['schedule', 'memo', 'health', 'stock', 'tax'];
         const freeLockedModals = [
             'scheduleModal', 'memoModal', 'todoModal', 'pocketModal', 
-            'wishlistModal', 'healthModal', 'trainingModal', 'stockModal', 'stockAnalysisModal'
+            'wishlistModal', 'healthModal', 'trackingModal', 'trainingModal', 'stockModal', 'stockAnalysisModal'
         ];
         
         // 基礎版 (MONTHLY_AI) 鎖定：股票
@@ -517,49 +726,429 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     };
 
-    // 商業版模擬訂閱與加購 (前端自愈交互)
+    // 商業版模擬訂閱與加購 (導向金流收銀台)
     window.mockSubscribe = async (tier) => {
-        const tierName = tier === 'PREMIUM' ? '🥇 旗艦版訂閱方案' : '🥈 基礎版訂閱方案';
-        const confirmSub = confirm(`您確定要模擬訂閱「${tierName}」嗎？\n這將在資料庫中為您的帳號開通特權！`);
-        if (!confirmSub) return;
-        
-        try {
-            const res = await fetch('/dev/switch_role', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role: tier })
-            });
-            const data = await res.json();
-            if (data.status === 'success') {
-                alert(`🎉 恭喜！您已成功模擬訂閱 ${tierName}！\n系統將自動重新整理，開啟您的尊榮體驗！`);
-                window.location.reload();
-            } else {
-                alert(`❌ 訂閱失敗: ${data.message}`);
+        const currentType = window.USER_SUBSCRIPTION_TYPE || 'NONE';
+        const isSubscribed = window.USER_IS_SUBSCRIBED;
+        const isTrialActive = window.USER_IS_TRIAL_ACTIVE;
+
+        // 🛡️ 最強後盾防線：防呆阻斷，若用戶訂閱等級大於或等於要購買的等級，直接 return 不做動作
+        if (isSubscribed && !isTrialActive) {
+            if (currentType === 'YEARLY_AI') {
+                console.log("[mockSubscribe Blocked] 用戶已是最高階尊榮版，不允許再訂閱任何方案");
+                return;
             }
-        } catch (err) {
-            alert(`❌ 連線錯誤: ${err}`);
+            if (currentType === 'PREMIUM_MONTHLY' && (tier === 'BASIC' || tier === 'PREMIUM_MONTHLY')) {
+                console.log("[mockSubscribe Blocked] 用戶已是旗艦版，不允許訂閱低階方案");
+                return;
+            }
+            if (currentType === 'MONTHLY_AI' && tier === 'BASIC') {
+                console.log("[mockSubscribe Blocked] 用戶已是基礎版，不允許重複訂閱同方案");
+                return;
+            }
         }
+
+        const email = window.USER_EMAIL || '';
+        let targetTier = tier;
+        if (tier === 'PREMIUM' && window.USER_SUBSCRIPTION_TYPE === 'MONTHLY_AI') {
+            targetTier = 'PREMIUM_UPGRADE';
+        }
+        // 另開新分頁前往結帳，主畫面保持不動
+        window.open(`/mock/checkout?tier=${targetTier}&email=${encodeURIComponent(email)}`, '_blank');
     };
 
     window.mockBuyPoints = async (points, price) => {
-        const confirmBuy = confirm(`您確定要模擬加購「⚡ ${points} 點 AI 點數包」（NT$ ${price}）嗎？`);
-        if (!confirmBuy) return;
+        const email = window.USER_EMAIL || '';
+        const tier = points === 300 ? 'POINTS_300' : 'POINTS_600';
+        // 另開新分頁前往結帳，主畫面保持不動
+        window.open(`/mock/checkout?tier=${tier}&email=${encodeURIComponent(email)}`, '_blank');
+    };
+
+    // --- 訂閱到期倒數與試用到期計時器 (V25.0 Premium UI) ---
+    window.initSubscriptionCountdown = () => {
+        const wrapper = document.getElementById('sub_countdown_wrapper');
+        const countdownEl = document.getElementById('sub_countdown');
+        if (!wrapper || !countdownEl) return;
         
-        try {
-            const res = await fetch('/dev/switch_role', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role: window.USER_SUBSCRIPTION_TYPE === 'NONE' ? 'BASIC' : window.USER_SUBSCRIPTION_TYPE })
-            });
-            const data = await res.json();
-            if (data.status === 'success') {
-                alert(`⚡ 成功加購！已為您充值 ${points} 點 AI 智慧點數！`);
-                window.location.reload();
-            } else {
-                alert(`❌ 充值失敗: ${data.message}`);
+        const expiresStr = window.USER_SUBSCRIPTION_EXPIRES_AT;
+        const subType = window.USER_SUBSCRIPTION_TYPE;
+        if (!expiresStr || subType === 'NONE' || !window.USER_IS_SUBSCRIBED) {
+            wrapper.style.display = 'none';
+            return;
+        }
+        
+        // 注入警告呼吸動畫樣式 (只在需要時注入)
+        if (!document.getElementById('sub-warning-pulse-style')) {
+            const style = document.createElement('style');
+            style.id = 'sub-warning-pulse-style';
+            style.innerHTML = `
+                @keyframes sub-warning-pulse-red {
+                    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); transform: scale(1); }
+                    50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); transform: scale(1.02); }
+                    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); transform: scale(1); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        function updateSub() {
+            const expireTime = new Date(expiresStr.replace(' ', 'T')).getTime();
+            const now = new Date().getTime();
+            const diff = expireTime - now;
+            
+            if (diff <= 0) {
+                countdownEl.innerText = "⚠️ 訂閱已過期，即將降級...";
+                wrapper.style.background = "rgba(239, 68, 68, 0.12)";
+                wrapper.style.color = "#dc2626";
+                wrapper.style.borderColor = "rgba(239, 68, 68, 0.3)";
+                if (window.subIntervalId) clearInterval(window.subIntervalId);
+                setTimeout(() => window.location.reload(), 3000);
+                return;
             }
-        } catch (err) {
-            alert(`❌ 連線錯誤: ${err}`);
+            
+            const diffDays = Math.ceil(diff / (1000 * 60 * 60 * 24));
+            
+            if (diffDays > 7) {
+                wrapper.style.fontWeight = "800";
+                if (subType === 'MONTHLY_AI') {
+                    wrapper.style.background = "linear-gradient(135deg, rgba(20, 184, 166, 0.1) 0%, rgba(13, 148, 136, 0.1) 100%)";
+                    wrapper.style.border = "1.5px solid rgba(20, 184, 166, 0.4)";
+                    wrapper.style.color = "#0f766e";
+                    wrapper.style.animation = "none";
+                    countdownEl.innerText = `⚡ 基礎續期剩餘: ${diffDays}天`;
+                } else if (subType === 'PREMIUM_MONTHLY') {
+                    wrapper.style.background = "linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%)";
+                    wrapper.style.border = "1.5px solid rgba(251, 191, 36, 0.4)";
+                    wrapper.style.color = "#b45309";
+                    wrapper.style.animation = "none";
+                    countdownEl.innerText = `✨ 旗艦續期剩餘: ${diffDays}天`;
+                } else if (subType === 'YEARLY_AI') {
+                    wrapper.style.background = "linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(251, 191, 36, 0.08) 100%)";
+                    wrapper.style.border = "1.5px solid rgba(139, 92, 246, 0.35)";
+                    wrapper.style.color = "#6d28d9";
+                    wrapper.style.animation = "none";
+                    countdownEl.innerText = `👑 尊榮續期剩餘: ${diffDays}天`;
+
+                    // 🟢 尊榮版：設為尊榮續期字樣，並正常呈現樣式
+                    countdownEl.innerText = `👑 尊榮續期剩餘: ${diffDays}天`;
+                }
+            } else {
+                wrapper.style.fontWeight = "900";
+                wrapper.style.background = "linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(220, 38, 38, 0.12) 100%)";
+                wrapper.style.border = "1.5px solid rgba(239, 68, 68, 0.45)";
+                wrapper.style.color = "#dc2626";
+                wrapper.style.boxShadow = "0 2px 8px rgba(239, 68, 68, 0.15)";
+                wrapper.style.animation = "sub-warning-pulse-red 1.5s infinite ease-in-out";
+                countdownEl.innerText = `⚠️ 訂閱即將到期 • 僅剩 ${diffDays}天`;
+            }
+            
+            // 🔒 資料庫控制：全網支付狀態動態判定
+            if (window.ALLOW_PAYMENT === false) {
+                wrapper.removeAttribute('onclick');
+                wrapper.removeAttribute('onmouseover');
+                wrapper.removeAttribute('onmouseout');
+                wrapper.style.cursor = 'default';
+                wrapper.style.pointerEvents = 'none';
+                wrapper.title = '系統當前已暫時關閉儲值與訂閱功能';
+
+                const pointsPill = document.querySelector('.ai-points-mini-pill');
+                if (pointsPill) {
+                    pointsPill.removeAttribute('onclick');
+                    pointsPill.style.cursor = 'default';
+                    pointsPill.style.pointerEvents = 'none';
+                    pointsPill.title = '系統當前已暫時關閉儲值與訂閱功能';
+                }
+                
+                const trialPill = document.getElementById('trial_countdown_wrapper');
+                if (trialPill) {
+                    trialPill.removeAttribute('onclick');
+                    trialPill.style.cursor = 'default';
+                    trialPill.style.pointerEvents = 'none';
+                    trialPill.title = '系統當前已暫時關閉儲值與訂閱功能';
+                }
+                
+                const freeUpgradePill = document.querySelector('.free-upgrade-wrapper');
+                if (freeUpgradePill) {
+                    freeUpgradePill.removeAttribute('onclick');
+                    freeUpgradePill.style.cursor = 'default';
+                    freeUpgradePill.style.pointerEvents = 'none';
+                    freeUpgradePill.title = '系統當前已暫時關閉儲值與訂閱功能';
+                }
+            } else {
+                // 🟢 支付開放時，將正常連結事件與樣式還原，便於用戶儲值/點擊
+                if (!wrapper.hasAttribute('onclick')) {
+                    wrapper.setAttribute('onclick', "openModal('upgradePaywallModal')");
+                    wrapper.style.cursor = 'pointer';
+                    wrapper.style.pointerEvents = 'auto';
+                }
+                wrapper.title = `下次自動續期/扣款日: ${expiresStr}`;
+
+                const pointsPill = document.querySelector('.ai-points-mini-pill');
+                if (pointsPill && !pointsPill.hasAttribute('onclick')) {
+                    pointsPill.setAttribute('onclick', "openModal('upgradePaywallModal')");
+                    pointsPill.style.cursor = 'pointer';
+                    pointsPill.style.pointerEvents = 'auto';
+                    pointsPill.title = '點擊加購智慧點數';
+                }
+            }
+        }
+        
+        updateSub();
+        if (window.subIntervalId) clearInterval(window.subIntervalId);
+        window.subIntervalId = setInterval(updateSub, 60000);
+    };
+
+    window.initTrialCountdown = () => {
+        const wrapper = document.getElementById('trial_countdown_wrapper');
+        const countdownEl = document.getElementById('trial_countdown');
+        if (!wrapper || !countdownEl) return;
+        
+        const trialExpiresStr = window.TRIAL_EXPIRES_AT;
+        if (!trialExpiresStr) {
+            wrapper.style.display = 'none';
+            return;
+        }
+        
+        function updateTrial() {
+            const expireTime = new Date(trialExpiresStr.replace(' ', 'T')).getTime();
+            const now = new Date().getTime();
+            const diff = expireTime - now;
+            
+            if (diff <= 0) {
+                countdownEl.innerText = "⏳ 試用期已結束";
+                wrapper.style.background = "rgba(239, 68, 68, 0.12)";
+                wrapper.style.color = "#dc2626";
+                wrapper.style.borderColor = "rgba(239, 68, 68, 0.3)";
+                if (window.trialIntervalId) clearInterval(window.trialIntervalId);
+                setTimeout(() => window.location.reload(), 3000);
+                return;
+            }
+            
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            
+            if (days > 0) {
+                countdownEl.innerText = `⏳ 試用剩餘: ${days}天${hours}小時`;
+            } else if (hours > 0) {
+                countdownEl.innerText = `⏳ 試用剩餘: ${hours}小時${mins}分`;
+            } else {
+                countdownEl.innerText = `⏳ 試用剩餘: ${mins}分鐘`;
+            }
+            
+            wrapper.title = `您的免費試用將於 ${trialExpiresStr} 到期，點擊升級！`;
+        }
+        
+        updateTrial();
+        if (window.trialIntervalId) clearInterval(window.trialIntervalId);
+        window.trialIntervalId = setInterval(updateTrial, 60000);
+    };
+
+    // --- 補差額計費牆動態預覽處理 (V25.0 Pro-rata Upgrade Modal UI) ---
+    window.initUpgradePaywallPreview = async () => {
+        const basicCard = document.getElementById('paywall_basic_card');
+        const basicBtn = document.getElementById('paywall_basic_btn');
+        const premiumMonthlyCard = document.getElementById('paywall_premium_monthly_card');
+        const premiumMonthlyBtn = document.getElementById('paywall_premium_monthly_btn');
+        const premiumCard = document.getElementById('paywall_premium_card');
+        const premiumBtn = document.getElementById('paywall_premium_btn');
+        
+        // 恢復預設樣式，避免狀態殘留
+        [
+            { card: basicCard, btn: basicBtn, tier: 'BASIC', text: "立即訂閱 🚀", bg: "linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)", box: "0 4px 12px rgba(20, 184, 166, 0.25)" },
+            { card: premiumMonthlyCard, btn: premiumMonthlyBtn, tier: 'PREMIUM_MONTHLY', text: "立即訂閱 🚀", bg: "linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)", box: "0 4px 12px rgba(56, 189, 248, 0.25)" },
+            { card: premiumCard, btn: premiumBtn, tier: 'PREMIUM', text: "尊榮解鎖 ✨", bg: "linear-gradient(135deg, #d97706 0%, #b45309 100%)", box: "0 4px 12px rgba(217, 119, 6, 0.3)" }
+        ].forEach(item => {
+            if (item.card) {
+                item.card.style.opacity = '1';
+                item.card.style.filter = 'none';
+                item.card.style.pointerEvents = 'auto'; // 恢復卡片事件
+                const badge = item.card.querySelector('.paywall-active-badge');
+                if (badge) badge.remove();
+            }
+            if (item.btn) {
+                item.btn.disabled = false;
+                item.btn.innerText = item.text;
+                item.btn.style.background = item.bg;
+                item.btn.style.boxShadow = item.box;
+                item.btn.style.cursor = "pointer";
+                item.btn.style.pointerEvents = "auto";
+                item.btn.setAttribute('onclick', `mockSubscribe('${item.tier}')`); // 恢復按鈕預設點擊綁定
+            }
+        });
+
+        // 移除舊折抵膠囊
+        const oldPill = document.getElementById('paywall_premium_discount_pill');
+        if (oldPill) oldPill.remove();
+
+        const currentType = window.USER_SUBSCRIPTION_TYPE || 'NONE';
+        const isSubscribed = window.USER_IS_SUBSCRIBED;
+        const isTrialActive = window.USER_IS_TRIAL_ACTIVE;
+
+        // 1. 若為最高階 👑 尊榮版 (YEARLY_AI)
+        if (currentType === 'YEARLY_AI' && isSubscribed && !isTrialActive) {
+            // A. 基礎版與旗艦版呈現灰色屏蔽並物理上鎖卡片
+            [
+                { card: basicCard, btn: basicBtn },
+                { card: premiumMonthlyCard, btn: premiumMonthlyBtn }
+            ].forEach(item => {
+                if (item.card) {
+                    item.card.style.opacity = '0.45';
+                    item.card.style.filter = 'grayscale(100%)';
+                    item.card.style.pointerEvents = 'none'; // 鎖死整張卡片，防止 Hover / Click 反應！
+                }
+                if (item.btn) {
+                    item.btn.disabled = true;
+                    item.btn.innerText = "已擁有高階方案";
+                    item.btn.style.background = "#94a3b8";
+                    item.btn.style.boxShadow = "none";
+                    item.btn.style.cursor = "not-allowed";
+                    item.btn.style.pointerEvents = "none";
+                    item.btn.removeAttribute('onclick'); // 移除點擊綁定，徹底防呆
+                }
+            });
+
+            // B. 尊榮版卡片顯示最高權限使用中
+            if (premiumCard) {
+                let badge = premiumCard.querySelector('.paywall-active-badge');
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'paywall-active-badge';
+                    badge.style.cssText = "position: absolute; bottom: 65px; left: 50%; transform: translateX(-50%); font-size: 0.72rem; font-weight: 800; background: rgba(245, 158, 11, 0.18); color: #b45309; border: 1px solid rgba(245, 158, 11, 0.3); padding: 4px 12px; border-radius: 20px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); white-space: nowrap;";
+                    badge.innerText = "✓ 您當前已解鎖最高榮譽";
+                    premiumCard.appendChild(badge);
+                }
+            }
+            if (premiumBtn) {
+                premiumBtn.disabled = true;
+                premiumBtn.innerText = "使用中";
+                premiumBtn.style.background = "#94a3b8";
+                premiumBtn.style.boxShadow = "none";
+                premiumBtn.style.cursor = "not-allowed";
+                premiumBtn.style.pointerEvents = "none";
+                premiumBtn.removeAttribute('onclick');
+            }
+        }
+        // 2. 若為中階 🥇 旗艦版 (PREMIUM_MONTHLY)
+        else if (currentType === 'PREMIUM_MONTHLY' && isSubscribed && !isTrialActive) {
+            // A. 基礎版屏蔽並鎖死卡片
+            if (basicCard) {
+                basicCard.style.opacity = '0.45';
+                basicCard.style.filter = 'grayscale(100%)';
+                basicCard.style.pointerEvents = 'none';
+            }
+            if (basicBtn) {
+                basicBtn.disabled = true;
+                basicBtn.innerText = "已擁有高階方案";
+                basicBtn.style.background = "#94a3b8";
+                basicBtn.style.boxShadow = "none";
+                basicBtn.style.cursor = "not-allowed";
+                basicBtn.style.pointerEvents = "none";
+                basicBtn.removeAttribute('onclick');
+            }
+
+            // B. 旗艦版顯示使用中
+            if (premiumMonthlyCard) {
+                let badge = premiumMonthlyCard.querySelector('.paywall-active-badge');
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'paywall-active-badge';
+                    badge.style.cssText = "position: absolute; bottom: 65px; left: 50%; transform: translateX(-50%); font-size: 0.72rem; font-weight: 800; background: rgba(14, 165, 233, 0.18); color: #0369a1; border: 1px solid rgba(14, 165, 233, 0.3); padding: 4px 12px; border-radius: 20px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); white-space: nowrap;";
+                    badge.innerText = "✓ 您當前正在使用此方案";
+                    premiumMonthlyCard.appendChild(badge);
+                }
+            }
+            if (premiumMonthlyBtn) {
+                premiumMonthlyBtn.disabled = true;
+                premiumMonthlyBtn.innerText = "使用中";
+                premiumMonthlyBtn.style.background = "#94a3b8";
+                premiumMonthlyBtn.style.boxShadow = "none";
+                premiumMonthlyBtn.style.cursor = "not-allowed";
+                premiumMonthlyBtn.style.pointerEvents = "none";
+                premiumMonthlyBtn.removeAttribute('onclick');
+            }
+
+            // C. 尊榮版顯示升級更划算
+            if (premiumBtn) {
+                premiumBtn.innerText = "升級尊榮方案 🚀";
+                premiumBtn.setAttribute('onclick', "mockSubscribe('PREMIUM')");
+            }
+        }
+        // 3. 若為初階 🥈 基礎版 (MONTHLY_AI)
+        else if (currentType === 'MONTHLY_AI' && isSubscribed && !isTrialActive) {
+            // A. 基礎版顯示使用中並屏蔽卡片事件
+            if (basicCard) {
+                basicCard.style.opacity = '0.7';
+                basicCard.style.filter = 'grayscale(15%)';
+                basicCard.style.pointerEvents = 'none';
+                let badge = basicCard.querySelector('.paywall-active-badge');
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'paywall-active-badge';
+                    badge.style.cssText = "position: absolute; bottom: 65px; left: 50%; transform: translateX(-50%); font-size: 0.72rem; font-weight: 800; background: rgba(16, 185, 129, 0.18); color: #047857; border: 1px solid rgba(16, 185, 129, 0.3); padding: 4px 12px; border-radius: 20px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); white-space: nowrap;";
+                    badge.innerText = "✓ 您當前正在使用此方案";
+                    basicCard.appendChild(badge);
+                }
+            }
+            if (basicBtn) {
+                basicBtn.disabled = true;
+                basicBtn.innerText = "使用中";
+                basicBtn.style.background = "#94a3b8";
+                basicBtn.style.boxShadow = "none";
+                basicBtn.style.cursor = "not-allowed";
+                basicBtn.style.pointerEvents = "none";
+                basicBtn.removeAttribute('onclick');
+            }
+
+            // B. 旗艦版與尊榮版提供折抵補差額直升預覽
+            try {
+                const res = await fetch('/api/subscription/upgrade_preview');
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    let discountPill = document.createElement('div');
+                    discountPill.id = 'paywall_premium_discount_pill';
+                    discountPill.style.cssText = "font-size: 0.7rem; font-weight: 800; background: #fffbeb; color: #d97706; border: 1.5px solid #fde68a; padding: 6px 12px; border-radius: 12px; margin-bottom: 12px; width: calc(100% - 4px); text-align: left; animation: paywall-discount-pulse 1.5s infinite ease-in-out; display: flex; align-items: center; gap: 4px; box-sizing: border-box;";
+                    
+                    if (!document.getElementById('paywall-discount-pulse-style')) {
+                        const style = document.createElement('style');
+                        style.id = 'paywall-discount-pulse-style';
+                        style.innerHTML = `
+                            @keyframes paywall-discount-pulse {
+                                0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.3); }
+                                50% { transform: scale(1.01); box-shadow: 0 0 0 4px rgba(251, 191, 36, 0); }
+                                100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+                            }
+                        `;
+                        document.head.appendChild(style);
+                    }
+                    
+                    // 動態插入折抵說明到尊榮年費版
+                    if (premiumCard) {
+                        const clonePill = discountPill.cloneNode(true);
+                        clonePill.innerHTML = `💡 基礎版折抵 NT$ ${data.discount}，今日僅需 NT$ ${data.upgrade_price}`;
+                        const priceBlock = premiumCard.querySelector('div[style*="display: flex; align-items: baseline"]');
+                        if (priceBlock) {
+                            premiumCard.insertBefore(clonePill, priceBlock);
+                        } else {
+                            premiumCard.appendChild(clonePill);
+                        }
+                    }
+
+                    if (premiumBtn) {
+                        premiumBtn.innerText = "直升尊榮方案 🚀";
+                        premiumBtn.setAttribute('onclick', "mockSubscribe('PREMIUM')");
+                    }
+
+                    // 旗艦版按鈕也可以直接補差額
+                    if (premiumMonthlyBtn) {
+                        premiumMonthlyBtn.innerText = "補差額升級 🚀";
+                        premiumMonthlyBtn.setAttribute('onclick', "mockSubscribe('PREMIUM_MONTHLY')");
+                    }
+                }
+            } catch (err) {
+                console.error("[Upgrade Paywall Preview] 取得差額預覽失敗:", err);
+            }
         }
     };
 
@@ -591,7 +1180,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 彈窗控制 ---
     window.openModal = (id) => {
         // 生理健康避孕暨臨床醫學免責聲明攔截
-        if (id === 'healthModal' && !localStorage.getItem('menstrual_disclaimer_agreed')) {
+        if ((id === 'healthModal' || id === 'trackingModal') && !localStorage.getItem('menstrual_disclaimer_agreed')) {
+            window.pendingMenstrualModal = id;
             window.openModal('menstrualDisclaimerModal');
             return;
         }
@@ -626,6 +1216,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitBtn.style.background = '';
             }
         }
+        if (id === 'upgradePaywallModal') {
+            if (typeof window.initUpgradePaywallPreview === 'function') {
+                window.initUpgradePaywallPreview();
+            }
+        }
         const modalEl = document.getElementById(id);
         if (!modalEl) {
             console.warn(`[openModal] 彈窗 ID "${id}" 在 DOM 中不存在！`);
@@ -643,24 +1238,45 @@ document.addEventListener('DOMContentLoaded', () => {
         if (id === 'pocketModal') {
             window.selectCategory(''); // 口袋名單開啟時預設空白
             setTimeout(window.initPocketAutocomplete, 300);
-            window.loadPocket();
+            window.loadPocket(true);
         }
-        if (id === 'healthModal') {
-            // 重置為加載狀態，避免閃爍舊的或預設數據 (V14.8)
-            const daysEl = document.querySelector('.health-status-days');
-            const descEl = document.querySelector('.health-status-desc');
-            if (daysEl) daysEl.innerHTML = `-- <span style="font-size: 1.2rem;">天</span>`;
-            if (descEl) descEl.innerText = `正在計算預測日期...`;
-            
-            const stats = document.querySelectorAll('.health-stat-box .val');
-            if (stats.length >= 2) {
-                stats[0].innerHTML = `-- <span>天</span>`;
-                stats[1].innerHTML = `-- <span>天</span>`;
-            }
-            
-            const historyList = document.getElementById('health_history_list');
-            if (historyList) {
-                historyList.innerHTML = `<div style="text-align: center; padding: 20px; color: #94a3b8;">⏳ 正在載入歷史紀錄...</div>`;
+        if (id === 'healthModal' || id === 'trackingModal') {
+            if (id === 'healthModal') {
+                // 重置為加載狀態，避免閃爍舊的或預設數據 (V14.8)
+                const daysEl = document.querySelector('.health-status-days');
+                const descEl = document.querySelector('.health-status-desc');
+                if (daysEl) daysEl.innerHTML = `-- <span style="font-size: 1.2rem;">天</span>`;
+                if (descEl) descEl.innerText = `正在計算預測日期...`;
+                
+                const stats = document.querySelectorAll('.health-stat-box .val');
+                if (stats.length >= 2) {
+                    stats[0].innerHTML = `-- <span>天</span>`;
+                    stats[1].innerHTML = `-- <span>天</span>`;
+                }
+                
+                const historyList = document.getElementById('health_history_list');
+                if (historyList) {
+                    historyList.innerHTML = `<div style="text-align: center; padding: 20px; color: #94a3b8;">⏳ 正在載入歷史紀錄...</div>`;
+                }
+            } else {
+                // For trackingModal (the calendar)
+                // 1. 立即顯現超高階毛玻璃微光加載遮罩
+                const overlay = document.getElementById('calendar_loader_overlay');
+                if (overlay) {
+                    overlay.style.opacity = '1';
+                    overlay.style.pointerEvents = 'auto';
+                }
+                
+                // 2. 立即初始化年份與月份（防止首次載入未定義）
+                const today = new Date();
+                if (!window.currentCalendarYear) window.currentCalendarYear = today.getFullYear();
+                if (!window.currentCalendarMonth) window.currentCalendarMonth = today.getMonth() + 1;
+                if (!window.selectedCalendarDate) window.selectedCalendarDate = today;
+                
+                // 3. 立即呼叫骨架月曆生成器，於第 1 毫秒渲染整齊呼吸漸變的骨架網格
+                if (typeof window.renderMenstrualCalendar === 'function') {
+                    window.renderMenstrualCalendar(window.currentCalendarYear, window.currentCalendarMonth, true);
+                }
             }
 
             if (window.loadHealthInfo) window.loadHealthInfo();
@@ -843,8 +1459,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const list = document.getElementById('todo_list');
         if (!list) return;
 
-        // 顯示載入中
-        list.innerHTML = `<div style="text-align: center; padding: 30px; color: #94a3b8;"><div class="loading-spinner"></div> 正在讀取...</div>`;
+        // 展示高級炫光旋轉載入動畫，打破卡頓感
+        list.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: #14b8a6;">
+                <svg style="animation: spin 1s linear infinite;" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10" stroke="#f1f5f9" stroke-width="2.5"></circle>
+                    <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.52 3.66 1.43 5.17" stroke="#14b8a6" stroke-width="2.5" stroke-linecap="round"></path>
+                </svg>
+                <span style="font-size: 0.85rem; font-weight: 700; margin-top: 12px; color: #64748b;">📡 正在連線雲端硬碟更新中...</span>
+            </div>
+        `;
 
         try {
             const res = await fetch('/api/todo');
@@ -1034,11 +1658,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const summary = document.getElementById('wish_summary');
         if (!list) return;
 
-        // 顯示載入中
+        // 展示高級炫光旋轉載入動畫，打破卡頓感 (配對願望清單的質感玫瑰紅配色)
         list.innerHTML = `
-            <div style="text-align: center; padding: 30px; color: #94a3b8;">
-                <div class="loading-spinner" style="margin-bottom: 10px;">⌛</div>
-                正在讀取願望清單...
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: #e11d48;">
+                <svg style="animation: spin 1s linear infinite;" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10" stroke="#f1f5f9" stroke-width="2.5"></circle>
+                    <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.52 3.66 1.43 5.17" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round"></path>
+                </svg>
+                <span style="font-size: 0.85rem; font-weight: 700; margin-top: 12px; color: #64748b;">📡 正在連線雲端硬碟更新中...</span>
             </div>
         `;
 
@@ -1452,90 +2079,43 @@ document.addEventListener('DOMContentLoaded', () => {
     window.lastQueryDays = 7; // 預設為本週
 
     window.restoreEvents = () => {
+        // 清除本地隱藏快取，不需要跟伺服器同步解除 (讓已完成的項目在重新載入時保持已打勾、槓線狀態！)
         localStorage.removeItem('hiddenPocketEvents');
-        appendMessage('✨ 隱藏項目已全數復原，重新載入中...', false);
+        if (typeof window.showToast === 'function') {
+            window.showToast('✨ 已成功還原所有已完成與隱藏的行程！已完成之項目仍保持勾選狀態。', 'success');
+        }
         window.querySchedule(window.lastQueryDays || 7);
     };
-
-    window.pendingCompletionTimers = window.pendingCompletionTimers || {};
 
     window.toggleEventDone = async (id) => {
         const lis = document.querySelectorAll(`[id="event_li_${id}"]`);
         if (lis.length === 0) return;
 
-        const firstLi = lis[0];
+        const firstLi = lis[lis.length - 1]; // 獲取最新渲染的 DOM，完美避免舊卡片殘留造成的 Selector 碰撞！
         const btn = firstLi.querySelector('.done-btn');
         const isCompleted = btn.classList.contains('completed');
 
-        // 2秒內再次點擊 ➔ 「撤銷/取消打勾完成」
-        if (window.pendingCompletionTimers[id]) {
-            clearTimeout(window.pendingCompletionTimers[id]);
-            delete window.pendingCompletionTimers[id];
-
-            lis.forEach(li => {
-                const b = li.querySelector('.done-btn');
-                if (b) {
-                    b.classList.remove('completed');
-                    b.innerText = '✓';
-                }
-            });
-            return;
-        }
-
         if (!isCompleted) {
             // ==========================================
-            // 情況一：標記完成 (給予 2 秒的「撤銷完成」緩衝時間，防誤觸)
+            // 勾選狀態 ➔ 圓圈填綠色、文字槓掉、彈出「完成」隱藏按鈕
             // ==========================================
             lis.forEach(li => {
+                li.classList.add('checked-off');
                 const b = li.querySelector('.done-btn');
                 if (b) {
                     b.classList.add('completed');
-                    b.innerText = '完成';
+                    b.innerText = '✓';
                 }
             });
-
-            // 設定 2 秒後自動執行隱藏與背景 Google Calendar 同步
-            window.pendingCompletionTimers[id] = setTimeout(() => {
-                delete window.pendingCompletionTimers[id];
-
-                // A. 隱藏動畫
-                lis.forEach(li => li.classList.add('fade-out'));
-
-                // B. 立即更新本地快取 (隱藏名單)
-                let hidden = JSON.parse(localStorage.getItem('hiddenPocketEvents') || '[]');
-                if (!hidden.includes(id)) hidden.push(id);
-                localStorage.setItem('hiddenPocketEvents', JSON.stringify(hidden));
-
-                // C. 更新 DOM 中的顯示狀態並觸發查詢
-                setTimeout(() => {
-                    lis.forEach(li => {
-                        li.style.display = 'none';
-                        const card = li.closest('.schedule-card');
-                        if (card) {
-                            const restoreBtn = card.querySelector('.restore-btn-ui');
-                            if (restoreBtn) {
-                                restoreBtn.innerText = `🔄 恢復隱藏(${hidden.length})`;
-                            }
-                        }
-                    });
-                    // 重新載入以維持最新狀態
-                    window.querySchedule(window.lastQueryDays || 7);
-                }, 400);
-
-                // D. 背景非同步向後端同步，標記為完成 (打勾)
-                fetch('/api/toggle_completion', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ event_id: id })
-                }).catch(e => console.error("Sync Error in background:", e));
-
-            }, 2000);
-
+            if (typeof window.showToast === 'function') {
+                window.showToast('✅ 已勾選行程！請點擊右側彈出的「完成」按鈕將它隱藏。', 'info');
+            }
         } else {
             // ==========================================
-            // 情況二：原本已完成且恢復隱藏，點選則「取消完成」
+            // 取消勾選 ➔ 圓圈還原、文字恢復正常、隱藏「完成」按鈕
             // ==========================================
             lis.forEach(li => {
+                li.classList.remove('checked-off');
                 const b = li.querySelector('.done-btn');
                 if (b) {
                     b.classList.remove('completed');
@@ -1543,22 +2123,84 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // A. 立即從隱藏名單中移除
-            let hidden = JSON.parse(localStorage.getItem('hiddenPocketEvents') || '[]');
-            hidden = hidden.filter(item => item !== id);
-            localStorage.setItem('hiddenPocketEvents', JSON.stringify(hidden));
+            // 如果原本在伺服器上是已完成狀態（data-server-completed="true"），則需要向後端同步撤銷完成狀態 (拿掉 ✅)
+            const isServerCompleted = btn.getAttribute('data-server-completed') === 'true';
+            if (isServerCompleted) {
+                try {
+                    fetch('/api/toggle_completion', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ event_id: id })
+                    }).then(res => res.json()).then(data => {
+                        if (data.status === 'success') {
+                            lis.forEach(li => {
+                                const b = li.querySelector('.done-btn');
+                                if (b) b.setAttribute('data-server-completed', 'false');
+                            });
+                        }
+                    }).catch(e => console.error("Uncomplete Sync Error:", e));
+                } catch (err) {
+                    console.error("Uncomplete Sync Error:", err);
+                }
+            }
 
-            // B. 重整畫面以立即恢復顯示
-            setTimeout(() => {
-                window.querySchedule(window.lastQueryDays || 7);
-            }, 100);
+            if (typeof window.showToast === 'function') {
+                window.showToast('↩️ 已取消勾選！', 'info');
+            }
+        }
+    };
 
-            // C. 背景非同步向後端同步，取消完成標記 (去打勾)
-            fetch('/api/toggle_completion', {
+    window.hideCompletedEvent = async (id) => {
+        const lis = document.querySelectorAll(`[id="event_li_${id}"]`);
+        if (lis.length === 0) return;
+
+        const firstLi = lis[lis.length - 1]; // 獲取最新渲染的 DOM，完美避免舊卡片殘留造成的 Selector 碰撞！
+        const titleEl = firstLi.querySelector('.event-title-row');
+        let title = titleEl ? titleEl.innerText : '日程';
+        if (title.includes('] ')) {
+            title = title.split('] ')[1];
+        }
+
+        // 1. 立即啟動淡出隱藏動畫
+        lis.forEach(li => li.classList.add('fade-out'));
+
+        // 2. 立即將 ID 寫入本地隱藏名單，防止重新整理後再度出現
+        let hidden = JSON.parse(localStorage.getItem('hiddenPocketEvents') || '[]');
+        if (!hidden.includes(id)) hidden.push(id);
+        localStorage.setItem('hiddenPocketEvents', JSON.stringify(hidden));
+
+        // 3. 300ms 後優雅地將 DOM 隱藏，並重新查詢日程清單以重整界面
+        setTimeout(() => {
+            lis.forEach(li => {
+                li.style.display = 'none';
+                const card = li.closest('.schedule-card');
+                if (card) {
+                    const restoreBtn = card.querySelector('.restore-btn-ui');
+                    if (restoreBtn) {
+                        restoreBtn.innerText = `🔄 恢復隱藏(${hidden.length})`;
+                    }
+                }
+            });
+            window.querySchedule(window.lastQueryDays || 7);
+        }, 300);
+
+        // 4. 背景非同步同步至 Google Calendar 伺服器，將行程標記為已完成 (加 ✅)
+        try {
+            const res = await fetch('/api/toggle_completion', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ event_id: id })
-            }).catch(e => console.error("Sync Error in background:", e));
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                if (typeof window.showToast === 'function') {
+                    window.showToast(`✅ 已完成並隱藏「${title}」！`, 'success');
+                }
+            } else {
+                console.error("Failed to sync completion:", data.message);
+            }
+        } catch (err) {
+            console.error("Sync Error in background:", err);
         }
     };
 
@@ -1579,7 +2221,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        const activeEvents = events.filter(e => !e.completed && !hiddenEvents.includes(e.id));
+        const activeEvents = events.filter(e => !hiddenEvents.includes(e.id));
 
         if (activeEvents.length === 0) {
             const isTrulyEmpty = events.length === 0;
@@ -1601,7 +2243,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.location) {
                 const mapUrl = getMapUrl(event.location);
                 const isAlreadyFav = window.cachedPocketItems && window.cachedPocketItems.some(
-                    i => i.category === '常用' && i.location.trim().toLowerCase() === event.location.trim().toLowerCase()
+                    i => i.is_fav === '1' && i.location.trim().toLowerCase() === event.location.trim().toLowerCase()
                 );
                 locationHtml = `
                     <div class="event-address-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px;">
@@ -1611,22 +2253,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         ${isAlreadyFav ? `
                             <button id="add_fav_btn_${event.id}" disabled
-                                    style="cursor: default; background: #f1f5f9; color: #94a3b8; border: 1.5px solid #cbd5e1; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; white-space: nowrap; pointer-events: none;" 
-                                    class="add-fav-loc-btn">
+                                     style="cursor: default; background: #f1f5f9; color: #94a3b8; border: 1.5px solid #cbd5e1; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; white-space: nowrap; pointer-events: none;" 
+                                     class="add-fav-loc-btn">
                                 ✓ 已設常用
                             </button>
                         ` : `
                             <button id="add_fav_btn_${event.id}" onclick="window.addLocationToFavorites('${event.location.replace(/'/g, "\\'")}', '${event.title.replace(/'/g, "\\'")}', 'add_fav_btn_${event.id}')" 
-                                    style="cursor: pointer; background: #fffbeb; color: #d97706; border: 1.5px solid #fde68a; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; white-space: nowrap;" 
-                                    class="add-fav-loc-btn">
+                                     style="cursor: pointer; background: #fffbeb; color: #d97706; border: 1.5px solid #fde68a; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 2px; transition: all 0.2s; white-space: nowrap;" 
+                                     class="add-fav-loc-btn">
                                 📌 常用
                             </button>
                         `}
                     </div>`;
             }
 
+            const itemClass = event.completed ? 'schedule-item checked-off' : 'schedule-item';
+            const btnClass = event.completed ? 'done-btn completed' : 'done-btn';
+
             listHtml += `
-                <div id="event_li_${event.id}" class="schedule-item">
+                <div id="event_li_${event.id}" class="${itemClass}">
                     <div class="event-info">
                         <div class="event-time-row">${event.time}</div>
                         <div class="event-title-row">${event.display_title || event.title}</div>
@@ -1641,7 +2286,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                             </span>
                         </div>
-                        <button class="done-btn" onclick="window.toggleEventDone('${event.id}')">✓</button>
+                        <div class="event-buttons-group">
+                            <button class="${btnClass}" data-server-completed="${event.completed ? 'true' : 'false'}" onclick="window.toggleEventDone('${event.id}')">✓</button>
+                            <button class="confirm-hide-btn" onclick="window.hideCompletedEvent('${event.id}')">完成</button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -1683,7 +2331,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.location) {
                 const mapUrl = getMapUrl(event.location);
                 const isAlreadyFav = window.cachedPocketItems && window.cachedPocketItems.some(
-                    i => i.category === '常用' && i.location.trim().toLowerCase() === event.location.trim().toLowerCase()
+                    i => i.is_fav === '1' && i.location.trim().toLowerCase() === event.location.trim().toLowerCase()
                 );
                 locationHtml = `
                     <div class="event-address-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px;">
@@ -2155,10 +2803,17 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.handleSend = async function (text = null, file = null) {
-        // 點數防線攔截：如果是免費版且剩餘點數 <= 0，攔截並開啟計費牆
-        if (window.USER_SUBSCRIPTION_TYPE === 'NONE' && window.USER_AI_POINTS <= 0) {
-            alert("您的 AI 智慧點數額度已用完，請加購點數或升級尊榮會員方案！");
-            window.openModal('upgradePaywallModal');
+        // 點數防線攔截：非無限版且剩餘點數 <= 0，攔截對話請求並開啟計費牆
+        if (window.USER_SUBSCRIPTION_TYPE !== 'YEARLY_AI' && window.USER_SUBSCRIPTION_TYPE !== 'PREMIUM_MONTHLY' && window.USER_AI_POINTS <= 0) {
+            const confirmed = await window.customConfirm(
+                '🚨 AI 智慧點數已歸 0',
+                '您的智慧對話點數額度已用完 (剩餘 0 點)！請立即加購點數或升級為無限對話的尊榮付費方案以繼續使用！',
+                '🚨',
+                '💎 立即儲值/升級'
+            );
+            if (confirmed) {
+                window.openModal('upgradePaywallModal');
+            }
             return;
         }
 
@@ -2255,6 +2910,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     setTimeout(() => window.open(data.url, '_blank'), 1000);
                 } else if (data.type === 'stock_prefill') {
                     appendMessage(data.message);
+                    window.switchTab('stock');
                     if (window.openAddStockTxModalWithValues) {
                         window.openAddStockTxModalWithValues(data.stock_data);
                     }
@@ -2265,6 +2921,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 appendMessage("❌ 錯誤：" + (data.message || "發生未知錯誤"));
+                if (data.points_depleted) {
+                    const confirmed = await window.customConfirm(
+                        '🚨 AI 智慧點數已歸 0',
+                        '您的智慧對話點數額度已用完 (剩餘 0 點)！請立即加購點數或升級為無限對話的尊榮付費方案以繼續使用！',
+                        '🚨',
+                        '💎 立即儲值/升級'
+                    );
+                    if (confirmed) {
+                        window.openModal('upgradePaywallModal');
+                    }
+                }
             }
         } catch (error) {
             appendMessage("❌ 伺服器連線失敗");
@@ -2509,15 +3176,89 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         });
     };
+    window.compressImage = compressImage;
 
 
+
+    // --- 報稅公益收據上傳與預覽小助手 (V9.0 Premium) ---
+    window.handleReceiptFileChange = (input) => {
+        const file = input.files[0];
+        if (!file) return;
+        
+        const previewImg = document.getElementById('receipt_preview_img');
+        const previewContainer = document.getElementById('receipt_preview_container');
+        const statusSpan = document.getElementById('receipt_upload_status');
+        
+        if (previewImg && previewContainer && statusSpan) {
+            previewImg.src = URL.createObjectURL(file);
+            previewContainer.style.display = 'block';
+            statusSpan.innerText = '已選取照片 📸';
+            statusSpan.style.color = '#e11d48';
+            statusSpan.style.fontWeight = '800';
+        }
+    };
+    
+    window.clearReceiptFile = () => {
+        const input = document.getElementById('charity_receipt_input');
+        const previewImg = document.getElementById('receipt_preview_img');
+        const previewContainer = document.getElementById('receipt_preview_container');
+        const statusSpan = document.getElementById('receipt_upload_status');
+        
+        if (input) input.value = '';
+        if (previewImg) previewImg.src = '';
+        if (previewContainer) previewContainer.style.display = 'none';
+        if (statusSpan) {
+            statusSpan.innerText = '未選取照片';
+            statusSpan.style.color = '#64748b';
+            statusSpan.style.fontWeight = 'normal';
+        }
+    };
+
+    window.triggerChatReceiptUpload = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.capture = 'environment';
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            showToast('📸 正在處理並上傳收據...', 'info');
+            
+            const compressedBlob = await window.compressImage(file);
+            
+            const formData = new FormData();
+            formData.append('file', compressedBlob, 'receipt.jpg');
+            
+            try {
+                const res = await fetch('/api/tax/upload_receipt', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast('✅ 收據成功上傳並歸檔在個人雲端硬碟！', 'success');
+                    appendMessage(`📸 系統已成功為您將該筆收據/發票照片以新檔名 <b>${data.filename}</b> 年度歸檔至雲端空間的「報稅公益收據管理/${data.year}」目錄！`);
+                } else {
+                    showToast(`❌ 上傳失敗: ${data.message}`, 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('❌ 雲端上傳連線失敗', 'error');
+            }
+        };
+        input.click();
+    };
+
+    // ✅ 舊的 categorySelect change 監聽器已移至 selectExpenseCategory()（V14.0 自訂下拉選單統一化）
 
     document.getElementById('submitExpense').onclick = async () => {
         window.calculateResult();
 
         const item = document.getElementById('expense_item').value;
         const amount = document.getElementById('expense_amount').value;
-        const category = document.getElementById('manual_expense_category').value;
+        // ✅ V14.0：優先讀取自訂下拉選單的 hidden input；降級備援讀取原生 select
+        const category = document.getElementById('expense_category_hidden')?.value || document.getElementById('manual_expense_category')?.value;
 
         // 強制檢查分類 (V14.6)
         if (!category) {
@@ -2530,11 +3271,68 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const receiptInput = document.getElementById('charity_receipt_input');
+        
+        // 1. 防呆提醒：公益類別若未選取照片，詢問是否上傳
+        if (category === '公益' && window.checkFeatureAccess('tax')) {
+            const hasFile = receiptInput && receiptInput.files && receiptInput.files[0];
+            if (!hasFile) {
+                const confirmed = await window.customConfirm(
+                    '💖 公益收據雲端歸檔',
+                    '系統已將此筆交易標記為【年度報稅憑證】！是否要立即將發票/收據拍照存檔到個人的雲端硬碟「報稅公益收據管理」中？',
+                    '📸',
+                    '立即拍照上傳'
+                );
+                if (confirmed) {
+                    receiptInput.click();
+                    return;
+                }
+            }
+        }
+
         const expenseType = document.getElementById('expense_type').value;
         const emoji = expenseType === 'income' ? '💰' : '💸';
 
-        closeModal();
+        // 鎖定確認按鈕防止重複提交
+        const submitBtn = document.getElementById('submitExpense');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerText = '正在記帳中... ⏳';
+        }
+
+        let uploadedFileName = '';
+        let uploadedYear = '';
+
+        // 2. 執行收據雲端上傳
+        if (receiptInput && receiptInput.files && receiptInput.files[0]) {
+            showToast('📸 正在將收據上傳至雲端硬碟...', 'info');
+            const file = receiptInput.files[0];
+            const compressedBlob = await window.compressImage(file);
+            const formData = new FormData();
+            formData.append('file', compressedBlob, 'receipt.jpg');
+            
+            try {
+                const taxRes = await fetch('/api/tax/upload_receipt', {
+                    method: 'POST',
+                    body: formData
+                });
+                const taxData = await taxRes.json();
+                if (taxData.status === 'success') {
+                    uploadedFileName = taxData.filename;
+                    uploadedYear = taxData.year;
+                    showToast('✅ 公益收據雲端歸檔成功！', 'success');
+                } else {
+                    showToast(`❌ 收據備份失敗: ${taxData.message}`, 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('❌ 收據備份連線失敗', 'error');
+            }
+        }
+
+        closeModal('expenseModal');
         appendMessage(`${emoji} 記帳：${item} $${amount} [${category}]`, true);
+        
         const res = await fetch('/api/manual_action', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2543,9 +3341,42 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         appendMessage(data.message);
 
-        // 清空
+        if (uploadedFileName) {
+            appendMessage(`📸 系統已成功為您將該筆收據/發票照片以新檔名 <b>${uploadedFileName}</b> 年度歸檔至雲端空間的「報稅公益收據管理/${uploadedYear}」目錄！`);
+        }
+
+        // 解鎖按鈕
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = expenseType === 'income' ? '確認收入記帳 💰' : '確認支出記帳 💸';
+        }
+
+        // 3. 投資/投資獲利正向同步引導 (一鍵直接跳轉分頁並預填 Modal)
+        if ((category === '投資' || category === '投資獲利') && window.checkFeatureAccess('stock')) {
+            const txType = category === '投資' ? '買進' : '賣出';
+            const isConfirmed = await window.customConfirm(
+                '📈 引導至存股紀錄',
+                `偵測到這筆支出屬於投資性質。是否一鍵跳轉至【📈 存股】模組，直接自動為您開啟【${txType}】持股交易登記表單並預填內容？`,
+                '📈',
+                '前往存股登記 🚀'
+            );
+            if (isConfirmed) {
+                window.switchTab('stock');
+                if (window.openAddStockTxModalWithValues) {
+                    window.openAddStockTxModalWithValues({
+                        name: item,
+                        total_budget: parseFloat(amount),
+                        tx_type: txType,
+                        date: new Date().toISOString().split('T')[0]
+                    });
+                }
+            }
+        }
+
+        // 清空輸入
         document.getElementById('expense_item').value = '';
         clearCalc();
+        window.clearReceiptFile();
     };
 
     window.loadMemos = async () => {
@@ -2863,7 +3694,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.setPocketFilter = (cat) => {
         window.currentPocketFilter = cat;
-        window.loadPocket();
+        window.loadPocket(false);
     };
 
     function renderAreaFilterBar(areas) {
@@ -2880,7 +3711,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.setAreaFilter = (area) => {
         window.currentAreaFilter = area;
-        window.loadPocket();
+        window.loadPocket(false);
     };
 
     window.deletePocketItem = async (id, name) => {
@@ -2897,7 +3728,7 @@ document.addEventListener('DOMContentLoaded', () => {
             body: JSON.stringify({ id })
         });
         if ((await res.json()).status === 'success') {
-            window.loadPocket();
+            window.loadPocket(true);
         }
     };
 
@@ -2908,7 +3739,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.handlePocketSearch = (value) => {
         window.currentPocketSearchKeyword = value.trim();
-        window.loadPocket();
+        window.loadPocket(false);
     };
 
     window.switchPocketTab = (tab) => {
@@ -2924,6 +3755,12 @@ document.addEventListener('DOMContentLoaded', () => {
             searchInput.value = '';
         }
         window.currentPocketSearchKeyword = '';
+
+        const keywordSearchInput = document.getElementById('pocket_keyword_search');
+        if (keywordSearchInput) {
+            keywordSearchInput.value = '';
+        }
+        window.currentPocketKeyword = '';
 
         if (tab === 'fav') {
             if (tabFav) {
@@ -2955,7 +3792,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (searchBar) searchBar.style.display = 'none';
         }
 
-        window.loadPocket();
+        window.loadPocket(false);
+    };
+
+    window.handlePocketKeywordSearch = (value) => {
+        window.currentPocketKeyword = value;
+        window.loadPocket(false);
     };
 
     window.copyAddressText = (location, name) => {
@@ -2993,15 +3835,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirmed) return;
 
         try {
+            const payload = isMovingToFav 
+                ? { id, is_fav: '1' } 
+                : { id, category: finalCategory, is_fav: '' };
+
             const res = await fetch('/api/pocket/update_category', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, category: finalCategory })
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             if (data.status === 'success') {
                 showToast(isMovingToFav ? `📌 已將「${name}」移入常用地址！` : `↩️ 已將「${name}」移回口袋景點！`, 'success');
-                window.loadPocket();
+                window.loadPocket(true);
             } else {
                 showToast('更新失敗，請重試', 'error');
             }
@@ -3035,7 +3881,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const data = await res.json();
                     if (data.status === 'success') {
                         showToast('✏️ 地標資料已成功更新！', 'success');
-                        window.loadPocket();
+                        window.loadPocket(true);
                     } else {
                         showToast('更新失敗，請重試', 'error');
                     }
@@ -3053,14 +3899,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!modal || !select) return;
 
         // 如果全域快取尚未載入，則異步加載
-        let favs = (window.cachedPocketItems || []).filter(i => i.category === '常用');
+        let favs = (window.cachedPocketItems || []).filter(i => i.is_fav === '1');
         if (favs.length === 0) {
             try {
                 const res = await fetch('/api/pocket/list');
                 const data = await res.json();
                 if (data.status === 'success') {
                     window.cachedPocketItems = data.data || [];
-                    favs = window.cachedPocketItems.filter(i => i.category === '常用');
+                    favs = window.cachedPocketItems.filter(i => i.is_fav === '1');
                 }
             } catch (e) {
                 console.error("加載常用地址失敗", e);
@@ -3097,7 +3943,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!window.cachedPocketItems) return;
         const favLocations = new Set(
             window.cachedPocketItems
-                .filter(i => i.category === '常用')
+                .filter(i => i.is_fav === '1')
                 .map(i => i.location.trim().toLowerCase())
         );
 
@@ -3119,156 +3965,186 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    window.loadPocket = async () => {
+    window.renderPocketListDirectly = (rawItems) => {
         const list = document.getElementById('pocket_list');
         if (!list) return;
+
+        const isFavTab = window.currentPocketTab === 'fav';
+        const pocketItems = rawItems.filter(i => i.is_fav !== '1');
+        const favItems = rawItems.filter(i => i.is_fav === '1');
+
+        // 1. 生成篩選列
+        renderFilterBar([...new Set(pocketItems.map(i => i.category))]);
+        renderAreaFilterBar([...new Set(pocketItems.map(i => i.area).filter(a => a))]);
+        renderCatOptions([...new Set(pocketItems.map(i => i.category))]);
+
+        // 2. 分頁與篩選過濾
+        let items = [];
+
+        if (isFavTab) {
+            items = favItems;
+            
+            // 常用地址模糊查詢：以自訂名稱 (item.note) 為主要搜尋原則，並相容主要地標名稱 (item.name)
+            if (window.currentPocketSearchKeyword) {
+                const kw = window.currentPocketSearchKeyword.toLowerCase();
+                items = items.filter(item => {
+                    const matchNote = (item.note || '').toLowerCase().includes(kw);
+                    const matchName = (item.name || '').toLowerCase().includes(kw);
+                    return matchNote || matchName;
+                });
+            }
+        } else {
+            items = pocketItems;
+            if (window.currentPocketFilter !== '全部') {
+                items = items.filter(i => i.category === window.currentPocketFilter);
+            }
+            if (window.currentAreaFilter !== '全部') {
+                items = items.filter(i => i.area === window.currentAreaFilter);
+            }
+            if (window.currentPocketKeyword) {
+                const kw = window.currentPocketKeyword.toLowerCase();
+                items = items.filter(item => {
+                    return (item.name || '').toLowerCase().includes(kw) || 
+                           (item.location || '').toLowerCase().includes(kw) ||
+                           (item.note || '').toLowerCase().includes(kw);
+                });
+            }
+        }
+
+        // 3. 排序：統一採用建立時間降序排列
+        const itemsWithIndex = items.map((item, idx) => ({ item, idx }));
+        itemsWithIndex.sort((a, b) => {
+            const timeA = a.item.time || '';
+            const timeB = b.item.time || '';
+            const cmp = timeB.localeCompare(timeA);
+            if (cmp !== 0) return cmp;
+            return b.idx - a.idx;
+        });
+        items = itemsWithIndex.map(x => x.item);
+
+        list.innerHTML = items.map(item => {
+            const mapUrl = getMapUrl(item.location || item.name);
+            const icon = getPocketIcon(item.category);
+            const isFavCategory = item.is_fav === '1';
+
+            // 距離顯示邏輯
+            let distHtml = '';
+            if (window.userCoords && item.lat && item.lng) {
+                const d = calculateDistance(window.userCoords.lat, window.userCoords.lng, item.lat, item.lng);
+                const distStr = d < 1 ? `${Math.round(d * 1000)}m` : `${d.toFixed(1)}km`;
+                distHtml = `<span style="font-size: 0.7rem; color: #10b981; font-weight: 800; background: #ecfdf5; padding: 2px 8px; border-radius: 6px;">距離約 ${distStr}</span>`;
+            }
+
+            // 移入/移出與複製按鈕組合
+            let actionButtonsHtml = '';
+            if (isFavCategory) {
+                actionButtonsHtml = `
+                    <span onclick="window.copyAddressText('${(item.location || '').replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')" 
+                          style="cursor: pointer; background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid #cbd5e1; transition: all 0.2s;">
+                        📋 複製
+                    </span>
+                    <span onclick="window.moveToFavorites('${item.id}', '${item.name.replace(/'/g, "\\'")}', '其他')" 
+                          style="cursor: pointer; background: #f0fdf4; color: #16a34a; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid #bbf7d0; transition: all 0.2s;">
+                        ↩️ 移回口袋
+                    </span>
+                `;
+            } else {
+                actionButtonsHtml = `
+                    <span onclick="window.copyAddressText('${(item.location || '').replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')" 
+                          style="cursor: pointer; background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid #cbd5e1; transition: all 0.2s;">
+                        📋 複製
+                    </span>
+                    <span onclick="window.moveToFavorites('${item.id}', '${item.name.replace(/'/g, "\\'")}', '常用')" 
+                          style="cursor: pointer; background: #fffbeb; color: #d97706; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid #fde68a; transition: all 0.2s;" 
+                          class="fav-action-btn">
+                        📌 移入常用
+                    </span>
+                `;
+            }
+
+            const editBtnHtml = isFavCategory ? `
+                <button onclick="window.editPocketCustomName('${item.id}', '${(item.note || '').replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')" 
+                        style="background: none; border: none; color: #10b981; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 5px; transition: all 0.2s;" 
+                        title="編輯稱呼">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path>
+                    </svg>
+                </button>
+            ` : '';
+
+            return `
+                <div style="background: white; border: 1px solid #f1f5f9; padding: 15px; border-radius: 20px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); animation: fadeIn 0.3s ease;">
+                    ${(isFavCategory && item.note) ? `
+                        <div style="font-size: 0.85rem; font-weight: 800; color: #e11d48; margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">
+                            <span>📌 ${item.note}</span>
+                        </div>
+                    ` : ''}
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 0.65rem; color: #fff; background: #14b8a6; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${icon} ${item.category}</span>
+                        ${item.area ? `<span style="font-size: 0.65rem; color: #fff; background: #6366f1; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${item.area}</span>` : ''}
+                        ${distHtml}
+                        <a href="${mapUrl}" target="_blank" style="flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 800; color: #0f172a; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            ${item.name}
+                        </a>
+                        <button onclick="window.deletePocketItem('${item.id}', '${item.name.replace(/'/g, "\\'")}')" 
+                                style="background: none; border: none; color: #ef4444; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 5px; transition: all 0.2s;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                        </button>
+                        ${editBtnHtml}
+                    </div>
+                    <div style="padding-left: 2px;">
+                        ${item.location ? `
+                            <div style="font-size: 0.75rem; color: #64748b; display: flex; align-items: center; gap: 4px; margin-bottom: 6px; justify-content: space-between; width: 100%;">
+                                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; margin-right: 8px;">📍 ${item.location}</span>
+                                <div style="display: flex; gap: 4px; flex-shrink: 0;">
+                                    ${actionButtonsHtml}
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${(!isFavCategory && item.note) ? `<div style="font-size: 0.8rem; color: #64748b; font-style: italic; background: #f8fafc; padding: 6px 10px; border-radius: 8px; display: inline-block; width: 100%;">"${item.note}"</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('') || `<div style="color: #94a3b8; text-align: center; padding: 40px;">尚未有符合篩選的項目</div>`;
+    };
+
+    window.loadPocket = async (forceFetch = false) => {
+        const list = document.getElementById('pocket_list');
+        if (!list) return;
+
+        // 若非強制更新且快取中已有資料，立即本機秒速渲染
+        if (!forceFetch && window.cachedPocketItems && window.cachedPocketItems.length > 0) {
+            window.renderPocketListDirectly(window.cachedPocketItems);
+            return;
+        }
+
+        // 展示高級炫光旋轉載入動畫，打破卡頓感
+        list.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: #14b8a6;">
+                <svg style="animation: spin 1s linear infinite;" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10" stroke="#f1f5f9" stroke-width="2.5"></circle>
+                    <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.52 3.66 1.43 5.17" stroke="#14b8a6" stroke-width="2.5" stroke-linecap="round"></path>
+                </svg>
+                <span style="font-size: 0.85rem; font-weight: 700; margin-top: 12px; color: #64748b;">📡 正在連線雲端硬碟更新中...</span>
+            </div>
+        `;
 
         try {
             const res = await fetch('/api/pocket/list');
             const data = await res.json();
             if (data.status === 'success') {
                 const rawItems = data.data || [];
-                window.cachedPocketItems = rawItems; // 🌟 建立全域常用地址快取
-                window.syncEventFavButtons();       // 🌟 掃描日程重複地址並同步狀態
-
-
-                // 1. 生成篩選列
-                renderFilterBar([...new Set(rawItems.map(i => i.category))]);
-                renderAreaFilterBar([...new Set(rawItems.map(i => i.area).filter(a => a))]);
-                renderCatOptions([...new Set(rawItems.map(i => i.category))]);
-
-                // 2. 分頁與篩選過濾
-                let items = rawItems;
-                const isFavTab = window.currentPocketTab === 'fav';
-
-                if (isFavTab) {
-                    items = items.filter(i => i.category === '常用');
-                    
-                    // 常用地址模糊查詢：以自訂名稱 (item.note) 為主要搜尋原則，並相容主要地標名稱 (item.name)
-                    if (window.currentPocketSearchKeyword) {
-                        const kw = window.currentPocketSearchKeyword.toLowerCase();
-                        items = items.filter(item => {
-                            const matchNote = (item.note || '').toLowerCase().includes(kw);
-                            const matchName = (item.name || '').toLowerCase().includes(kw);
-                            return matchNote || matchName;
-                        });
-                    }
-                } else {
-                    items = items.filter(i => i.category !== '常用');
-                    if (window.currentPocketFilter !== '全部') {
-                        items = items.filter(i => i.category === window.currentPocketFilter);
-                    }
-                    if (window.currentAreaFilter !== '全部') {
-                        items = items.filter(i => i.area === window.currentAreaFilter);
-                    }
-                }
-
-                // 3. 排序
-                if (isFavTab) {
-                    // 常用地址依建立時間降序（最新建立的排在最上面）
-                    // 為了確保時間格式相同（如先前寫入同分秒的舊資料）依然能精準將最新加入的排在最前面，我們加入原始索引降序作為 Secondary Sort
-                    const itemsWithIndex = items.map((item, idx) => ({ item, idx }));
-                    itemsWithIndex.sort((a, b) => {
-                        const timeA = a.item.time || '';
-                        const timeB = b.item.time || '';
-                        const cmp = timeB.localeCompare(timeA);
-                        if (cmp !== 0) return cmp;
-                        return b.idx - a.idx; // 時間相同時，在試算表中靠後面的（新加入的）排在最上面！
-                    });
-                    items = itemsWithIndex.map(x => x.item);
-                } else {
-                    const priorityMap = { '美食': 1, '常用': 2, '旅遊': 3, '住宿': 4, '咖啡': 5, '購物': 6, '其他': 7 };
-                    items.sort((a, b) => (priorityMap[a.category] || 99) - (priorityMap[b.category] || 99));
-                }
-
-                list.innerHTML = items.map(item => {
-                    const mapUrl = getMapUrl(item.location || item.name);
-                    const icon = getPocketIcon(item.category);
-                    const isFavCategory = item.category === '常用';
-
-                    // 距離顯示邏輯
-                    let distHtml = '';
-                    if (window.userCoords && item.lat && item.lng) {
-                        const d = calculateDistance(window.userCoords.lat, window.userCoords.lng, item.lat, item.lng);
-                        const distStr = d < 1 ? `${Math.round(d * 1000)}m` : `${d.toFixed(1)}km`;
-                        distHtml = `<span style="font-size: 0.7rem; color: #10b981; font-weight: 800; background: #ecfdf5; padding: 2px 8px; border-radius: 6px;">距離約 ${distStr}</span>`;
-                    }
-
-                    // 移入/移出與複製按鈕組合
-                    let actionButtonsHtml = '';
-                    if (isFavCategory) {
-                        actionButtonsHtml = `
-                            <span onclick="window.copyAddressText('${(item.location || '').replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')" 
-                                  style="cursor: pointer; background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid #cbd5e1; transition: all 0.2s;">
-                                📋 複製
-                            </span>
-                            <span onclick="window.moveToFavorites('${item.id}', '${item.name.replace(/'/g, "\\'")}', '其他')" 
-                                  style="cursor: pointer; background: #f0fdf4; color: #16a34a; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid #bbf7d0; transition: all 0.2s;">
-                                ↩️ 移回口袋
-                            </span>
-                        `;
-                    } else {
-                        actionButtonsHtml = `
-                            <span onclick="window.copyAddressText('${(item.location || '').replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')" 
-                                  style="cursor: pointer; background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid #cbd5e1; transition: all 0.2s;">
-                                📋 複製
-                            </span>
-                            <span onclick="window.moveToFavorites('${item.id}', '${item.name.replace(/'/g, "\\'")}', '常用')" 
-                                  style="cursor: pointer; background: #fffbeb; color: #d97706; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid #fde68a; transition: all 0.2s;" 
-                                  class="fav-action-btn">
-                                📌 移入常用
-                            </span>
-                        `;
-                    }
-
-                    // 編輯稱呼按鈕 (僅常用地址有)
-                    const editBtnHtml = isFavCategory ? `
-                        <button onclick="window.editPocketCustomName('${item.id}', '${(item.note || '').replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')" 
-                                style="background: none; border: none; color: #10b981; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 5px; transition: all 0.2s;" 
-                                title="編輯稱呼">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path>
-                            </svg>
-                        </button>
-                    ` : '';
-
-                    return `
-                        <div style="background: white; border: 1px solid #f1f5f9; padding: 15px; border-radius: 20px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); animation: fadeIn 0.3s ease;">
-                            ${(isFavCategory && item.note) ? `
-                                <div style="font-size: 0.85rem; font-weight: 800; color: #e11d48; margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">
-                                    <span>📌 ${item.note}</span>
-                                </div>
-                            ` : ''}
-                            <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px;">
-                                <span style="font-size: 0.65rem; color: #fff; background: #14b8a6; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${icon} ${item.category}</span>
-                                ${item.area ? `<span style="font-size: 0.65rem; color: #fff; background: #6366f1; padding: 2px 8px; border-radius: 6px; font-weight: 800;">${item.area}</span>` : ''}
-                                ${distHtml}
-                                <a href="${mapUrl}" target="_blank" style="flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 800; color: #0f172a; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                    ${item.name}
-                                </a>
-                                <button onclick="window.deletePocketItem('${item.id}', '${item.name.replace(/'/g, "\\'")}')" 
-                                        style="background: none; border: none; color: #ef4444; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 5px; transition: all 0.2s;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                                </button>
-                                ${editBtnHtml}
-                            </div>
-                            <div style="padding-left: 2px;">
-                                ${item.location ? `
-                                    <div style="font-size: 0.75rem; color: #64748b; display: flex; align-items: center; gap: 4px; margin-bottom: 6px; justify-content: space-between; width: 100%;">
-                                        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; margin-right: 8px;">📍 ${item.location}</span>
-                                        <div style="display: flex; gap: 4px; flex-shrink: 0;">
-                                            ${actionButtonsHtml}
-                                        </div>
-                                    </div>
-                                ` : ''}
-                                ${(!isFavCategory && item.note) ? `<div style="font-size: 0.8rem; color: #64748b; font-style: italic; background: #f8fafc; padding: 6px 10px; border-radius: 8px; display: inline-block; width: 100%;">"${item.note}"</div>` : ''}
-                            </div>
-                        </div>
-                    `;
-                }).join('') || `<div style="color: #94a3b8; text-align: center; padding: 40px;">尚未有符合篩選的項目</div>`;
+                window.cachedPocketItems = rawItems; // 全域常用地址快取
+                window.syncEventFavButtons();       // 同步重複地址日程按鈕狀態
+                window.renderPocketListDirectly(rawItems);
+            } else {
+                list.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 40px;">載入失敗，請重試</div>`;
             }
-        } catch (e) { console.error("載入口袋失敗", e); }
+        } catch (e) {
+            console.error("載入口袋失敗", e);
+            list.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 40px;">連線失敗，請重試</div>`;
+        }
     };
 
     document.getElementById('submitPocket').onclick = async () => {
@@ -3283,7 +4159,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 🛑 核心防呆：判斷手動新增時地址是否已存在於常用地址中 (V7.0 Premium)
         if (location) {
             const isDuplicated = (window.cachedPocketItems || []).some(
-                i => i.category === '常用' && i.location.trim().toLowerCase() === location.toLowerCase()
+                i => i.is_fav === '1' && i.location.trim().toLowerCase() === location.toLowerCase()
             );
             if (isDuplicated) {
                 // 1. 彈出客製化毛玻璃警告對話框
@@ -3320,7 +4196,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if ((await res.json()).status === 'success') {
             window.resetPocketForm();
-            window.loadPocket();
+            window.loadPocket(true);
         }
     };
 
@@ -3464,6 +4340,24 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     `).join('');
                 }
+
+                // --- 繪製月曆與詳情 ---
+                window.menstrualData = data;
+                const today = new Date();
+                if (!window.currentCalendarYear) window.currentCalendarYear = today.getFullYear();
+                if (!window.currentCalendarMonth) window.currentCalendarMonth = today.getMonth() + 1;
+                if (!window.selectedCalendarDate) window.selectedCalendarDate = today;
+                
+                // 4. 漸變淡出毛玻璃加載遮罩
+                const overlay = document.getElementById('calendar_loader_overlay');
+                if (overlay) {
+                    overlay.style.opacity = '0';
+                    overlay.style.pointerEvents = 'none';
+                }
+
+                if (typeof window.renderMenstrualCalendar === 'function') {
+                    window.renderMenstrualCalendar(window.currentCalendarYear, window.currentCalendarMonth, false);
+                }
             } else {
                 showToast(data.message, 'error');
             }
@@ -3477,7 +4371,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.agreeMenstrualDisclaimer = () => {
         localStorage.setItem('menstrual_disclaimer_agreed', 'true');
         window.closeModal('menstrualDisclaimerModal');
-        window.openModal('healthModal');
+        const targetModal = window.pendingMenstrualModal || 'healthModal';
+        window.openModal(targetModal);
 
         // 非同步向後端發送免責聲明同意存證
         fetch('/api/health/agree_disclaimer', {
@@ -3776,6 +4671,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('stock_tx_shares').value = '';
         document.getElementById('stock_tx_fee').value = '';
         
+        // 清除記帳匯入的預算狀態，避免正常新增持股時殘留或洩漏
+        window.importedStockBudget = null;
+        const helperCard = document.getElementById('stock_budget_helper_card');
+        if (helperCard) helperCard.style.display = 'none';
+        
         // 預設日期為今天 (台灣時間 YYYY-MM-DD)
         const tzoffset = (new Date()).getTimezoneOffset() * 60000;
         const localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, 10);
@@ -4056,24 +4956,90 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await res.json();
             if (data.status === 'success') {
-                showToast(data.message, 'success');
+                closeModal('stockModal');
                 
-                // 清空表單欄位
                 document.getElementById('stock_tx_ticker').value = '';
                 document.getElementById('stock_tx_name').value = '';
                 document.getElementById('stock_tx_price').value = '';
                 document.getElementById('stock_tx_shares').value = '';
                 document.getElementById('stock_tx_fee').value = '';
                 
-                // 動態隱藏試算預覽
                 const previewCard = document.getElementById('stock_tx_preview_card');
                 if (previewCard) previewCard.style.display = 'none';
-                
-                // 關閉新增持股彈窗
-                closeModal('stockModal');
-                
-                // 自動在對話框中直出並整理最新持股明細報告
-                window.queryStockPortfolioSummary();
+
+                // 2. 顯示炫麗的「Mission Accomplished」成功記帳彈窗 (V12.2 Master UX)
+                const sharesVal = parseInt(shares) || 1;
+                const priceVal = parseFloat(price) || 0;
+                const feeVal = parseFloat(fee) || 0;
+                const subtotal = priceVal * sharesVal;
+                const totalCost = subtotal + feeVal;
+
+                const confirmMsg = `
+                    <div style="text-align: left; line-height: 1.6; font-size: 0.85rem; color: #334155;">
+                        <p style="margin-top: 0; font-weight: 800; color: #16a34a; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+                            <span>🎉 投資交易與記帳已同步完成！</span>
+                        </p>
+                        <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 12px; margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span style="color:#64748b;">📈 證券代碼：</span><span style="font-weight: bold; color: #0f172a;">${ticker}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span style="color:#64748b;">🏷️ 股票名稱：</span><span style="font-weight: bold; color: #0f172a;">${name}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span style="color:#64748b;">💵 成交單價：</span><span style="font-weight: bold; color: #0f172a;">$ ${priceVal.toLocaleString()}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span style="color:#64748b;">📊 交易股數：</span><span style="font-weight: bold; color: #0f172a;">${sharesVal} 股</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span style="color:#64748b;">💸 交易手續費：</span><span style="font-weight: bold; color: #0f172a;">$ ${feeVal.toLocaleString()}</span>
+                            </div>
+                            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 8px 0;">
+                            <div style="display: flex; justify-content: space-between; font-weight: bold; color: #1e3a8a;">
+                                <span>💰 同步記帳金額：</span><span>$ ${totalCost.toLocaleString()}</span>
+                            </div>
+                        </div>
+                        <p style="margin: 0; font-size: 0.78rem; color: #475569; font-weight: 500;">
+                            ℹ️ 該筆投資支出已<b>同步寫入「記帳」試算表</b>，您可隨時前往 Google Drive / Sheets 雲端硬碟目錄查看完整會計明細。
+                        </p>
+                    </div>
+                `;
+
+                await window.customConfirm(
+                    '🎉 同步完成！',
+                    confirmMsg,
+                    '💼',
+                    '確認並返回主頁對話框 🚀',
+                    false // ❌ 不需要取消按鈕！直接寬版大按鈕一行搞定！
+                );
+
+                // 3. 跳轉至主頁對話框 (自動選取並點擊記帳 Tab 以確保 active 樣式正常)
+                const financeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.innerText.includes('記帳'));
+                if (financeBtn) {
+                    financeBtn.click();
+                } else {
+                    window.switchTab('finance');
+                }
+
+                // 4. 在對話框中以精美格式列出支出與買入股票資訊
+                const reportMsg = `📈 <b>證券持股與記帳同步成功報告</b> 💼\n` +
+                                  `─────────────────\n` +
+                                  `• <b>標的資訊：</b> ${name} (${ticker})\n` +
+                                  `• <b>交易日期：</b> ${date}\n` +
+                                  `• <b>交易類型：</b> 買進\n` +
+                                  `• <b>每股單價：</b> $${priceVal.toLocaleString()}\n` +
+                                  `• <b>成交股數：</b> ${sharesVal} 股\n` +
+                                  `• <b>交易手續費：</b> $${feeVal.toLocaleString()}\n` +
+                                  `• <b>證券成交總價：</b> $${subtotal.toLocaleString()}\n` +
+                                  `─────────────────\n` +
+                                  `💰 <b>自動記帳備案：</b>\n` +
+                                  `• 記帳項目已新增一筆金額為 <b>$${totalCost.toLocaleString()}</b> 的「投資」分類支出明細。\n` +
+                                  `• <b>雲端狀態：</b> 已直連寫入 Google Sheets，請前往雲端硬碟查核！`;
+
+                appendMessage(reportMsg);
+
+                window.loadStockPortfolio().catch(() => {});
             } else {
                 showToast(data.message, 'error');
             }
@@ -4302,16 +5268,117 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.openAddStockTxModalWithValues = (tx) => {
+    window.openAddStockTxModalWithValues = async (tx) => {
         window.openAddStockTxModal();
-        if (tx.ticker) document.getElementById('stock_tx_ticker').value = tx.ticker;
-        if (tx.name) document.getElementById('stock_tx_name').value = tx.name;
-        if (tx.price) document.getElementById('stock_tx_price').value = tx.price;
-        if (tx.shares) document.getElementById('stock_tx_shares').value = tx.shares;
+        
+        window.importedStockBudget = null;
+        const helperCard = document.getElementById('stock_budget_helper_card');
+        if (helperCard) helperCard.style.display = 'none';
+
+        // 1. 智慧分流股票代碼與名稱 + 實時 TiDB/本機熱門選單補齊 (V12.0 Master UX)
+        if (tx.name) {
+            const val = tx.name.trim();
+            const isPureDigits = /^\d+$/.test(val);
+            const isUsTicker = /^[A-Za-z]{1,5}$/.test(val) && val === val.toUpperCase();
+            const isPrefixedTicker = /^[A-Za-z]+:\d+$/.test(val);
+            
+            let matched = null;
+            
+            // A. 優先嘗試從 TiDB 實時模糊搜尋 (0點成本)
+            try {
+                const res = await fetch(`/api/stock/suggestions?q=${encodeURIComponent(val)}`);
+                const data = await res.json();
+                if (data && data.length > 0) {
+                    matched = data.find(t => 
+                        t.short === val || 
+                        t.ticker === val || 
+                        t.name === val
+                    ) || data[0];
+                }
+            } catch (e) {
+                console.warn("[Stock Redirect AutoComplete] 實時聯想查詢失敗，採用本機字典備份:", e);
+            }
+            
+            // B. 降級備份匹配 (hotTickers fallback)
+            if (!matched) {
+                matched = hotTickers.find(t => 
+                    t.short.toLowerCase() === val.toLowerCase() || 
+                    t.ticker.toLowerCase() === val.toLowerCase() ||
+                    t.name.toLowerCase() === val.toLowerCase() ||
+                    t.name.toLowerCase().includes(val.toLowerCase())
+                );
+            }
+
+            if (matched) {
+                document.getElementById('stock_tx_ticker').value = matched.ticker;
+                document.getElementById('stock_tx_name').value = matched.name;
+            } else {
+                if (isPureDigits || isUsTicker || isPrefixedTicker) {
+                    document.getElementById('stock_tx_ticker').value = val;
+                    document.getElementById('stock_tx_name').value = '';
+                } else {
+                    document.getElementById('stock_tx_ticker').value = '';
+                    document.getElementById('stock_tx_name').value = val;
+                }
+            }
+        } else {
+            if (tx.ticker) document.getElementById('stock_tx_ticker').value = tx.ticker;
+            if (tx.name) document.getElementById('stock_tx_name').value = tx.name;
+        }
+
+        // 2. 成交單價與預算分流 (AI 對話帶入成交單價；記帳同步帶入總預算助手)
+        if (tx.total_budget) {
+            window.importedStockBudget = tx.total_budget;
+            document.getElementById('stock_tx_price').value = '';
+            document.getElementById('stock_tx_shares').value = '';
+            
+            const budgetAmount = document.getElementById('budget_helper_amount');
+            if (budgetAmount) budgetAmount.innerText = `$ ${tx.total_budget.toLocaleString()}`;
+            if (helperCard) helperCard.style.display = 'block';
+        } else {
+            if (tx.price) document.getElementById('stock_tx_price').value = tx.price;
+            if (tx.shares) document.getElementById('stock_tx_shares').value = tx.shares;
+        }
+
         if (tx.fee !== undefined) document.getElementById('stock_tx_fee').value = tx.fee;
         if (tx.date) document.getElementById('stock_tx_date').value = tx.date;
         if (tx.tx_type) window.setStockTxType(tx.tx_type);
         window.updateStockTxPreview();
+    };
+
+    window.applyBudgetSplit = () => {
+        const budget = window.importedStockBudget;
+        if (!budget) return;
+
+        const priceInput = document.getElementById('stock_tx_price');
+        const priceVal = parseFloat(priceInput.value) || 0;
+        
+        if (priceVal <= 0) {
+            showToast('💡 請先手動輸入「成交單價」，系統將以總預算進行一鍵拆分！', 'info');
+            priceInput.focus();
+            return;
+        }
+
+        const feeInput = document.getElementById('stock_tx_fee');
+        const feeVal = parseFloat(feeInput.value) || 0;
+        
+        const isSell = window.currentStockTxType === '賣出';
+        const netBudget = isSell ? (budget + feeVal) : (budget - feeVal);
+        
+        if (netBudget <= 0) {
+            showToast('❌ 預算金額不足扣抵手續費！', 'error');
+            return;
+        }
+
+        const shares = Math.floor(netBudget / priceVal);
+        if (shares <= 0) {
+            showToast('❌ 計算股數為 0，請確認單價與手續費是否合理！', 'error');
+            return;
+        }
+
+        document.getElementById('stock_tx_shares').value = shares;
+        window.updateStockTxPreview();
+        showToast(`✅ 已為您成功反推整數股數為 ${shares} 股！`, 'success');
     };
 
     // 💡 零股與交易金額即時雙向試算防呆 (V3 - 限制整數)
@@ -4393,7 +5460,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            const summary = data.summary || { total_cost: 0, total_value: 0, total_roi: 0, total_roi_rate: 0, total_dividends: 0 };
+            const summary = data.summary || { total_cost: 0, total_value: 0, total_roi: 0, total_roi_rate: 0, total_dividends: 0, total_realized_pnl: 0, global_total_roi: 0 };
             const portfolio = data.portfolio || {};
             
             // 1. 渲染頂部總計資產卡片 (一鍵資產看板)
@@ -4401,13 +5468,24 @@ document.addEventListener('DOMContentLoaded', () => {
             totalCostEl.innerText = `$${Math.round(summary.total_cost).toLocaleString()}`;
             totalDividendsEl.innerText = `$${Math.round(summary.total_dividends || 0).toLocaleString()} NTD`;
             
-            const roiVal = Math.round(summary.total_roi);
-            const roiRate = summary.total_roi_rate.toFixed(2);
-            if (roiVal >= 0) {
-                totalRoiEl.innerText = `+${roiVal.toLocaleString()} (+${roiRate}%)`;
+            // 渲染新增的「累計已實現損益」指標
+            const totalRealizedEl = document.getElementById('dash_total_realized');
+            if (totalRealizedEl) {
+                const realizedVal = Math.round(summary.total_realized_pnl || 0);
+                const realizedSign = realizedVal >= 0 ? '+' : '';
+                const realizedColor = realizedVal >= 0 ? '#38bdf8' : '#f87171';
+                totalRealizedEl.innerHTML = `$${realizedVal.toLocaleString()} NTD`;
+                totalRealizedEl.style.color = realizedColor;
+            }
+            
+            // 渲染全域報酬率為：未實現 + 已實現 + 股息 的全局利潤
+            const globalRoi = Math.round(summary.global_total_roi || 0);
+            const globalRoiRate = (summary.total_roi_rate || 0).toFixed(2);
+            if (globalRoi >= 0) {
+                totalRoiEl.innerText = `+${globalRoi.toLocaleString()} (+${globalRoiRate}%)`;
                 totalRoiEl.style.color = '#4ade80'; // Soft Mint Green
             } else {
-                totalRoiEl.innerText = `${roiVal.toLocaleString()} (${roiRate}%)`;
+                totalRoiEl.innerText = `${globalRoi.toLocaleString()} (${globalRoiRate}%)`;
                 totalRoiEl.style.color = '#f87171'; // Warning Coral Red
             }
             
@@ -4420,66 +5498,104 @@ document.addEventListener('DOMContentLoaded', () => {
                         點擊下方「➕ 新增持股」快速補登您的第一筆部位吧！
                     </div>
                 `;
-                return;
-            }
-            
-            let htmlContent = '';
-            tickers.forEach(t => {
-                const p = portfolio[t];
-                
-                // 換算張/股
-                const netShares = Math.round(p.net_shares);
-                let sharesText = '';
-                if (netShares >= 1000) {
-                    const sheets = Math.floor(netShares / 1000);
-                    const rem = netShares % 1000;
-                    sharesText = rem > 0 ? `🎟️ ${sheets}張 ${rem}股` : `🎟️ ${sheets}張`;
-                } else {
-                    sharesText = `🌱 ${netShares}股`;
-                }
-                
-                // 損益百分比
-                const stockRoiRate = p.total_cost > 0 ? ((p.total_roi / p.total_cost) * 100).toFixed(2) : '0.00';
-                
-                // 盈利與虧損配色系統 (Soft Mint Green & Warning Coral Red)
-                const isProfit = p.total_roi >= 0;
-                const roiColor = isProfit ? '#4ade80' : '#f87171';
-                const roiSign = isProfit ? '+' : '';
-                const bgBorderStyling = isProfit 
-                    ? 'border: 1px solid rgba(74, 222, 128, 0.16); background: rgba(255, 255, 255, 0.02);' 
-                    : 'border: 1px solid rgba(248, 113, 113, 0.16); background: rgba(255, 255, 255, 0.02);';
+            } else {
+                let htmlContent = '';
+                tickers.forEach(t => {
+                    const p = portfolio[t];
                     
-                htmlContent += `
-                    <div style="border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; ${bgBorderStyling} transition: all 0.2s ease;">
-                        <!-- 第一行：股票代號/名稱 & 當前即時股價 -->
-                        <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <span style="font-weight: 800; font-size: 0.95rem; color: #f8fafc; letter-spacing: -0.2px;">
-                                ${p.name}
-                                <span style="font-size: 0.72rem; color: #64748b; font-weight: normal; margin-left: 5px;">${p.ticker}</span>
-                            </span>
-                            <span style="font-weight: 800; font-size: 0.92rem; color: #f8fafc; font-family: monospace;">
-                                $${p.live_price.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 2})}
-                            </span>
-                        </div>
+                    const netShares = Math.round(p.net_shares);
+                    let sharesText = '';
+                    if (netShares >= 1000) {
+                        const sheets = Math.floor(netShares / 1000);
+                        const rem = netShares % 1000;
+                        sharesText = rem > 0 ? `🎟️ ${sheets}張 ${rem}股` : `🎟️ ${sheets}張`;
+                    } else {
+                        sharesText = `🌱 ${netShares}股`;
+                    }
+                    
+                    const stockRoiRate = p.total_cost > 0 ? ((p.unrealized_roi / p.total_cost) * 100).toFixed(2) : '0.00';
+                    
+                    const isProfit = p.unrealized_roi >= 0;
+                    const roiColor = isProfit ? '#4ade80' : '#f87171';
+                    const roiSign = isProfit ? '+' : '';
+                    const bgBorderStyling = isProfit 
+                        ? 'border: 1px solid rgba(74, 222, 128, 0.16); background: rgba(255, 255, 255, 0.02);' 
+                        : 'border: 1px solid rgba(248, 113, 113, 0.16); background: rgba(255, 255, 255, 0.02);';
                         
-                        <!-- 第二行：持股股數、持股均價 & 損益狀態 -->
-                        <div style="display: flex; align-items: flex-end; justify-content: space-between; font-size: 0.78rem;">
-                            <div style="display: flex; flex-direction: column; gap: 2px; color: #94a3b8;">
-                                <span>數量: <span style="font-weight: 700; color: #cbd5e1;">${sharesText}</span></span>
-                                <span>均價: <span style="font-weight: 700; color: #cbd5e1;">$${p.avg_cost.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 2})}</span></span>
-                            </div>
-                            <div style="text-align: right; display: flex; flex-direction: column; gap: 2px;">
-                                <span style="font-size: 0.7rem; color: #64748b; font-weight: 700;">即時損益</span>
-                                <span style="font-weight: 800; color: ${roiColor}; font-size: 0.88rem; font-family: monospace;">
-                                    ${roiSign}$${Math.round(p.total_roi).toLocaleString()} (${roiSign}${stockRoiRate}%)
+                    htmlContent += `
+                        <div style="border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; ${bgBorderStyling} transition: all 0.2s ease;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="font-weight: 800; font-size: 0.95rem; color: #f8fafc; letter-spacing: -0.2px;">
+                                    ${p.name}
+                                    <span style="font-size: 0.72rem; color: #64748b; font-weight: normal; margin-left: 5px;">${p.ticker}</span>
+                                </span>
+                                <span style="font-weight: 800; font-size: 0.92rem; color: #f8fafc; font-family: monospace;">
+                                    $${p.live_price.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 2})}
                                 </span>
                             </div>
+                            
+                            <div style="display: flex; align-items: flex-end; justify-content: space-between; font-size: 0.78rem;">
+                                <div style="display: flex; flex-direction: column; gap: 2px; color: #94a3b8;">
+                                    <span>數量: <span style="font-weight: 700; color: #cbd5e1;">${sharesText}</span></span>
+                                    <span>均價: <span style="font-weight: 700; color: #cbd5e1;">$${p.avg_cost.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 2})}</span></span>
+                                </div>
+                                <div style="text-align: right; display: flex; flex-direction: column; gap: 2px;">
+                                    <span style="font-size: 0.7rem; color: #64748b; font-weight: 700;">帳面損益</span>
+                                    <span style="font-weight: 800; color: ${roiColor}; font-size: 0.88rem; font-family: monospace;">
+                                        ${roiSign}$${Math.round(p.unrealized_roi).toLocaleString()} (${roiSign}${stockRoiRate}%)
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                `;
-            });
-            
-            portfolioListEl.innerHTML = htmlContent;
+                    `;
+                });
+                portfolioListEl.innerHTML = htmlContent;
+            }
+
+            // 3. 渲染已結清歷史戰績 (Closed Positions Dashboard)
+            const closedListEl = document.getElementById('dash_closed_list');
+            if (closedListEl) {
+                const closedPortfolio = data.closed_portfolio || {};
+                const closedTickers = Object.keys(closedPortfolio);
+                
+                if (closedTickers.length === 0) {
+                    closedListEl.innerHTML = `
+                        <div style="text-align: center; padding: 20px 10px; color: #64748b; font-size: 0.8rem; font-weight: bold;">
+                            目前尚無已結清的歷史交易紀錄喔！
+                        </div>
+                    `;
+                } else {
+                    let closedHtmlContent = '';
+                    closedTickers.forEach(t => {
+                        const p = closedPortfolio[t];
+                        const realizedVal = Math.round(p.realized_pnl);
+                        const isProfit = realizedVal >= 0;
+                        const roiColor = isProfit ? '#4ade80' : '#f87171';
+                        const roiSign = isProfit ? '+' : '';
+                        const bgBorderStyling = isProfit 
+                            ? 'border: 1px solid rgba(74, 222, 128, 0.1); background: rgba(255, 255, 255, 0.01);' 
+                            : 'border: 1px solid rgba(248, 113, 113, 0.1); background: rgba(255, 255, 255, 0.01);';
+                            
+                        closedHtmlContent += `
+                            <div style="border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; ${bgBorderStyling} font-size: 0.78rem;">
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <span style="font-weight: 800; color: #e2e8f0; letter-spacing: -0.2px;">
+                                        ${p.name} <span style="font-size: 0.68rem; color: #64748b; font-weight: normal; margin-left: 3px;">${p.ticker}</span>
+                                    </span>
+                                    <span style="color: #64748b; font-size: 0.68rem;">結清日期: ${p.close_date || '未知'}</span>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <span style="color: #94a3b8; font-size: 0.72rem;">歷史配息: <span style="color: #fcd34d; font-weight: 700;">$${Math.round(p.dividends).toLocaleString()}</span></span>
+                                    <span style="font-weight: 800; color: ${roiColor}; font-family: monospace;">
+                                        實際賺賠: ${roiSign}$${realizedVal.toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    closedListEl.innerHTML = closedHtmlContent;
+                }
+            }
             
         } catch (error) {
             console.error('[Dashboard Error]', error);
@@ -4506,4 +5622,396 @@ document.addEventListener('DOMContentLoaded', () => {
         // 同時順暢地在分頁開啟健康紀錄表
         window.open(url, '_blank');
     };
+
+    // =====================================================
+    // 🌸 互動式生理追蹤月曆引擎 (Menstrual Calendar Engine)
+    // =====================================================
+    window.changeCalendarMonth = (offset) => {
+        window.currentCalendarMonth += offset;
+        if (window.currentCalendarMonth > 12) {
+            window.currentCalendarMonth = 1;
+            window.currentCalendarYear += 1;
+        } else if (window.currentCalendarMonth < 1) {
+            window.currentCalendarMonth = 12;
+            window.currentCalendarYear -= 1;
+        }
+        window.renderMenstrualCalendar(window.currentCalendarYear, window.currentCalendarMonth);
+    };
+
+    window.renderMenstrualCalendar = (year, month, isSkeleton = false) => {
+        const grid = document.getElementById('calendar_days_grid');
+        const monthYearSpan = document.getElementById('calendar_month_year');
+        if (!grid || !monthYearSpan) return;
+        
+        monthYearSpan.innerText = `${year}年 ${month}月`;
+        grid.innerHTML = '';
+        
+        const today = new Date();
+        
+        // Ensure selectedCalendarDate exists
+        if (!window.selectedCalendarDate) {
+            window.selectedCalendarDate = today;
+        }
+        
+        // Calculate calendar dates array (42 days)
+        const firstDay = new Date(year, month - 1, 1);
+        let startDayOfWeek = firstDay.getDay(); // 0 is Sunday, 1 is Monday, ..., 6 is Saturday
+        let startOffset = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+        
+        const totalDays = new Date(year, month, 0).getDate();
+        const prevTotalDays = new Date(year, month - 1, 0).getDate();
+        
+        const dayObjects = [];
+        // Prev month trailing days
+        for (let i = startOffset - 1; i >= 0; i--) {
+            dayObjects.push({
+                date: new Date(year, month - 2, prevTotalDays - i),
+                isCurrentMonth: false
+            });
+        }
+        // Current month days
+        for (let i = 1; i <= totalDays; i++) {
+            dayObjects.push({
+                date: new Date(year, month - 1, i),
+                isCurrentMonth: true
+            });
+        }
+        // Next month leading days
+        const remaining = 42 - dayObjects.length;
+        for (let i = 1; i <= remaining; i++) {
+            dayObjects.push({
+                date: new Date(year, month, i),
+                isCurrentMonth: false
+            });
+        }
+        
+        // Helper to parse "YYYY/MM/DD" cleanly
+        function parseLocalDate(str) {
+            if (!str) return null;
+            const parts = str.split('/');
+            if (parts.length < 3) return null;
+            return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        }
+        
+        // Build predictions
+        const predictions = [];
+        const latestStartStr = window.menstrualData?.history?.[0]?.start;
+        if (latestStartStr && !isSkeleton) {
+            const latestStart = parseLocalDate(latestStartStr);
+            const avgCycle = window.menstrualData.avg_cycle || 31;
+            const avgLength = window.menstrualData.avg_length || 7;
+            
+            for (let n = 1; n <= 12; n++) {
+                const predStart = new Date(latestStart.getTime());
+                predStart.setDate(predStart.getDate() + n * avgCycle);
+                
+                const predEnd = new Date(predStart.getTime());
+                predEnd.setDate(predEnd.getDate() + avgLength - 1);
+                
+                const ovulationDay = new Date(predStart.getTime());
+                ovulationDay.setDate(ovulationDay.getDate() - 14);
+                
+                const fertileStart = new Date(ovulationDay.getTime());
+                fertileStart.setDate(fertileStart.getDate() - 5);
+                
+                const fertileEnd = new Date(ovulationDay.getTime());
+                fertileEnd.setDate(fertileEnd.getDate() + 1);
+                
+                predictions.push({
+                    start: predStart.getTime(),
+                    end: predEnd.getTime(),
+                    ovulation: ovulationDay.getTime(),
+                    fertileStart: fertileStart.getTime(),
+                    fertileEnd: fertileEnd.getTime()
+                });
+            }
+        }
+        
+        dayObjects.forEach(day => {
+            const d = day.date;
+            const dayTime = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+            
+            let isRecorded = false;
+            let recordedItem = null;
+            if (window.menstrualData?.history && !isSkeleton) {
+                for (const item of window.menstrualData.history) {
+                    const startDt = parseLocalDate(item.start);
+                    if (!startDt) continue;
+                    let endDt = parseLocalDate(item.end);
+                    if (!endDt || item.end === "進行中") {
+                        endDt = new Date();
+                    }
+                    if (dayTime >= startDt.getTime() && dayTime <= endDt.getTime()) {
+                        isRecorded = true;
+                        recordedItem = item;
+                        break;
+                    }
+                }
+            }
+            
+            let isPredictedPeriod = false;
+            let isOvulation = false;
+            let isFertile = false;
+            let predictionMatch = null;
+            
+            if (!isRecorded && !isSkeleton) {
+                for (const p of predictions) {
+                    if (dayTime >= p.start && dayTime <= p.end) {
+                        isPredictedPeriod = true;
+                        predictionMatch = p;
+                        break;
+                    }
+                    if (dayTime === p.ovulation) {
+                        isOvulation = true;
+                        predictionMatch = p;
+                        break;
+                    }
+                    if (dayTime >= p.fertileStart && dayTime <= p.fertileEnd) {
+                        isFertile = true;
+                        predictionMatch = p;
+                        break;
+                    }
+                }
+            }
+            
+            const cell = document.createElement('div');
+            cell.className = 'cal-day-cell';
+            if (isSkeleton) {
+                cell.classList.add('skeleton');
+            }
+            if (!day.isCurrentMonth) {
+                cell.classList.add('other-month');
+            }
+            
+            // Apply indicator classes or child dots
+            if (isRecorded) {
+                cell.classList.add('recorded-period');
+            } else if (isPredictedPeriod) {
+                const dot = document.createElement('span');
+                dot.className = 'cal-dot predicted-period';
+                cell.appendChild(dot);
+            } else if (isOvulation) {
+                const dot = document.createElement('span');
+                dot.className = 'cal-dot ovulation';
+                cell.appendChild(dot);
+            } else if (isFertile) {
+                const dot = document.createElement('span');
+                dot.className = 'cal-dot fertile';
+                cell.appendChild(dot);
+            }
+            
+            // Check if today
+            if (d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate()) {
+                cell.classList.add('today');
+            }
+            
+            // Check if selected
+            if (!isSkeleton && window.selectedCalendarDate && d.getFullYear() === window.selectedCalendarDate.getFullYear() && d.getMonth() === window.selectedCalendarDate.getMonth() && d.getDate() === window.selectedCalendarDate.getDate()) {
+                cell.classList.add('selected');
+            }
+            
+            // Date text
+            const textNode = document.createElement('span');
+            textNode.innerText = d.getDate();
+            cell.appendChild(textNode);
+            
+            if (!isSkeleton) {
+                cell.onclick = () => {
+                    const prevSel = grid.querySelector('.cal-day-cell.selected');
+                    if (prevSel) prevSel.classList.remove('selected');
+                    cell.classList.add('selected');
+                    window.selectedCalendarDate = d;
+                    window.showCalendarDetail(d);
+                };
+            }
+            
+            grid.appendChild(cell);
+        });
+        
+        // Update detail card for the currently selected date
+        if (!isSkeleton) {
+            window.showCalendarDetail(window.selectedCalendarDate);
+        }
+    };
+
+    window.showCalendarDetail = (d) => {
+        const detailCard = document.getElementById('calendar_detail_card');
+        const detailDate = document.getElementById('cal_detail_date');
+        const detailCycle = document.getElementById('cal_detail_cycle');
+        const detailPregnancy = document.getElementById('cal_detail_pregnancy');
+        const detailSymptoms = document.getElementById('cal_detail_symptoms');
+        
+        if (!d || !detailCard || !detailDate || !detailCycle || !detailPregnancy || !detailSymptoms) return;
+        
+        // Format Date
+        const yearStr = d.getFullYear();
+        const monthStr = String(d.getMonth() + 1).padStart(2, '0');
+        const dayStr = String(d.getDate()).padStart(2, '0');
+        const weekdayChar = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+        detailDate.innerText = `${monthStr}/${dayStr} (${weekdayChar})`;
+        
+        const dayTime = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+        
+        // Clean Date parser helper
+        function parseLocalDate(str) {
+            if (!str) return null;
+            const parts = str.split('/');
+            if (parts.length < 3) return null;
+            return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        }
+        
+        // Determine status of target date
+        let isRecorded = false;
+        let recordedItem = null;
+        if (window.menstrualData?.history) {
+            for (const item of window.menstrualData.history) {
+                const startDt = parseLocalDate(item.start);
+                if (!startDt) continue;
+                let endDt = parseLocalDate(item.end);
+                if (!endDt || item.end === "進行中") {
+                    endDt = new Date();
+                }
+                if (dayTime >= startDt.getTime() && dayTime <= endDt.getTime()) {
+                    isRecorded = true;
+                    recordedItem = item;
+                    break;
+                }
+            }
+        }
+        
+        // Build predictions array dynamically to evaluate
+        const predictions = [];
+        const latestStartStr = window.menstrualData?.history?.[0]?.start;
+        if (latestStartStr) {
+            const latestStart = parseLocalDate(latestStartStr);
+            const avgCycle = window.menstrualData.avg_cycle || 31;
+            const avgLength = window.menstrualData.avg_length || 7;
+            
+            for (let n = 1; n <= 12; n++) {
+                const predStart = new Date(latestStart.getTime());
+                predStart.setDate(predStart.getDate() + n * avgCycle);
+                
+                const predEnd = new Date(predStart.getTime());
+                predEnd.setDate(predEnd.getDate() + avgLength - 1);
+                
+                const ovulationDay = new Date(predStart.getTime());
+                ovulationDay.setDate(ovulationDay.getDate() - 14);
+                
+                const fertileStart = new Date(ovulationDay.getTime());
+                fertileStart.setDate(fertileStart.getDate() - 5);
+                
+                const fertileEnd = new Date(ovulationDay.getTime());
+                fertileEnd.setDate(fertileEnd.getDate() + 1);
+                
+                predictions.push({
+                    start: predStart.getTime(),
+                    end: predEnd.getTime(),
+                    ovulation: ovulationDay.getTime(),
+                    fertileStart: fertileStart.getTime(),
+                    fertileEnd: fertileEnd.getTime()
+                });
+            }
+        }
+        
+        let isPredictedPeriod = false;
+        let isOvulation = false;
+        let isFertile = false;
+        let predictionMatch = null;
+        
+        if (!isRecorded) {
+            for (const p of predictions) {
+                if (dayTime >= p.start && dayTime <= p.end) {
+                    isPredictedPeriod = true;
+                    predictionMatch = p;
+                    break;
+                }
+                if (dayTime === p.ovulation) {
+                    isOvulation = true;
+                    predictionMatch = p;
+                    break;
+                }
+                if (dayTime >= p.fertileStart && dayTime <= p.fertileEnd) {
+                    isFertile = true;
+                    predictionMatch = p;
+                    break;
+                }
+            }
+        }
+        
+        // 1. Calculate Cycle Day
+        const allStarts = [];
+        if (window.menstrualData?.history) {
+            window.menstrualData.history.forEach(h => {
+                const dt = parseLocalDate(h.start);
+                if (dt) allStarts.push(dt.getTime());
+            });
+        }
+        predictions.forEach(p => {
+            allStarts.push(p.start);
+        });
+        allStarts.sort((a, b) => a - b);
+        
+        let lastStart = null;
+        for (let i = allStarts.length - 1; i >= 0; i--) {
+            if (allStarts[i] <= dayTime) {
+                lastStart = allStarts[i];
+                break;
+            }
+        }
+        
+        if (lastStart) {
+            const cycleDay = Math.round((dayTime - lastStart) / (1000 * 60 * 60 * 24)) + 1;
+            detailCycle.innerText = `第 ${cycleDay} 天`;
+            detailCycle.style.display = 'inline-block';
+        } else {
+            detailCycle.innerText = `第 -- 天`;
+            detailCycle.style.display = 'none';
+        }
+        
+        // 2. Set phase and pregnancy details
+        if (isRecorded) {
+            detailPregnancy.innerHTML = `<span style="background: #f43f5e; color: white; padding: 2px 8px; border-radius: 20px; font-weight: 800; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 4px;">🩸 生理期</span> <span style="color: #9f1239; font-weight: 800; font-size: 0.76rem;">❄️ 懷孕機率極低</span>`;
+            detailSymptoms.innerHTML = `<b>當日記錄症狀與備忘：</b><br>${(recordedItem && recordedItem.symptoms) ? recordedItem.symptoms : '無特殊症狀與記錄'}`;
+            detailCard.style.background = 'rgba(255, 241, 242, 0.8)';
+            detailCard.style.borderColor = '#fecdd3';
+        } else if (isPredictedPeriod) {
+            detailPregnancy.innerHTML = `<span style="background: #fda4af; color: white; padding: 2px 8px; border-radius: 20px; font-weight: 800; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 4px;">🌸 預測生理期</span> <span style="color: #be123c; font-weight: 800; font-size: 0.76rem;">❄️ 懷孕機率極低</span>`;
+            detailSymptoms.innerHTML = `<b>預估生理期：</b><br>預測當天將進入生理期，請提早準備個人用品與溫熱飲品舒緩。`;
+            detailCard.style.background = 'rgba(255, 241, 242, 0.5)';
+            detailCard.style.borderColor = '#ffe4e6';
+        } else if (isOvulation) {
+            detailPregnancy.innerHTML = `<span style="background: #a855f7; color: white; padding: 2px 8px; border-radius: 20px; font-weight: 800; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 4px;">✨ 預測排卵日</span> <span style="color: #6b21a8; font-weight: 800; font-size: 0.76rem;">🔥 懷孕機率極高</span>`;
+            detailSymptoms.innerHTML = `<b>預估排卵當天：</b><br>此為預估排卵黃金期最高峰，如果有備孕計畫，今日是受孕率最高的一天！`;
+            detailCard.style.background = 'rgba(250, 245, 255, 0.8)';
+            detailCard.style.borderColor = '#e9d5ff';
+        } else if (isFertile) {
+            detailPregnancy.innerHTML = `<span style="background: #fbbf24; color: white; padding: 2px 8px; border-radius: 20px; font-weight: 800; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 4px;">🍑 易孕期</span> <span style="color: #b45309; font-weight: 800; font-size: 0.76rem;">🔥 懷孕機率高</span>`;
+            detailSymptoms.innerHTML = `<b>黃金受孕期：</b><br>處於易受孕區間，如有避孕考量，請務必做好防護措施。`;
+            detailCard.style.background = 'rgba(255, 247, 237, 0.8)';
+            detailCard.style.borderColor = '#fed7aa';
+        } else {
+            // Safely check if luteal or follicular phase
+            let isLuteal = false;
+            if (predictionMatch) {
+                if (dayTime > predictionMatch.ovulation + (1 * 24 * 60 * 60 * 1000) && dayTime < predictionMatch.start) {
+                    isLuteal = true;
+                }
+            }
+            if (isLuteal) {
+                detailPregnancy.innerHTML = `<span style="background: #c084fc; color: white; padding: 2px 8px; border-radius: 20px; font-weight: 800; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 4px;">💜 黃體期 (經前期)</span> <span style="color: #6b21a8; font-weight: 800; font-size: 0.76rem;">🍀 懷孕機率低</span>`;
+                detailSymptoms.innerHTML = `<b>經前調養期：</b><br>此階段可能伴隨水腫、疲憊 or 情緒敏感，建議清淡飲食，並做些放鬆的伸展運動。`;
+                detailCard.style.background = 'rgba(250, 245, 255, 0.5)';
+                detailCard.style.borderColor = '#f3e8ff';
+            } else {
+                detailPregnancy.innerHTML = `<span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 20px; font-weight: 800; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 4px;">🟢 安全期 (濾泡期)</span> <span style="color: #047857; font-weight: 800; font-size: 0.76rem;">🍀 懷孕機率低</span>`;
+                detailSymptoms.innerHTML = `<b>濾泡代謝期：</b><br>荷爾蒙狀態極佳，思緒敏捷、體能充沛，適合高強度工作、學習與運動衝刺！`;
+                detailCard.style.background = 'rgba(240, 253, 244, 0.8)';
+                detailCard.style.borderColor = '#bbf7d0';
+            }
+        }
+    };
+
+    // 初始化訂閱與試用倒數計時器（在所有函式宣告完成後呼叫，以防未定義錯誤）
+    if (typeof window.initSubscriptionCountdown === 'function') window.initSubscriptionCountdown();
+    if (typeof window.initTrialCountdown === 'function') window.initTrialCountdown();
 });

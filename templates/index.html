@@ -6,15 +6,62 @@
     <title>AI 行事曆助理</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#6366f1">
-    <link rel="stylesheet" href="/static/css/style.css?v=1.8">
+    
+    <!-- iOS PWA Standalone Mode & Splash Guard -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="UniTask">
+    <link rel="apple-touch-startup-image" href="/static/icons/icon.png">
+    
+    <link rel="stylesheet" href="/static/css/style.css?v=4.7">
     <link rel="apple-touch-icon" href="/static/icons/icon.png">
     <link rel="icon" type="image/png" href="/static/icons/icon.png">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js (v4.4.3 pinned, bundled build - no sourceMappingURL to avoid 404 DevTools warnings) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.js"></script>
+
+    <style>
+        /* 🌟 極速加載 Preloader 樣式 🌟 */
+        #pwa-preloader {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #0f172a;
+            z-index: 100000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.4s ease, visibility 0.4s;
+        }
+        .preloader-spinner {
+            width: 46px;
+            height: 46px;
+            border: 3.5px solid rgba(99, 102, 241, 0.1);
+            border-top: 3.5px solid #6366f1;
+            border-radius: 50%;
+            animation: spinPreloader 0.8s linear infinite;
+            margin-bottom: 20px;
+        }
+        .preloader-text {
+            color: #94a3b8;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        @keyframes spinPreloader {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
+    <!-- 🌟 PWA 極速加載 Preloader 🌟 -->
+    <div id="pwa-preloader">
+        <div class="preloader-spinner"></div>
+        <div class="preloader-text">✨ 智慧管家為您準備中...</div>
+    </div>
     {% if not logged_in %}
     <!-- 美輪美奐的莫蘭迪高質感登入首頁 (Morandi Premium Login Card) -->
     <div id="login-container">
@@ -37,7 +84,7 @@
                     <span class="feature-emoji">💰</span>
                     <div class="feature-text">
                         <strong>自動化記帳</strong>
-                        <span>即時收支統計與圓餅圖分析</span>
+                        <span>即時收支統計與雲端記帳本</span>
                     </div>
                 </div>
                 <div class="feature-item">
@@ -129,61 +176,132 @@
         window.USER_EMAIL = "{{ session.get('user_email', '') }}";
         window.USER_SUBSCRIPTION_TYPE = "{{ session.get('subscription_type', 'NONE') }}";
         window.USER_IS_SUBSCRIBED = {{ 'true' if session.get('is_subscribed') else 'false' }};
+        window.USER_IS_TRIAL_ACTIVE = {{ 'true' if session.get('is_trial_active') else 'false' }};
         window.USER_AI_POINTS = {{ session.get('ai_points', 0) }};
+        window.TRIAL_EXPIRES_AT = "{{ session.get('trial_expires_at', '') }}";
+        window.USER_SUBSCRIPTION_EXPIRES_AT = "{{ session.get('subscription_expires_at', '') }}";
+        window.ALLOW_PAYMENT = {{ 'true' if allow_payment else 'false' }};
     </script>
     <!-- 登入成功後的主介面 -->
     <div id="app-container">
         <!-- Header -->
         <div class="header">
-            <div class="user-profile-badge">
-                <img src="{{ user_info.picture if user_info and user_info.picture else '/static/icons/icon.png' }}" alt="avatar" class="user-avatar">
-                <div class="user-text-info">
-                    <span class="user-name">{{ user_info.name if user_info else '使用者' }}</span>
-                    {% if session.get('user_email') == 'ulir976272866@gmail.com' %}
-                        <span class="user-badge-dev">🛠️ 系統開發管理者 (DEVELOPER)</span>
-                    {% elif session.get('subscription_type') == 'YEARLY_AI' %}
-                        <span class="user-badge-yearly">🥇 旗艦版會員 (YEARLY_AI)</span>
-                    {% elif session.get('subscription_type') == 'MONTHLY_AI' %}
-                        <span class="user-badge-monthly">🥈 基礎版會員 (MONTHLY_AI)</span>
-                    {% else %}
-                        <span class="user-badge-free">🥉 免費基礎帳戶 (FREE)</span>
-                    {% endif %}
-                </div>
-                <!-- 系統偏好設定按鈕 -->
-                <a href="javascript:void(0)" onclick="openModal('settingsModal')" class="settings-link-btn" title="系統設定" style="margin-right: 12px; font-size: 1.2rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">⚙️</a>
-                <a href="/logout" class="logout-link-btn" title="登出系統">🚪</a>
-            </div>
-            <!-- 表頭標題與點數餘額的雙欄彈性佈局 -->
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: 10px; gap: 10px;">
-                <div class="header-titles">
-                    <h1 style="margin: 0; font-size: 1.2rem; font-weight: 800;">AI 專屬秘書</h1>
-                    <p style="margin: 2px 0 0 0; font-size: 0.75rem; opacity: 0.85;">您的個人智慧管家</p>
-                </div>
-                
-                <!-- AI 智慧點數剩餘額度卡片 (超精簡低扁毛玻璃，靠右對齊) -->
-                <div class="ai-points-card" style="margin: 0 !important; flex-shrink: 0;">
-                    <div class="ai-points-content" style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
-                        <div class="ai-points-left" style="display: flex; align-items: center; gap: 6px;">
-                            {% if session.get('is_trial_active') %}
-                                <span class="ai-points-label" style="font-size: 0.7rem; color: #fef3c7; font-weight: 800; background: rgba(217, 119, 6, 0.45); padding: 3px 8px; border-radius: 20px; box-shadow: 0 0 8px rgba(217, 119, 6, 0.3);">🎁 7天全功能免費試用中:</span>
-                            {% else %}
-                                <span class="ai-points-label" style="font-size: 0.7rem; color: rgba(255,255,255,0.85); font-weight: 700;">AI 智慧點數額度:</span>
-                            {% endif %}
-                            <p class="ai-points-text" style="margin: 0; display: inline-flex; align-items: center;">
-                                {% if session.get('user_email') == 'ulir976272866@gmail.com' %}
-                                    <span class="points-num" style="font-size: 1.25rem !important; line-height: 1;">∞</span> 點
-                                {% elif session.get('subscription_type') == 'NONE' %}
-                                    <span class="points-num">{{ session.get('ai_points', 0) }}</span> / 3 點
+            <!-- 第一排：左側個人資料，右側操作按鈕與點數膠囊 -->
+            <div class="header-top-row">
+                <!-- 左側組：頭像固定在最左，名稱/徽章與信箱靠右對齊 -->
+                <div class="header-left-group">
+                    <img src="{{ user_info.picture if user_info and user_info.picture else '/static/icons/icon.png' }}" alt="avatar" class="user-avatar">
+                    <div class="user-text-info">
+                        <div class="user-name-wrapper">
+                            <span class="user-name">{{ user_info.name if user_info else '使用者' }}</span>
+                            {% if session.get('user_email') == 'ulir976272866@gmail.com' %}
+                                <span class="user-badge-dev">🛠️ 開發者</span>
+                            {% elif session.get('subscription_type') == 'YEARLY_AI' %}
+                                {% if session.get('is_trial_active') %}
+                                    <span class="user-badge-premium" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1.5px solid #d97706;">🥇 試用旗艦版</span>
                                 {% else %}
-                                    <span class="points-num">{{ session.get('ai_points', 0) }}</span> 點
+                                    <span class="user-badge-yearly">👑 尊榮版</span>
                                 {% endif %}
-                            </p>
+                            {% elif session.get('subscription_type') == 'PREMIUM_MONTHLY' %}
+                                <span class="user-badge-premium">🥇 旗艦版</span>
+                            {% elif session.get('subscription_type') == 'MONTHLY_AI' %}
+                                <span class="user-badge-monthly">🥈 基礎版</span>
+                            {% else %}
+                                <span class="user-badge-free">🥉 免費版</span>
+                            {% endif %}
                         </div>
-                        <button class="ai-points-upgrade-btn" onclick="openModal('upgradePaywallModal')" style="margin: 0; width: 100%; text-align: center; box-sizing: border-box;">
-                            💎 升級 / 加購
-                        </button>
+                        <span class="user-email">{{ session.get('user_email', '') }}</span>
+                        {% if session.get('is_trial_active') and session.get('trial_expires_at') %}
+                            {% if not allow_payment %}
+                                <div class="trial-countdown-wrapper" style="font-size: 0.65rem; color: #d97706; font-weight: 800; display: flex; align-items: center; gap: 4px; margin-top: 3px; background: rgba(251, 191, 36, 0.12); padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(251, 191, 36, 0.3); white-space: nowrap; cursor: default; width: fit-content; transition: all 0.2s ease; pointer-events: none;" id="trial_countdown_wrapper" title="系統當前已暫時關閉儲值與訂閱功能">
+                                    <span id="trial_countdown">⏳ 剩餘: 計算中...</span>
+                                </div>
+                            {% else %}
+                                <div class="trial-countdown-wrapper" onclick="openModal('upgradePaywallModal')" title="點擊查看訂閱方案與點數加購" onmouseover="this.style.transform='scale(1.03)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';" style="font-size: 0.65rem; color: #d97706; font-weight: 800; display: flex; align-items: center; gap: 4px; margin-top: 3px; background: rgba(251, 191, 36, 0.12); padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(251, 191, 36, 0.3); white-space: nowrap; cursor: pointer; width: fit-content; transition: all 0.2s ease;" id="trial_countdown_wrapper">
+                                    <span id="trial_countdown">⏳ 剩餘: 計算中...</span>
+                                </div>
+                            {% endif %}
+                        {% elif session.get('is_subscribed') and not session.get('is_trial_active') and session.get('subscription_expires_at') %}
+                            {% set sub_type = session.get('subscription_type', 'NONE') %}
+                            {% if sub_type == 'YEARLY_AI' %}
+                                {% set sub_style = "background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(251, 191, 36, 0.08) 100%); border: 1.5px solid rgba(139, 92, 246, 0.35); color: #6d28d9;" %}
+                            {% elif sub_type == 'PREMIUM_MONTHLY' %}
+                                {% set sub_style = "background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%); border: 1.5px solid rgba(251, 191, 36, 0.4); color: #b45309;" %}
+                            {% else %}
+                                {% set sub_style = "background: linear-gradient(135deg, rgba(20, 184, 166, 0.1) 0%, rgba(13, 148, 136, 0.1) 100%); border: 1.5px solid rgba(20, 184, 166, 0.4); color: #0f766e;" %}
+                            {% endif %}
+                            {% if not allow_payment %}
+                                <div class="subscription-countdown-wrapper" id="sub_countdown_wrapper" style="font-size: 0.65rem; font-weight: 800; display: flex; align-items: center; gap: 4px; margin-top: 3px; padding: 2px 6px; border-radius: 6px; white-space: nowrap; cursor: default; width: fit-content; transition: all 0.2s ease; pointer-events: none; {{ sub_style }}" title="系統當前已暫時關閉儲值與訂閱功能">
+                                    <span id="sub_countdown">⏳ 剩餘: 計算中...</span>
+                                </div>
+                            {% else %}
+                                <div class="subscription-countdown-wrapper" id="sub_countdown_wrapper" onclick="openModal('upgradePaywallModal')" title="點擊查看訂閱方案與點數加購" onmouseover="this.style.transform='scale(1.03)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';" style="font-size: 0.65rem; font-weight: 800; display: flex; align-items: center; gap: 4px; margin-top: 3px; padding: 2px 6px; border-radius: 6px; white-space: nowrap; cursor: pointer; width: fit-content; transition: all 0.2s ease; {{ sub_style }}">
+                                    <span id="sub_countdown">⏳ 剩餘: 計算中...</span>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            {% if not allow_payment %}
+                                <div class="free-upgrade-wrapper" style="font-size: 0.65rem; color: #7c3aed; font-weight: 800; display: flex; align-items: center; gap: 4px; margin-top: 3px; background: rgba(124, 58, 237, 0.1); padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(124, 58, 237, 0.35); white-space: nowrap; cursor: default; width: fit-content; transition: all 0.2s ease; pointer-events: none;" title="系統當前已暫時關閉儲值與訂閱功能">
+                                    <span>✨ 暫時關閉儲值與訂閱</span>
+                                </div>
+                            {% else %}
+                                <div class="free-upgrade-wrapper" onclick="openModal('upgradePaywallModal')" title="點擊查看訂閱方案，解鎖全功能特權" onmouseover="this.style.transform='scale(1.03)';" onmouseout="this.style.transform='scale(1)';" style="font-size: 0.65rem; color: #7c3aed; font-weight: 800; display: flex; align-items: center; gap: 4px; margin-top: 3px; background: rgba(124, 58, 237, 0.1); padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(124, 58, 237, 0.35); white-space: nowrap; cursor: pointer; width: fit-content; transition: all 0.2s ease;">
+                                    <span>✨ 點擊升級解鎖全功能</span>
+                                </div>
+                            {% endif %}
+                        {% endif %}
                     </div>
                 </div>
+                
+                <!-- 右側組：按鈕在右上角，點數膠囊在按鈕下方 -->
+                <div class="header-right-group">
+                    <div class="header-actions">
+                        <button onclick="openModal('settingsModal')" class="action-icon-btn" title="系統設定">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="3"></circle>
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                            </svg>
+                        </button>
+                        <button onclick="location.href='/logout'" class="action-icon-btn logout-btn" title="登出系統">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                <polyline points="16 17 21 12 16 7"></polyline>
+                                <line x1="21" y1="12" x2="9" y2="12"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- AI 智慧點數膠囊 -->
+                    {% if not allow_payment %}
+                    <div class="ai-points-mini-pill" style="cursor: default; pointer-events: none;" title="系統當前已暫時關閉儲值與訂閱功能">
+                        {% if session.get('user_email') == 'ulir976272866@gmail.com' %}
+                            AI 智慧點數: <span>∞</span> 點 💎
+                        {% else %}
+                            AI 智慧點數: <span>{{ session.get('ai_points', 0) }}</span> 點 💎
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="ai-points-mini-pill" onclick="openModal('upgradePaywallModal')">
+                        {% if session.get('is_trial_active') %}
+                            🎁 7天試用中: <span>{{ session.get('ai_points', 0) }}</span> 點 💎
+                        {% else %}
+                            {% if session.get('user_email') == 'ulir976272866@gmail.com' %}
+                                AI 智慧點數: <span>∞</span> 點 💎
+                            {% elif session.get('subscription_type') == 'NONE' %}
+                                AI 智慧點數: <span>{{ session.get('ai_points', 0) }}</span> / 3 點 💎
+                            {% else %}
+                                AI 智慧點數: <span>{{ session.get('ai_points', 0) }}</span> 點 💎
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- 第二排：主副標題 -->
+            <div class="header-titles-row">
+                <h1 class="main-title">AI 專屬秘書</h1>
+                <p class="sub-title">您的個人智慧管家</p>
             </div>
         </div>
 
@@ -230,8 +348,8 @@
             <!-- 健康子選單 -->
             <div id="sub_health" class="sub-menu">
                 <button class="sub-btn" onclick="openModal('healthModal')">🌸 經期看板</button>
-                <button class="sub-btn" onclick="showToast('🌸 生理追蹤進階功能即將上線，敬請期待！')">🌡️ 生理追蹤</button>
-                <button class="sub-btn" onclick="openModal('trainingModal')">⚙️ AI訓練室</button>
+                <button class="sub-btn" onclick="openModal('trackingModal')">🌡️ 生理追蹤</button>
+                <button class="sub-btn" onclick="openModal('menstrualBackfillModal')">📝 生理歷程</button>
             </div>
         </div>
     </div>
@@ -425,7 +543,8 @@
                 </div>
 
                 <!-- 口袋景點專屬：類別與地區篩選列 -->
-                <div id="pocket_filter_bar_container" style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <div id="pocket_filter_bar_container" style="display: flex; gap: 8px; margin-bottom: 15px; align-items: center;">
+                    <input type="text" id="pocket_keyword_search" placeholder="🔍 搜尋店名/景點..." oninput="window.handlePocketKeywordSearch(this.value)" style="flex: 1.2; padding: 10px; border-radius: 12px; border: 1.5px solid #f1f5f9; background: #f8fafc; font-size: 0.85rem; font-weight: 600; color: #475569; outline: none; box-sizing: border-box; transition: all 0.2s;">
                     <select id="pocket_filter_cat" onchange="window.setPocketFilter(this.value)" style="flex: 1; padding: 10px; border-radius: 12px; border: 1.5px solid #f1f5f9; background: #f8fafc; font-size: 0.85rem; font-weight: 600; color: #475569; outline: none; cursor: pointer;">
                         <option value="全部">🌟 全部類別</option>
                     </select>
@@ -555,31 +674,26 @@
                 </div>
                 <input type="hidden" id="expense_type" value="expense">
 
-                <div style="display: flex; gap: 12px; margin-bottom: 15px;">
-                    <div class="form-group" style="flex: 1.5; margin-bottom: 0;">
-                        <label id="item_label">支出項目</label>
-                        <input type="text" id="expense_item" class="form-input" placeholder="消費了什麼？" style="margin-bottom: 0;">
-                    </div>
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label style="display: flex; justify-content: space-between;">分類 
-                            <span>
-                                <span onclick="addNewExpenseCategory()" style="color: var(--primary-color); cursor: pointer; font-size: 0.8rem;">＋新增</span>
-                                <span onclick="openExpenseCatManage()" style="color: #64748b; cursor: pointer; font-size: 0.8rem; margin-left: 10px;">⚙️管理</span>
-                            </span>
-                        </label>
-                        <select id="manual_expense_category" class="form-input">
-                            <option value="">請選擇</option>
-                            <option value="食">食</option>
-                            <option value="衣">衣</option>
-                            <option value="住">住</option>
-                            <option value="行">行</option>
-                            <option value="育">育</option>
-                            <option value="樂">樂</option>
-                            <option value="醫">醫</option>
-                            <option value="投資">投資</option>
-                            <option value="公益">公益</option>
-                            <option value="未分類">未分類</option>
-                        </select>
+                <div style="margin-bottom: 15px;">
+                    <label id="item_label" style="display: block; font-size: 0.85rem; font-weight: 700; color: #475569; margin-bottom: 6px;">支出項目與分類</label>
+                    <div style="display: flex; gap: 8px; align-items: center; width: 100%; position: relative;">
+                        <!-- ① 分類自訂下拉選單 (左側，寬 105px) -->
+                        <div id="expense_cat_selector" class="custom-select" style="width: 105px; position: relative; flex-shrink: 0;">
+                            <div id="selected_expense_cat" onclick="toggleExpenseCategoryDropdown()" style="padding: 10px 8px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.8rem; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 42px; white-space: nowrap; overflow: hidden; height: 42px; box-sizing: border-box;">
+                                <span id="current_expense_cat_display" style="overflow: hidden; text-overflow: ellipsis;">🍔 食</span>
+                                <small style="color: #94a3b8; font-size: 0.6rem;">▼</small>
+                            </div>
+                            <input type="hidden" id="expense_category_hidden" value="食">
+                            <!-- 為了向下相容，保留一個隱藏的 select 標籤 -->
+                            <select id="manual_expense_category" style="display: none;">
+                                <option value="食">食</option>
+                            </select>
+                            <!-- 下拉選單區 -->
+                            <div id="expense_cat_dropdown" class="todo-dropdown-content" style="left: 0; min-width: 180px;"></div>
+                        </div>
+                        
+                        <!-- ② 項目輸入框 -->
+                        <input type="text" id="expense_item" class="form-input" placeholder="消費了什麼？" style="flex: 1; min-width: 0; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff; margin-bottom: 0; box-sizing: border-box;">
                     </div>
                 </div>
                 <div class="form-group">
@@ -623,6 +737,29 @@
                         <button class="calc-btn equal" onclick="calculateResult()">=</button>
                     </div>
                 </div>
+                
+                <!-- 🧾 報稅公益收據上傳區 (V9.0 Premium Slide Down - Premium Only) -->
+                <div id="charity_receipt_upload_wrapper" style="display: none; background: linear-gradient(135deg, rgba(244, 63, 94, 0.05) 0%, rgba(244, 63, 94, 0.02) 100%); border: 1.5px dashed rgba(244, 63, 94, 0.2); border-radius: 20px; padding: 18px; margin: 15px 0; transition: all 0.3s ease;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <span style="font-weight: 800; font-size: 0.95rem; color: #e11d48; display: flex; align-items: center; gap: 6px;">
+                            💖 報稅公益收據雲端備份 (尊榮版特權)
+                        </span>
+                        <span id="receipt_upload_status" style="font-size: 0.8rem; color: #64748b;">
+                            未選取照片
+                        </span>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="file" id="charity_receipt_input" accept="image/*" capture="environment" style="display: none;" onchange="window.handleReceiptFileChange(this)">
+                        <button type="button" onclick="document.getElementById('charity_receipt_input').click()" style="flex: 1; padding: 10px 15px; border-radius: 12px; border: 1px solid #e2e8f0; background: white; font-weight: 700; font-size: 0.85rem; color: #475569; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: all 0.2s;">
+                            📸 拍照上傳收據
+                        </button>
+                        <div id="receipt_preview_container" style="display: none; width: 45px; height: 45px; border-radius: 10px; overflow: hidden; border: 1.5px solid #e11d48; position: relative;">
+                            <img id="receipt_preview_img" style="width: 100%; height: 100%; object-fit: cover;">
+                            <span onclick="window.clearReceiptFile()" style="position: absolute; top: -2px; right: -2px; width: 14px; height: 14px; background: rgba(0,0,0,0.6); color: white; font-size: 8px; display: flex; align-items: center; justify-content: center; border-radius: 50%; cursor: pointer;">✕</span>
+                        </div>
+                    </div>
+                </div>
+
                 <button id="submitExpense" class="submit-btn btn-expense">確認支出記帳 💸</button>
             </div>
             <div class="modal-footer">
@@ -669,7 +806,8 @@
                     <input type="text" id="new_cat_name" class="form-input" placeholder="例如：學習、運動..." style="margin-bottom: 0; text-align: center; font-size: 1.1rem; font-weight: 700;" oninput="suggestEmoji(this.value)">
                 </div>
             </div>
-            <div id="cat_emoji_suggestions" style="display: flex; gap: 10px; overflow-x: auto; padding: 15px 0; min-height: 50px; justify-content: center; -webkit-overflow-scrolling: touch;"></div>
+            <!-- ✅ 修正：解決 CSS flex-center + overflow-x: auto 導致左側項目被裁切且無法滾動的世紀 Bug -->
+            <div id="cat_emoji_suggestions" style="display: flex; gap: 8px; overflow-x: auto; padding: 10px 8px; min-height: 64px; justify-content: flex-start; -webkit-overflow-scrolling: touch; width: 100%; box-sizing: border-box; scrollbar-width: none;"></div>
             <input type="hidden" id="new_cat_icon_hidden" value="📌">
             <div style="display: flex; gap: 10px; margin-top: 10px;">
                 <button onclick="closeCatInput(false)" style="flex: 1; padding: 12px; border-radius: 16px; border: none; background: #f1f5f9; color: #475569; font-weight: 700; font-size: 0.9rem; cursor: pointer;">取消</button>
@@ -826,18 +964,13 @@
                     <div class="health-status-days" id="health_status_days">-- <span style="font-size: 1.2rem;">天</span></div>
                     <div class="health-status-desc" id="health_status_desc">正在計算預測日期...</div>
                     <div id="health_phase_wrapper" style="margin-top: 14px; display: none; animation: popIn 0.3s ease; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                        <span id="health_phase_badge" style="background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); padding: 6px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 800; color: #be123c; border: 1px solid rgba(255, 255, 255, 0.5); display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">🟢 安全期 (濾泡期)</span>
-                        <span id="health_pregnancy_badge" style="background: rgba(255, 255, 255, 0.55); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); padding: 4px 14px; border-radius: 12px; font-size: 0.75rem; font-weight: 800; color: #475569; border: 1px dashed rgba(255, 255, 255, 0.6); display: inline-flex; align-items: center; gap: 4px;">🍀 不易懷孕 (安全期)</span>
+                         <span id="health_phase_badge" style="background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); padding: 6px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 800; color: #be123c; border: 1px solid rgba(255, 255, 255, 0.5); display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">🟢 安全期 (濾泡期)</span>
+                         <span id="health_pregnancy_badge" style="background: rgba(255, 255, 255, 0.55); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); padding: 4px 14px; border-radius: 12px; font-size: 0.75rem; font-weight: 800; color: #475569; border: 1px dashed rgba(255, 255, 255, 0.6); display: inline-flex; align-items: center; gap: 4px;">🍀 不易懷孕 (安全期)</span>
                     </div>
                 </div>
 
-                <!-- 💡 貼心閨蜜小叮嚀 (V4.0) -->
-                <div id="health_tips_card" style="background: rgba(255, 241, 242, 0.8); border: 1.5px dashed #fecdd3; border-radius: 16px; padding: 14px 16px; margin-bottom: 20px; font-size: 0.85rem; color: #be123c; font-weight: 700; line-height: 1.6; display: none; animation: slideUp 0.3s ease; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.02);">
-                    💡 正在加載閨蜜專屬叮嚀...
-                </div>
-
-                <!-- 快速操作區 -->
-                <div class="health-actions" style="grid-template-columns: repeat(4, 1fr) !important; gap: 6px !important;">
+                <!-- 快速操作區 (置於大卡片下方，確保使用者免滑動即可見) -->
+                <div class="health-actions" style="grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; margin-bottom: 15px;">
                     <button class="health-action-btn start">
                         <div class="icon">🌸</div>
                         記錄開始
@@ -846,37 +979,99 @@
                         <div class="icon">✅</div>
                         記錄結束
                     </button>
-                    <button class="health-action-btn symptom">
+                    <button class="health-action-btn symptom" onclick="openModal('menstrualSymptomsModal')">
                         <div class="icon">🩺</div>
                         紀錄症狀
                     </button>
-                    <button class="health-action-btn backfill" onclick="openModal('menstrualBackfillModal')" style="background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%) !important; border: 1px solid #ddd6fe !important; color: #6d28d9 !important; text-shadow: none !important;">
-                        <div class="icon">📝</div>
-                        補錄紀錄
-                    </button>
+                </div>
+
+                <!-- 📅 本次生理期區間卡片 -->
+                <div id="health_current_interval_card" style="background: #fffdfd; border: 1.5px solid #ffe4e6; border-radius: 16px; padding: 14px 15px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.01); text-align: left;">
+                    <div style="font-weight: 800; color: #be123c; font-size: 0.88rem; margin-bottom: 10px; display: flex; align-items: center; gap: 5px;">📅 本次生理期時間</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div style="background: #fff5f5; border-radius: 10px; padding: 10px; border: 1px solid #ffe4e6;">
+                            <div style="font-size: 0.72rem; color: #fda4af; font-weight: 700; margin-bottom: 4px;">🌸 記錄開始日</div>
+                            <div id="health_current_start" style="font-size: 0.85rem; color: #be123c; font-weight: 800;">尚未開始</div>
+                        </div>
+                        <div style="background: #fff5f5; border-radius: 10px; padding: 10px; border: 1px solid #ffe4e6;">
+                            <div style="font-size: 0.72rem; color: #fda4af; font-weight: 700; margin-bottom: 4px;">✅ 記錄結束日</div>
+                            <div id="health_current_end" style="font-size: 0.85rem; color: #be123c; font-weight: 800;">尚未記錄</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 💡 貼心閨蜜小叮嚀 (V4.0) -->
+                <div id="health_tips_card" style="background: rgba(255, 241, 242, 0.8); border: 1.5px dashed #fecdd3; border-radius: 16px; padding: 14px 16px; margin-bottom: 15px; font-size: 0.85rem; color: #be123c; font-weight: 700; line-height: 1.6; display: none; animation: slideUp 0.3s ease; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.02);">
+                    💡 正在加載閨蜜專屬叮嚀...
                 </div>
 
                 <!-- 數據統計看板 -->
-                <div style="display: flex; gap: 15px; margin-bottom: 25px;">
-                    <div class="health-stat-box">
+                <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+                    <div class="health-stat-box" style="flex: 1;">
                         <div class="label">平均週期</div>
                         <div class="val">-- <span>天</span></div>
                     </div>
-                    <div class="health-stat-box">
+                    <div class="health-stat-box" style="flex: 1;">
                         <div class="label">平均長度</div>
                         <div class="val">-- <span>天</span></div>
                     </div>
                 </div>
-
-                <!-- 歷史紀錄清單 -->
-                <h3 style="font-size: 1rem; color: #475569; margin-bottom: 12px;">📜 最近紀錄</h3>
-                <div id="health_history_list">
-                    <div style="text-align: center; padding: 20px; color: #94a3b8;">⏳ 正在載入歷史紀錄...</div>
-                </div>
             </div>
+
             <div class="modal-footer" style="background: #fff1f2; border-top-color: #ffe4e6;">
                 <button onclick="openCloudHealthSheet('{{ health_sheet_url }}')" class="sheet-link-btn" style="color: #e11d48; background: #fff; border-color: #fecdd3;">
                     ☁️ 開啟健康紀錄表
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 生理追蹤 Modal -->
+    <div id="trackingModal" class="modal-backdrop">
+        <div class="modal-content">
+            <div class="modal-header" style="border-bottom-color: #ffe4e6;">
+                <h2 class="modal-title" style="color: #e11d48; display: flex; align-items: center; gap: 6px;">🌡️ 生理追蹤</h2>
+                <button class="close-modal" onclick="closeModal('trackingModal')" style="background: #fff5f5; color: #e11d48;">✕</button>
+            </div>
+            <div class="modal-body" style="padding-top: 15px;">
+                <!-- 📅 莫蘭迪動態月曆組件 -->
+                <div class="calendar-card" style="background: #fffdfd; border: 1px solid #ffe4e6; border-radius: 20px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 20px rgba(225, 29, 72, 0.02);">
+                    <!-- 月曆控制頭部 -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <button type="button" onclick="window.changeCalendarMonth(-1)" class="cal-nav-btn">‹</button>
+                        <span id="calendar_month_year" style="font-size: 1.05rem; font-weight: 800; color: #9f1239;">2026年 5月</span>
+                        <button type="button" onclick="window.changeCalendarMonth(1)" class="cal-nav-btn">›</button>
+                    </div>
+                    
+                    <!-- 星期表頭 -->
+                    <div class="calendar-weekdays" style="display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 0.75rem; color: #fda4af; font-weight: 800; margin-bottom: 8px;">
+                        <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
+                    </div>
+                    
+                    <!-- 日期網格 -->
+                    <div id="calendar_days_wrapper" style="position: relative; min-height: 240px;">
+                        <div id="calendar_days_grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center;"></div>
+                        <!-- 🌸 超高級毛玻璃加載遮罩 -->
+                        <div id="calendar_loader_overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 16px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 10;">
+                            <div class="premium-spinner" style="width: 36px; height: 36px; border: 3px solid rgba(225, 29, 72, 0.1); border-top-color: #e11d48; border-radius: 50%; margin-bottom: 10px;"></div>
+                            <span style="font-size: 0.78rem; color: #9f1239; font-weight: 800; letter-spacing: 0.5px;">🌸 正在計算您的專屬生理期...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 📝 選定日期詳情動態圖卡 -->
+                <div id="calendar_detail_card" style="background: #fff1f2; border: 1px solid #ffe4e6; border-radius: 16px; padding: 12px 15px; margin-bottom: 15px; text-align: left; font-size: 0.82rem; color: #9f1239; box-shadow: 0 2px 10px rgba(225, 29, 72, 0.01);">
+                    <div style="font-weight: 800; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                        <span id="cal_detail_date">請選擇日期</span>
+                        <span id="cal_detail_cycle" style="font-size: 0.72rem; background: rgba(255, 255, 255, 0.7); padding: 2px 6px; border-radius: 6px; color: #be123c; font-weight: 800;">第 -- 天</span>
+                    </div>
+                    <div id="cal_detail_pregnancy" style="font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">--</div>
+                    <div id="cal_detail_symptoms" style="color: #64748b; font-size: 0.78rem; line-height: 1.4; border-top: 1px dashed rgba(225, 29, 72, 0.15); margin-top: 6px; padding-top: 6px;">無特殊症狀與記錄</div>
+                </div>
+            </div>
+            <div class="modal-footer" style="background: #fff1f2; border-top-color: #ffe4e6;">
+                <button onclick="closeModal('trackingModal')" class="sheet-link-btn" style="color: #e11d48; background: #fff; border-color: #fecdd3;">
+                    關閉
                 </button>
             </div>
         </div>
@@ -908,36 +1103,80 @@
         </div>
     </div>
 
-    <!-- 歷史生理紀錄補錄 Modal -->
+    <!-- 生理症狀紀錄 Modal (V17.0) -->
+    <div id="menstrualSymptomsModal" class="modal-backdrop" style="z-index: 9999;">
+        <div class="modal-content" style="max-width: 460px; max-height: 85vh; overflow-y: auto; border-radius: 28px; padding: 25px; border: 1px solid rgba(225, 29, 72, 0.15); box-shadow: 0 15px 40px rgba(225, 29, 72, 0.12);">
+            <div class="modal-header" style="border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 18px;">
+                <h2 class="modal-title" style="color: #e11d48; font-size: 1.25rem; display: flex; align-items: center; gap: 8px; font-weight: 800;">🩺 紀錄今日症狀</h2>
+                <button class="close-modal" onclick="closeModal('menstrualSymptomsModal')">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 0; display: flex; flex-direction: column; gap: 20px;">
+                <!-- 🩺 當日症狀紀錄卡片 -->
+                <div style="background: #fffdfd; border: 1.5px solid #ffe4e6; border-radius: 20px; padding: 18px; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.02); text-align: left;">
+                    <p style="font-size: 0.78rem; color: #64748b; margin-bottom: 12px; line-height: 1.4;">勾選您今天的身體感受，以供 AI 進行更準確的健康分析：</p>
+                    
+                    <div id="symptoms_list" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
+                        <!-- JS 動態載入症狀選項 -->
+                    </div>
+                    
+                    <!-- 新增自訂症狀 -->
+                    <div style="background: #fff5f5; padding: 10px 12px; border-radius: 12px; border: 1px dashed #fecdd3; margin-bottom: 15px; display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="new_symptom_input" placeholder="新增自訂症狀" style="flex: 1; padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.8rem; outline: none; background: white;">
+                        <button onclick="window.addSymptomOption()" style="padding: 8px 14px; background: #e11d48; color: white; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">新增</button>
+                    </div>
+                    
+                    <button onclick="window.saveSymptoms()" class="form-btn" style="background: linear-gradient(135deg, #e11d48 0%, #be123c 100%); color: white; width: 100%; border-radius: 12px; padding: 10px; font-size: 0.85rem; font-weight: 800; border: none; box-shadow: 0 4px 10px rgba(225, 29, 72, 0.15); cursor: pointer;">
+                        儲存今日症狀 💾
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 生理歷程與狀態管理 Modal (V17.0 歷史補登與清單) -->
     <div id="menstrualBackfillModal" class="modal-backdrop" style="z-index: 9999;">
-        <div class="modal-content" style="max-width: 350px; border-radius: 24px; padding: 22px; border: 1px solid rgba(109, 40, 217, 0.15); box-shadow: 0 10px 30px rgba(109, 40, 217, 0.1);">
-            <div class="modal-header" style="border-bottom: none; padding-bottom: 10px;">
-                <h2 class="modal-title" style="color: #6d28d9; font-size: 1.15rem; display: flex; align-items: center; gap: 6px; font-weight: 800;">📝 補錄歷史生理紀錄</h2>
+        <div class="modal-content" style="max-width: 460px; max-height: 85vh; overflow-y: auto; border-radius: 28px; padding: 25px; border: 1px solid rgba(109, 40, 217, 0.15); box-shadow: 0 15px 40px rgba(109, 40, 217, 0.12);">
+            <div class="modal-header" style="border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 18px;">
+                <h2 class="modal-title" style="color: #6d28d9; font-size: 1.25rem; display: flex; align-items: center; gap: 8px; font-weight: 800;">📝 生理歷程與狀態</h2>
                 <button class="close-modal" onclick="closeModal('menstrualBackfillModal')">✕</button>
             </div>
-            <div class="modal-body" style="padding-top: 5px;">
-                <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 15px; line-height: 1.4; text-align: left;">您可以補錄過去的月事時間，AI 將能更精準地為您計算出專屬的私密生理時鐘！</p>
-                <div class="form-group" style="margin-bottom: 14px; text-align: left;">
-                    <label style="font-size: 0.8rem; color: #4b5563; font-weight: 700; margin-bottom: 6px; display: block;">🌸 開始日期 (第一天)</label>
-                    <input type="date" id="backfill_start_date" class="form-input" style="width: 100%; box-sizing: border-box; border-radius: 10px;" onchange="calculateBackfillLength()">
+            <div class="modal-body" style="padding: 0; display: flex; flex-direction: column; gap: 20px;">
+                
+                <!-- 1. 📅 歷史經期補錄卡片 -->
+                <div style="background: #faf5ff; border: 1.5px solid #e9d5ff; border-radius: 20px; padding: 18px; box-shadow: 0 4px 15px rgba(109, 40, 217, 0.02); text-align: left;">
+                    <h3 style="font-size: 0.95rem; color: #6d28d9; margin: 0 0 12px 0; font-weight: 800; display: flex; align-items: center; gap: 6px;">🌸 補錄歷史生理期 (生理補全)</h3>
+                    <p style="font-size: 0.78rem; color: #64748b; margin-bottom: 12px; line-height: 1.4;">補錄過去幾個月的月事區間，使預估下次經期的算法更精準：</p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 0.75rem; color: #4b5563; font-weight: 700; margin-bottom: 4px; display: block;">開始日期 (第一天)</label>
+                            <input type="date" id="backfill_start_date" class="form-input" style="width: 100%; box-sizing: border-box; border-radius: 10px; padding: 8px 10px; font-size: 0.8rem;" onchange="calculateBackfillLength()">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 0.75rem; color: #4b5563; font-weight: 700; margin-bottom: 4px; display: block;">結束日期 (最後一天)</label>
+                            <input type="date" id="backfill_end_date" class="form-input" style="width: 100%; box-sizing: border-box; border-radius: 10px; padding: 8px 10px; font-size: 0.8rem;" onchange="calculateBackfillLength()">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="font-size: 0.75rem; color: #4b5563; font-weight: 700; margin-bottom: 4px; display: block;">📏 經期長度 (自動計算)</label>
+                        <input type="text" id="backfill_period_length" class="form-input" readonly placeholder="請選擇起迄日期" style="width: 100%; box-sizing: border-box; background: #f3e8ff; color: #6b21a8; font-weight: 700; border-radius: 10px; padding: 8px 10px; font-size: 0.8rem; border-color: #ddd6fe;">
+                    </div>
+                    
+                    <input type="hidden" id="backfill_symptoms" value="">
+
+                    <button onclick="submitMenstrualBackfill()" id="submitBackfillBtn" class="form-btn" style="background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%); color: white; width: 100%; border-radius: 12px; padding: 10px; font-size: 0.85rem; font-weight: 800; border: none; box-shadow: 0 4px 10px rgba(109, 40, 217, 0.15); cursor: pointer;">
+                        確認補登至雲端帳本
+                    </button>
                 </div>
-                <div class="form-group" style="margin-bottom: 14px; text-align: left;">
-                    <label style="font-size: 0.8rem; color: #4b5563; font-weight: 700; margin-bottom: 6px; display: block;">✅ 結束日期 (最後一天)</label>
-                    <input type="date" id="backfill_end_date" class="form-input" style="width: 100%; box-sizing: border-box; border-radius: 10px;" onchange="calculateBackfillLength()">
+
+                <!-- 3. 📜 最近紀錄清單卡片 -->
+                <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 20px; padding: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.01); text-align: left;">
+                    <h3 style="font-size: 0.95rem; color: #475569; margin: 0 0 12px 0; font-weight: 800; display: flex; align-items: center; gap: 6px;">📜 最近生理紀錄</h3>
+                    <div id="health_history_list" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                        <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 0.8rem;">⏳ 正在載入歷史紀錄...</div>
+                    </div>
                 </div>
-                <div class="form-group" style="margin-bottom: 15px; text-align: left;">
-                    <label style="font-size: 0.8rem; color: #4b5563; font-weight: 700; margin-bottom: 6px; display: block;">📏 經期天數 (系統自動精算)</label>
-                    <input type="text" id="backfill_period_length" class="form-input" readonly placeholder="請選擇開始與結束日期" style="width: 100%; box-sizing: border-box; background: #f8fafc; color: #64748b; font-weight: 700; border-radius: 10px;">
-                </div>
-                <div class="form-group" style="margin-bottom: 20px; text-align: left;">
-                    <label style="font-size: 0.8rem; color: #4b5563; font-weight: 700; margin-bottom: 6px; display: block;">🩺 身體症狀 / 心情備註 (選填)</label>
-                    <input type="text" id="backfill_symptoms" class="form-input" placeholder="例如：無特殊症狀, 腹脹" style="width: 100%; box-sizing: border-box; border-radius: 10px;">
-                </div>
-            </div>
-            <div class="modal-footer" style="padding: 0; border-top: none;">
-                <button onclick="submitMenstrualBackfill()" id="submitBackfillBtn" class="form-btn" style="background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%); color: white; width: 100%; border-radius: 14px; padding: 12px; font-weight: 800; border: none; box-shadow: 0 4px 12px rgba(109, 40, 217, 0.2); cursor: pointer;">
-                    確認補錄到雲端帳本
-                </button>
             </div>
         </div>
     </div>
@@ -982,34 +1221,6 @@
             </div>
         </div>
     </div>
-
-    <!-- 症狀紀錄 Modal -->
-    <div id="symptomModal" class="modal-backdrop">
-        <div class="modal-content" style="max-height: 80vh; overflow-y: auto;">
-            <div class="modal-header">
-                <h2 class="modal-title" style="color: #ec4899;">🩺 記錄今日症狀</h2>
-                <button class="close-modal" onclick="closeModal('symptomModal')">✕</button>
-            </div>
-            <div class="modal-body" style="padding: 20px;">
-                <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 15px;">請勾選您今天感受到的症狀：</p>
-                <div id="symptoms_list" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
-                    <!-- Checkboxes will be injected here -->
-                </div>
-                
-                <div style="background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
-                    <div style="font-weight: bold; color: #1e293b; margin-bottom: 10px; font-size: 0.9rem;">➕ 新增自訂選項</div>
-                    <div class="input-group" style="display: flex; gap: 10px;">
-                        <input type="text" id="new_symptom_input" placeholder="輸入新症狀名稱" style="flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
-                        <button onclick="window.addSymptomOption()" style="padding: 10px 15px; background: #ec4899; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">新增</button>
-                    </div>
-                </div>
-                
-                <button onclick="window.saveSymptoms()" style="width: 100%; padding: 15px; background: #ec4899; color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 6px rgba(236,72,153,0.2);">
-                     儲存紀錄 ✅
-                </button>
-            </div>
-        </div>
-    </div>
     <!-- UniTask 商業版訂閱與加購計費牆 Modal -->
     <div id="upgradePaywallModal" class="modal-backdrop" style="z-index: 9999; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(12px);">
         <div class="modal-content" style="max-width: 450px; border-radius: 30px; padding: 30px; border: 1.5px solid rgba(255, 255, 255, 0.2); box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4); background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);">
@@ -1023,30 +1234,50 @@
             </div>
             
             <div class="modal-body" style="padding: 10px 0; overflow-y: auto; max-height: 480px;">
+                <!-- 🌟 試用期權益加贈溫馨提醒 🌟 -->
+                <div style="background: rgba(14, 165, 233, 0.06); border: 1px solid rgba(14, 165, 233, 0.2); border-radius: 16px; padding: 12px; margin: 0 0 16px 0; text-align: left; display: flex; align-items: flex-start; gap: 10px;">
+                    <span style="font-size: 1.1rem; line-height: 1.2;">💡</span>
+                    <p style="font-size: 0.75rem; color: #0284c7; font-weight: 600; line-height: 1.45; margin: 0;">
+                        <strong>試用權益保障</strong>：若您目前仍處於免費試用中，現在升級訂閱將<strong>完整保留並加贈</strong>您剩餘的試用天數（正式扣款與計費天數將在試用期結束後才開始計算），請安心升級！
+                    </p>
+                </div>
+
                 <!-- 方案卡片區 -->
                 <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 25px;">
                     <!-- 基礎版 -->
-                    <div class="paywall-tier-card" style="border: 2px solid #e2e8f0; border-radius: 20px; padding: 18px; background: white; transition: all 0.3s ease; position: relative;">
-                        <span style="position: absolute; top: -10px; right: 15px; font-size: 0.72rem; font-weight: 800; background: #e0f2fe; color: #0284c7; padding: 3px 8px; border-radius: 20px;">全能生活管家</span>
-                        <h4 style="font-size: 1.1rem; font-weight: 800; color: #1e293b; margin: 0 0 6px;">🥈 基礎版訂閱方案</h4>
-                        <p style="font-size: 0.8rem; color: #64748b; margin: 0 0 12px; text-align: left; line-height: 1.4;">每日 AI 額度提升，全面解鎖行程、備忘錄與經期看板！</p>
+                    <div id="paywall_basic_card" class="paywall-tier-card" style="border: 2px solid #a7f3d0; border-radius: 20px; padding: 18px; background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); transition: all 0.3s ease; position: relative;">
+                        <span style="position: absolute; top: -10px; right: 15px; font-size: 0.72rem; font-weight: 800; background: #d1fae5; color: #065f46; padding: 3px 8px; border-radius: 20px;">全能生活管家</span>
+                        <h4 style="font-size: 1.1rem; font-weight: 800; color: #0f5132; margin: 0 0 6px;">🥈 基礎版</h4>
+                        <p style="font-size: 0.8rem; color: #14532d; opacity: 0.85; margin: 0 0 12px; text-align: left; line-height: 1.4;">全面解鎖行程、備忘錄與經期看板，並獲得 500 點 AI 額度！</p>
                         <div style="display: flex; align-items: baseline; gap: 4px; margin-bottom: 12px;">
                             <span style="font-size: 1.5rem; font-weight: 900; color: #0d9488;">NT$ 119</span>
-                            <span style="font-size: 0.8rem; color: #94a3b8;">/ 月</span>
+                            <span style="font-size: 0.8rem; color: #0d9488; opacity: 0.8;">/ 月</span>
                         </div>
-                        <button onclick="mockSubscribe('BASIC')" style="width: 100%; padding: 10px; border-radius: 12px; border: none; background: #0f172a; color: white; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s;">立即訂閱 🚀</button>
+                        <button id="paywall_basic_btn" onclick="mockSubscribe('BASIC')" style="width: 100%; padding: 10px; border-radius: 12px; border: none; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: white; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(20, 184, 166, 0.25);">立即訂閱 🚀</button>
                     </div>
 
                     <!-- 旗艦版 -->
-                    <div class="paywall-tier-card premium" style="border: 2px solid #fcd34d; border-radius: 20px; padding: 18px; background: linear-gradient(135deg, #fffbeb 0%, #fffbeb 100%); transition: all 0.3s ease; position: relative; box-shadow: 0 10px 25px rgba(252, 211, 77, 0.15);">
-                        <span style="position: absolute; top: -10px; right: 15px; font-size: 0.72rem; font-weight: 800; background: #fef3c7; color: #d97706; padding: 3px 8px; border-radius: 20px;">⭐ 尊榮資產特助</span>
-                        <h4 style="font-size: 1.1rem; font-weight: 800; color: #78350f; margin: 0 0 6px;">🥇 旗艦版訂閱方案</h4>
-                        <p style="font-size: 0.8rem; color: #78350f; opacity: 0.85; margin: 0 0 12px; text-align: left; line-height: 1.4;">解鎖「智慧投資股票損益」、尊榮一鍵 AI 健檢與 650 點 AI 額度！</p>
+                    <div id="paywall_premium_monthly_card" class="paywall-tier-card" style="border: 2px solid #bae6fd; border-radius: 20px; padding: 18px; background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%); transition: all 0.3s ease; position: relative;">
+                        <span style="position: absolute; top: -10px; right: 15px; font-size: 0.72rem; font-weight: 800; background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 20px;">極致智慧助理</span>
+                        <h4 style="font-size: 1.1rem; font-weight: 800; color: #0369a1; margin: 0 0 6px;">🥇 旗艦版</h4>
+                        <p style="font-size: 0.8rem; color: #0369a1; opacity: 0.85; margin: 0 0 12px; text-align: left; line-height: 1.4;">解鎖「智慧存股損益」、尊榮一鍵 AI 健檢與 650 點 AI 額度！</p>
                         <div style="display: flex; align-items: baseline; gap: 4px; margin-bottom: 12px;">
-                            <span style="font-size: 1.5rem; font-weight: 900; color: #b45309;">NT$ 199</span>
-                            <span style="font-size: 0.8rem; color: #b45309; opacity: 0.8;">/ 月</span>
+                            <span style="font-size: 1.5rem; font-weight: 900; color: #0284c7;">NT$ 199</span>
+                            <span style="font-size: 0.8rem; color: #0284c7; opacity: 0.8;">/ 月</span>
                         </div>
-                        <button onclick="mockSubscribe('PREMIUM')" style="width: 100%; padding: 10px; border-radius: 12px; border: none; background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: white; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);">尊榮解鎖 ✨</button>
+                        <button id="paywall_premium_monthly_btn" onclick="mockSubscribe('PREMIUM_MONTHLY')" style="width: 100%; padding: 10px; border-radius: 12px; border: none; background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%); color: white; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);">立即訂閱 🚀</button>
+                    </div>
+
+                    <!-- 尊榮版 -->
+                    <div id="paywall_premium_card" class="paywall-tier-card premium" style="border: 2px solid #fcd34d; border-radius: 20px; padding: 18px; background: linear-gradient(135deg, #fffbeb 0%, #fffbeb 100%); transition: all 0.3s ease; position: relative; box-shadow: 0 10px 25px rgba(252, 211, 77, 0.15);">
+                        <span style="position: absolute; top: -10px; right: 15px; font-size: 0.72rem; font-weight: 800; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 3px 10px; border-radius: 20px; box-shadow: 0 4px 10px rgba(217,119,6,0.25);">🔥 超值省年費 (送2個月)</span>
+                        <h4 style="font-size: 1.1rem; font-weight: 800; color: #78350f; margin: 0 0 6px;">👑 尊榮版</h4>
+                        <p style="font-size: 0.8rem; color: #78350f; opacity: 0.85; margin: 0 0 12px; text-align: left; line-height: 1.4;">解鎖全部功能！包含「智慧存股損益」、AI 一鍵健檢與 650 點 AI 額度！採年繳計費超划算！</p>
+                        <div style="display: flex; align-items: baseline; gap: 4px; margin-bottom: 12px;">
+                            <span style="font-size: 1.5rem; font-weight: 900; color: #b45309;">NT$ 1,990</span>
+                            <span style="font-size: 0.8rem; color: #b45309; opacity: 0.8;">/ 年</span>
+                        </div>
+                        <button id="paywall_premium_btn" onclick="mockSubscribe('PREMIUM')" style="width: 100%; padding: 10px; border-radius: 12px; border: none; background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: white; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);">尊榮解鎖 ✨</button>
                     </div>
 
                     <!-- 點數加購包 -->
@@ -1067,7 +1298,7 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=2.3"></script>
+    <script src="/static/js/app.js?v=5.6"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&libraries=places&callback=initMap" async defer></script>
 
     <!-- 📊 存股看板 Modal (V3.2 - Interactive Premium Dashboard) -->
@@ -1099,16 +1330,21 @@
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
                         <div>
-                            <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 2px;">累計即時總損益 (ROI)</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 2px;">累計未實現總損益</div>
                             <div id="dash_total_roi" style="font-size: 1.05rem; font-weight: 800; color: #4ade80;">+$0 (+0.0%)</div>
                         </div>
                         <div>
-                            <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 2px;">加權投入總成本</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 2px;">目前在倉持股成本</div>
                             <div id="dash_total_cost" style="font-size: 1.05rem; font-weight: 800; color: #e2e8f0;">$0</div>
                         </div>
                     </div>
                     
                     <div style="border-top: 1px dashed rgba(255,255,255,0.1); margin-top: 12px; padding-top: 12px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-size: 0.75rem; color: #94a3b8; display: flex; align-items: center; gap: 4px;">🎯 累計已實現損益 (Realized)</span>
+                        <span id="dash_total_realized" style="font-size: 1.1rem; font-weight: 900; color: #38bdf8;">$0 NTD</span>
+                    </div>
+                    
+                    <div style="border-top: 1px dashed rgba(255,255,255,0.1); margin-top: 8px; padding-top: 8px; display: flex; align-items: center; justify-content: space-between;">
                         <span style="font-size: 0.75rem; color: #94a3b8; display: flex; align-items: center; gap: 4px;">🪙 累計已領股息 (Dividends)</span>
                         <span id="dash_total_dividends" style="font-size: 1.1rem; font-weight: 900; color: #fcd34d;">$0 NTD</span>
                     </div>
@@ -1127,6 +1363,21 @@
                         <div style="text-align: center; padding: 40px 10px; color: #64748b; font-weight: bold; font-size: 0.85rem;">
                             <div class="loading-spinner" style="border-top-color: #38bdf8;"></div>
                             正在安全連線試算表獲取最新損益...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. 已結清歷史戰績 (Closed Positions Dashboard) -->
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 20px; margin-bottom: 10px;">
+                    <h3 style="font-size: 0.95rem; font-weight: 900; color: #334155; margin: 0; display: flex; align-items: center; gap: 6px;">🏆 歷史已結清戰績榜</h3>
+                    <span style="font-size: 0.72rem; color: #64748b; font-weight: 700; background: #e2e8f0; padding: 2px 8px; border-radius: 20px;">出清結算</span>
+                </div>
+
+                <div id="dash_closed_glass_container" style="background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1.5px solid rgba(255, 255, 255, 0.05); border-radius: 24px; padding: 18px; color: white; min-height: 80px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 14px;">
+                    <!-- 動態渲染已結清部位 -->
+                    <div id="dash_closed_list" style="display: flex; flex-direction: column; gap: 14px;">
+                        <div style="text-align: center; padding: 20px 10px; color: #64748b; font-size: 0.8rem; font-weight: bold;">
+                            目前尚無已結清的歷史交易紀錄喔！
                         </div>
                     </div>
                 </div>
@@ -1192,6 +1443,17 @@
                         <input type="text" id="stock_tx_name" placeholder="股票中文/英文名稱 (例如 台積電)" oninput="onStockNameInput()" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.9rem;" required>
                         <!-- 自動聯想下拉選單 -->
                         <div id="stock_name_autocomplete" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #cbd5e1; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 1000; max-height: 180px; overflow-y: auto; margin-top: 5px; padding: 5px;"></div>
+                    </div>
+
+                    <!-- 記帳匯入總預算提示與自動拆分助手 (V12.0 Master UX) -->
+                    <div id="stock_budget_helper_card" style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 16px; padding: 15px; margin-bottom: 15px; font-size: 0.82rem; color: #1e40af; display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <span style="font-weight: 900; color: #1e3a8a;">💡 記帳匯入總預算: <span id="budget_helper_amount" style="font-size: 0.95rem; color: #2563eb; font-weight: 900;">$ 0</span></span>
+                            <button type="button" onclick="window.applyBudgetSplit()" style="background: #3b82f6; color: white; border: none; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">一鍵反推拆分</button>
+                        </div>
+                        <p style="margin: 0; color: #475569; font-size: 0.78rem; font-weight: 500; line-height: 1.4;">
+                            您可以手動輸入下面的【成交單價】，系統將依此預算為您自動算出對應的【整數股數】，省去繁瑣換算！
+                        </p>
                     </div>
 
                     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
@@ -1283,6 +1545,13 @@
                             <input type="checkbox" id="setting_enable_period" checked style="width: 18px; height: 18px; cursor: pointer;">
                             <span style="margin-left: 8px; font-weight: 600;">🌸 啟用「女性生理健康」追蹤功能</span>
                         </label>
+                    </div>
+                    <!-- AI 訓練室快捷入口 -->
+                    <div style="border-top: 1px dashed #cbd5e1; padding-top: 15px;">
+                        <label style="font-weight: 700; color: #334155; font-size: 0.9rem; display: block; margin-bottom: 8px;">🧠 AI 核心設定</label>
+                        <button onclick="closeModal('settingsModal'); openModal('trainingModal');" type="button" style="width: 100%; padding: 10px 12px; border-radius: 12px; border: 1.5px solid #6366f1; background: #f5f3ff; color: #4f46e5; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
+                            ⚙️ 自訂 AI 指令規則 (AI訓練室)
+                        </button>
                     </div>
                 </div>
                 <button onclick="saveSystemSettings()" style="width: 100%; padding: 14px; border-radius: 16px; border: none; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; font-weight: 700; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35); transition: all 0.3s ease;">儲存設定 💾</button>
@@ -1445,6 +1714,18 @@
             const gender = localStorage.getItem('user_gender') || 'girl';
             const enablePeriod = localStorage.getItem('enable_period_tracking') !== 'false';
             
+            // 🎯 新增：動態切換 Header 的性別配色 Class
+            const headerEl = document.querySelector('.header');
+            if (headerEl) {
+                if (gender === 'boy') {
+                    headerEl.classList.remove('gender-girl');
+                    headerEl.classList.add('gender-boy');
+                } else {
+                    headerEl.classList.remove('gender-boy');
+                    headerEl.classList.add('gender-girl');
+                }
+            }
+            
             // 更新設定選單選項
             const genderSelect = document.getElementById('setting_gender_select');
             if (genderSelect) genderSelect.value = gender;
@@ -1483,7 +1764,6 @@
                 })
             });
         };
-
         document.addEventListener('DOMContentLoaded', () => {
             // 自動應用偏好設定
             window.applySystemSettings();
@@ -1502,5 +1782,18 @@
         });
     </script>
     {% endif %}
+
+    <script>
+        // 🌟 隱藏極速加載 Preloader (不論是否登入) 🌟
+        document.addEventListener('DOMContentLoaded', () => {
+            const preloader = document.getElementById('pwa-preloader');
+            if (preloader) {
+                preloader.style.opacity = '0';
+                setTimeout(() => {
+                    preloader.style.display = 'none';
+                }, 400);
+            }
+        });
+    </script>
 </body>
 </html>

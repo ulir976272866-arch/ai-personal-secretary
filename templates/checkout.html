@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💳 UniTask 尊榮金流安全支付網頁</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-bg: #0f172a;
+            --card-glass: rgba(30, 41, 59, 0.45);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --gradient-premium: linear-gradient(135deg, #fbbf24 0%, #ca8a04 100%);
+            --gradient-basic: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+            --text-main: #f8fafc;
+            --text-mute: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--primary-bg);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(217, 119, 6, 0.1) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(15, 23, 42, 0.95) 0px, rgba(15, 23, 42, 1) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .checkout-container {
+            width: 100%;
+            max-width: 960px;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 36px;
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
+            display: grid;
+            grid-template-columns: 1.1fr 1.3fr;
+            overflow: hidden;
+            animation: containerFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        @keyframes containerFade {
+            0% { opacity: 0; transform: scale(0.96) translateY(20px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* 左側明細區 */
+        .order-summary-panel {
+            padding: 40px;
+            background: rgba(30, 41, 59, 0.25);
+            border-right: 1px solid var(--border-glass);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .brand-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 35px;
+        }
+
+        .brand-logo {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .brand-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #fff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .product-card {
+            background: var(--card-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 30px;
+            box-shadow: inset 0 2px 4px rgba(255,255,255,0.03);
+        }
+
+        .product-badge {
+            display: inline-block;
+            font-size: 0.72rem;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 20px;
+            margin-bottom: 12px;
+            background: rgba(255,255,255,0.08);
+            border: 1.5px solid rgba(255,255,255,0.05);
+        }
+
+        .badge-premium {
+            background: #fef3c7;
+            color: #d97706;
+            border-color: #fcd34d;
+        }
+
+        .badge-basic {
+            background: #e0f2fe;
+            color: #0284c7;
+            border-color: #7dd3fc;
+        }
+
+        .badge-points {
+            background: #f0fdfa;
+            color: #0d9488;
+            border-color: #99f6e4;
+        }
+
+        .product-name {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+
+        .product-desc {
+            font-size: 0.82rem;
+            color: var(--text-mute);
+            line-height: 1.5;
+        }
+
+        .order-meta-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-mute);
+            margin-bottom: 14px;
+        }
+
+        .order-meta-item strong {
+            color: var(--text-main);
+        }
+
+        .price-total-block {
+            border-top: 1px dashed var(--border-glass);
+            padding-top: 20px;
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .total-label {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .total-amount {
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: #ffffff;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .security-foot {
+            font-size: 0.72rem;
+            color: var(--text-mute);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            opacity: 0.7;
+        }
+
+        /* 右側付款表單區 */
+        .payment-form-panel {
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .form-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            margin-bottom: 24px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 付款按鈕組合 */
+        .btn-pay-premium {
+            width: 100%;
+            padding: 15px;
+            border-radius: 14px;
+            border: none;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.25);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .btn-pay-premium:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.35);
+        }
+
+        .btn-pay-premium:active {
+            transform: translateY(0);
+        }
+
+        .btn-cancel {
+            width: 100%;
+            padding: 12px;
+            border-radius: 14px;
+            border: 1.5px solid var(--border-glass);
+            background: transparent;
+            color: var(--text-mute);
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: all 0.2s;
+        }
+
+        .btn-cancel:hover {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+
+        /* 🔒 模擬金流加載授權中全螢幕毛玻璃 Loading 動畫 */
+        .payment-loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .payment-loading-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .loading-ring {
+            width: 70px;
+            height: 70px;
+            border: 6px solid rgba(99, 102, 241, 0.1);
+            border-top: 6px solid #6366f1;
+            border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+            margin-bottom: 25px;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-title {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #ffffff;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .loading-desc {
+            font-size: 0.88rem;
+            color: var(--text-mute);
+        }
+
+        /* 響應式配置 */
+        @media (max-width: 768px) {
+            .checkout-container {
+                grid-template-columns: 1fr;
+            }
+            .order-summary-panel {
+                border-right: none;
+                border-bottom: 1px solid var(--border-glass);
+                padding: 30px;
+            }
+            .payment-form-panel {
+                padding: 30px;
+            }
+        }
+
+        /* Unified Custom Modal Dialog Styles */
+        .custom-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .custom-modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .custom-modal-card {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 28px;
+            padding: 32px;
+            width: 90%;
+            max-width: 440px;
+            box-shadow: 0 35px 80px rgba(0, 0, 0, 0.6);
+            transform: scale(0.92) translateY(12px);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .custom-modal-overlay.active .custom-modal-card {
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .modal-icon {
+            font-size: 1.6rem;
+        }
+
+        .modal-header h3 {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #f8fafc;
+            letter-spacing: -0.5px;
+            margin: 0;
+        }
+
+        .modal-body {
+            font-size: 0.96rem;
+            color: #cbd5e1;
+            line-height: 1.65;
+            margin-bottom: 26px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 10px 22px;
+            border-radius: 12px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 38px;
+        }
+
+        .cancel-btn {
+            background: rgba(255, 255, 255, 0.06);
+            color: #cbd5e1;
+            border: 1.5px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .cancel-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: #f8fafc;
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .confirm-btn {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); /* Premium Red Gradient */
+            color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+        }
+
+        .confirm-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(239, 68, 68, 0.35);
+        }
+
+        .confirm-btn:active {
+            transform: translateY(1px);
+        }
+
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.9); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="checkout-container">
+        <!-- 左側：明細區 -->
+        <div class="order-summary-panel">
+            <div>
+                <div class="brand-header">
+                    <div class="brand-logo">🦄</div>
+                    <span class="brand-title">UniTask 🔒 金流結帳網關</span>
+                </div>
+
+                <div class="product-card">
+                    <!-- 動態判斷方案標籤 -->
+                    {% if tier == 'PREMIUM' %}
+                        <span class="product-badge badge-premium">👑 尊榮旗艦</span>
+                    {% elif tier == 'PREMIUM_UPGRADE' %}
+                        <span class="product-badge badge-premium" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1.5px solid #d97706; color: #d97706;">🚀 尊榮直升旗艦</span>
+                    {% elif tier == 'BASIC' %}
+                        <span class="product-badge badge-basic">💎 基礎管家</span>
+                    {% else %}
+                        <span class="product-badge badge-points">⚡ 點數加值</span>
+                    {% endif %}
+                    <h3 class="product-name">{{ product_name }}</h3>
+                    <p class="product-desc">{{ product_desc }}</p>
+                </div>
+
+                <div class="order-meta-item">
+                    <span>交易帳號 (Email)</span>
+                    <strong>{{ email }}</strong>
+                </div>
+                <div class="order-meta-item">
+                    <span>付款模式</span>
+                    <strong>💳 沙盒測試信用卡</strong>
+                </div>
+                <div class="order-meta-item">
+                    <span>交易序號</span>
+                    <strong id="transaction-id">MOCK-TXN-XXXXXXXX</strong>
+                </div>
+            </div>
+
+            <div>
+                <div class="price-total-block">
+                    <span class="total-label">實付金額</span>
+                    <span class="total-amount">NT$ {{ price }}</span>
+                </div>
+                <div class="security-foot" style="margin-top: 15px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #10b981;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    <span>SSL 256-bit 安全傳輸加密防護</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：訂單確認區（卡號由綠界頁面處理）-->
+        <div class="payment-form-panel" style="justify-content: center; gap: 0;">
+
+            <!-- 標題 -->
+            <h2 class="form-title" style="margin-bottom: 28px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #6366f1;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                確認訂單並前往付款
+            </h2>
+
+            <!-- ECPay 說明卡片 -->
+            <div style="background: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(79,70,229,0.05) 100%); border: 1.5px solid rgba(99,102,241,0.25); border-radius: 20px; padding: 24px; margin-bottom: 24px;">
+                <!-- 步驟說明 -->
+                <div style="display: flex; flex-direction: column; gap: 14px;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <div style="width: 28px; height: 28px; background: rgba(99,102,241,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: #818cf8; flex-shrink: 0;">1</div>
+                        <div>
+                            <div style="font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin-bottom: 2px;">點擊下方按鈕</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8;">系統將安全跳轉至綠界科技官方支付頁面</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <div style="width: 28px; height: 28px; background: rgba(99,102,241,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: #818cf8; flex-shrink: 0;">2</div>
+                        <div>
+                            <div style="font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin-bottom: 2px;">在綠界頁面輸入信用卡資訊</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8;">卡號輸入由綠界科技官方頁面處理，安全無虞</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <div style="width: 28px; height: 28px; background: rgba(16,185,129,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: #34d399; flex-shrink: 0;">3</div>
+                        <div>
+                            <div style="font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin-bottom: 2px;">付款成功自動開通方案</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8;">完成後自動導回本站並立即生效</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分隔線 -->
+                <div style="border-top: 1px solid rgba(255,255,255,0.06); margin: 18px 0;"></div>
+
+                <!-- SSL 安全標章 -->
+                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.72rem; color: #64748b;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    <span>SSL 256-bit 安全加密 · 由</span>
+                    <span style="font-weight: 700; color: #94a3b8;">綠界科技 ECPay</span>
+                    <span>官方平台處理</span>
+                </div>
+            </div>
+
+            <!-- 主要付款按鈕 -->
+            <button type="button" id="ecpay-pay-btn" class="btn-pay-premium" onclick="triggerECPayCheckout()" style="font-size: 1.05rem; padding: 18px; letter-spacing: 0.3px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                前往綠界安全刷卡 (NT$ {{ price }})
+            </button>
+
+            <!-- 🧪 開發模擬區（虛線框，顯眼但不干擾主流程）-->
+            <div style="border: 1.5px dashed rgba(255,255,255,0.1); border-radius: 14px; padding: 16px; margin-top: 16px;">
+                <div style="font-size: 0.7rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 1px; text-align: center; margin-bottom: 12px;">🧪 Dev 模擬金流（跳過綠界）</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; box-sizing: border-box;">
+                    <button type="button" onclick="triggerMockPayment(true)"
+                        style="width: 100%; box-sizing: border-box; padding: 11px 8px; border-radius: 10px; border: 1.5px solid rgba(16,185,129,0.4); background: rgba(16,185,129,0.08); color: #34d399; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;"
+                        onmouseover="this.style.background='rgba(16,185,129,0.15)'" onmouseout="this.style.background='rgba(16,185,129,0.08)'">
+                        ✅ 模擬授權成功
+                    </button>
+                    <button type="button" onclick="triggerMockPayment(false)"
+                        style="width: 100%; box-sizing: border-box; padding: 11px 8px; border-radius: 10px; border: 1.5px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.08); color: #f87171; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;"
+                        onmouseover="this.style.background='rgba(239,68,68,0.15)'" onmouseout="this.style.background='rgba(239,68,68,0.08)'">
+                        ❌ 模擬授權失敗
+                    </button>
+                </div>
+            </div>
+
+            <!-- 取消按鈕 -->
+            <button class="btn-cancel" onclick="cancelPayment()" style="margin-top: 12px;">
+                ← 取消，回到首頁
+            </button>
+        </div>
+    </div>
+
+    <!-- 🔒 全螢幕支付中載入動畫層 -->
+    <div class="payment-loading-overlay" id="loading-overlay">
+        <div class="loading-ring"></div>
+        <h3 class="loading-title" id="loading-title">正在連線至綠界安全支付...</h3>
+        <p class="loading-desc" id="loading-desc">正在產生簽章並準備跳轉，請稍候</p>
+    </div>
+
+    <script>
+        // 自動生成模擬交易序號（僅顯示用）
+        document.getElementById('transaction-id').innerText = 'UTK-' + Date.now().toString(36).toUpperCase();
+
+        // ─── 綠界 ECPay 付款跳轉核心邏輯 ───
+        async function triggerECPayCheckout() {
+            const btn     = document.getElementById('ecpay-pay-btn');
+            const overlay = document.getElementById('loading-overlay');
+            const title   = document.getElementById('loading-title');
+            const desc    = document.getElementById('loading-desc');
+
+            // 1. 開啟全螢幕毛玻璃 Loading
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            overlay.classList.add('active');
+            title.innerText = '正在連線至綠界安全支付...';
+            desc.innerText  = '正在產生交易簽章，即將跳轉至綠界支付頁面，請稍候';
+
+            try {
+                // 2. 向後端取得綠界自動送出表單 HTML
+                const res = await fetch('/ecpay/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: "{{ email }}",
+                        tier:  "{{ tier }}"
+                    })
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Server error: ${res.status}`);
+                }
+
+                const formHtml = await res.text();
+
+                // 3. 注入表單至 DOM 並立即 submit 至綠界
+                document.body.insertAdjacentHTML('beforeend', formHtml);
+                const ecpayForm = document.getElementById('ecpay-auto-form');
+                if (ecpayForm) {
+                    title.innerText = '✅ 簽章驗證完成，正在跳轉...';
+                    desc.innerText  = '即將前往綠界科技安全支付頁面，請稍候';
+                    setTimeout(() => ecpayForm.submit(), 500);
+                } else {
+                    throw new Error('找不到 ECPay 表單元素');
+                }
+            } catch (err) {
+                console.error('[ECPay Checkout Error]', err);
+                overlay.classList.remove('active');
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                alert('❌ 連線綠界金流失敗：' + err.message + '\n\n請確認伺服器正常運作後重試。');
+            }
+        }
+
+        // 取消付款 (開啟質感客製化彈窗)
+        function cancelPayment() {
+            const modal = document.getElementById('cancel-confirm-modal');
+            if (modal) modal.classList.add('active');
+        }
+
+        // 關閉客製化彈窗
+        function closeCancelModal() {
+            const modal = document.getElementById('cancel-confirm-modal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        // 確認取消交易
+        function confirmCancelPayment() {
+            window.location.href = '/';
+        }
+
+        // ─── 🧪 Dev 模擬付款（跳過綠界，直接呼叫後端更新 DB）───
+        async function triggerMockPayment(isSuccess) {
+            const overlay = document.getElementById('loading-overlay');
+            const title   = document.getElementById('loading-title');
+            const desc    = document.getElementById('loading-desc');
+
+            overlay.classList.add('active');
+
+            if (!isSuccess) {
+                // 模擬授權失敗畫面
+                await new Promise(r => setTimeout(r, 800));
+                overlay.innerHTML = `
+                    <div style="background: rgba(15,23,42,0.95); border: 1.5px solid rgba(239,68,68,0.35); border-radius: 28px; padding: 40px; text-align: center; max-width: 420px; width: 90%; box-shadow: 0 30px 80px rgba(0,0,0,0.6); backdrop-filter: blur(20px);">
+                        <div style="width: 64px; height: 64px; background: rgba(239,68,68,0.1); border: 2px solid #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 20px;">✕</div>
+                        <h3 style="font-size: 1.4rem; font-weight: 900; color: #fff; margin-bottom: 8px;">❌ 發卡銀行授權失敗</h3>
+                        <p style="font-size: 0.78rem; color: #f87171; font-weight: 700; margin-bottom: 12px; background: rgba(239,68,68,0.08); padding: 5px 14px; border-radius: 20px; display: inline-block;">Error Code: 05 - Do Not Honor</p>
+                        <p style="font-size: 0.83rem; color: #94a3b8; line-height: 1.6; margin-bottom: 28px;">發卡銀行拒絕本次交易授權。<br>請確認卡片餘額、信用額度或聯繫發卡行。</p>
+                        <button onclick="window.location.reload()" style="width:100%; padding:13px; border-radius:12px; border:none; background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; font-size:0.92rem; font-weight:800; cursor:pointer; margin-bottom:10px;">🔄 重新嘗試</button>
+                        <button onclick="window.location.href='/'" style="width:100%; padding:11px; border-radius:12px; border:1.5px solid rgba(255,255,255,0.08); background:transparent; color:#94a3b8; font-size:0.85rem; font-weight:700; cursor:pointer;">返回首頁</button>
+                    </div>`;
+                return;
+            }
+
+            // 模擬授權成功 → 呼叫後端更新 DB
+            title.innerText = '🔒 授權核可，資料庫開通中...';
+            desc.innerText  = '正在為您的帳號進行特權開通，請稍候...';
+
+            try {
+                const res = await fetch('/api/mock/payment/process', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: "{{ email }}",
+                        tier:  "{{ tier }}",
+                        payment_status: 'success'
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    window.location.href = '/?payment=success';
+                } else {
+                    overlay.classList.remove('active');
+                    alert('❌ 後端處理失敗：' + data.message);
+                }
+            } catch (err) {
+                overlay.classList.remove('active');
+                alert('❌ 系統連線錯誤，請稍後重試！');
+            }
+        }
+    </script>
+
+    <!-- 質感客製化交易取消確認彈窗 -->
+    <div id="cancel-confirm-modal" class="custom-modal-overlay">
+        <div class="custom-modal-card">
+            <div class="modal-header">
+                <span class="modal-icon">⚠️</span>
+                <h3>取消交易授權</h3>
+            </div>
+            <div class="modal-body">
+                您確定要取消本次交易授權，並返回主畫面嗎？取消後您的特權方案升級將被中斷。
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn cancel-btn" onclick="closeCancelModal()">取消</button>
+                <button class="modal-btn confirm-btn" onclick="confirmCancelPayment()">確定</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
