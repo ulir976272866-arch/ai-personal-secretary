@@ -11,7 +11,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="UniTask">
-    <link rel="apple-touch-startup-image" href="/static/icons/icon.png">
     
     <link rel="stylesheet" href="/static/css/style.css?v=4.7">
     <link rel="apple-touch-icon" href="/static/icons/icon.png">
@@ -68,6 +67,27 @@
         <div class="preloader-spinner"></div>
         <div class="preloader-text">✨ 智慧管家為您準備中...</div>
     </div>
+    <script>
+        // 🛡️ Preloader 絕對防禦安全計時器：防範任何 JS/CSS 異常或網路延遲導致的永久卡死 🛡️
+        (function() {
+            var hidePreloader = function() {
+                var preloader = document.getElementById('pwa-preloader');
+                if (preloader && preloader.style.display !== 'none') {
+                    console.warn('[PWA Preloader] 觸發安全防護自動關閉預載畫面！');
+                    preloader.style.opacity = '0';
+                    setTimeout(function() {
+                        preloader.style.display = 'none';
+                    }, 400);
+                }
+            };
+            // 4.5 秒後不論 DOMContentLoaded 是否觸發，強制關閉 preloader
+            setTimeout(hidePreloader, 4500);
+            
+            // 監聽 DOMContentLoaded 及 load 事件
+            document.addEventListener('DOMContentLoaded', hidePreloader);
+            window.addEventListener('load', hidePreloader);
+        })();
+    </script>
     {% if not logged_in %}
     <!-- 美輪美奐的莫蘭迪高質感登入首頁 (Morandi Premium Login Card) -->
     <div id="login-container">
@@ -1788,18 +1808,5 @@
         });
     </script>
     {% endif %}
-
-    <script>
-        // 🌟 隱藏極速加載 Preloader (不論是否登入) 🌟
-        document.addEventListener('DOMContentLoaded', () => {
-            const preloader = document.getElementById('pwa-preloader');
-            if (preloader) {
-                preloader.style.opacity = '0';
-                setTimeout(() => {
-                    preloader.style.display = 'none';
-                }, 400);
-            }
-        });
-    </script>
 </body>
 </html>
