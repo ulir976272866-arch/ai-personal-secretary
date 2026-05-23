@@ -214,7 +214,7 @@ body {
 .clear-btn {
     position: absolute;
     right: 25px;
-    bottom: 110px;
+    bottom: calc(105px + env(safe-area-inset-bottom, 0px));
     width: 48px;
     height: 48px;
     background: #fef2f2; /* red-50 */
@@ -250,7 +250,10 @@ body {
 
 /* 底部輸入區域 */
 .input-area {
-    padding: 20px;
+    padding-top: 15px;
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px)) !important;
     background: white;
     border-top: 1px solid #f1f5f9;
 }
@@ -1866,7 +1869,10 @@ select.form-input {
    ================================================================= */
 /* 極致緊湊 Header 佈局 (V19.0 Premium Left-Aligned Layout) */
 .header {
-    padding: 10px 16px 8px 16px !important;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: 8px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
 }
 
 .header-top-row {
@@ -2445,4 +2451,51 @@ select.form-input {
         transform: scale(1.03);
     }
 }
+
+
+/* =================================================================
+   跨裝置融合響應式設計 (Desktop/Tablet Premium Frame Integration)
+   ================================================================= */
+@media screen and (min-width: 480px) {
+    body {
+        align-items: center !important; /* 電腦與平板版面置中 */
+        padding: 20px 0 !important;
+    }
+    
+    #app-container {
+        max-width: 450px;
+        height: 92vh !important;
+        height: 92dvh !important;
+        max-height: 880px;
+        border-radius: 36px !important;
+        box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.25), 
+                    0 0 0 12px rgba(255, 255, 255, 0.8), 
+                    0 0 0 13px rgba(15, 23, 42, 0.08) !important;
+        margin: auto !important;
+    }
+    
+    /* 讓頂部背景完美契合電腦版的機身圓角 */
+    .header {
+        border-radius: 28px 28px 20px 20px !important;
+    }
+}
+
+/* 極窄螢幕（如舊版 iPhone SE 或 320px 寬度設備）最佳化 */
+@media screen and (max-width: 350px) {
+    .tab-btn {
+        font-size: 0.72rem !important;
+        padding: 8px 2px !important;
+    }
+    
+    .sub-btn {
+        font-size: 0.7rem !important;
+        padding: 8px 1px !important;
+    }
+    
+    .header {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+}
+
 
