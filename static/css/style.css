@@ -2218,6 +2218,12 @@ select.form-input {
    👑 UniTask Premium Level Badges (SaaS High-End Styling)
    ================================================================= */
 
+/* 🚀 全局徽章防縮水、防折行保證 */
+[class^="user-badge-"] {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
 /* 1. 🛠️ 系統開發管理者 (黑金漸層 + 微光) */
 .user-badge-dev {
     display: inline-flex;
