@@ -2617,4 +2617,30 @@ select.form-input {
     box-shadow: 0 0 0 3px rgba(0, 191, 175, 0.1);
 }
 
+/* =================================================================
+   🌳 首頁自訂模組 - 樹狀階層與抽屜折疊動效 (V15.0)
+   ================================================================= */
+.setting-nested-group {
+    margin-left: 20px;
+    border-left: 1.5px dashed #cbd5e1;
+    padding-left: 14px;
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    opacity: 1;
+    pointer-events: auto;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 250px;
+    overflow: hidden;
+}
 
+.setting-nested-group.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+    max-height: 0;
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-left-color: transparent;
+}

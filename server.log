@@ -903,3 +903,552 @@ https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/READM
 127.0.0.1 - - [24/May/2026 00:48:46] "POST /api/sync_profile HTTP/1.1" 200 -
 127.0.0.1 - - [24/May/2026 00:48:48] "POST /api/chat HTTP/1.1" 200 -
 127.0.0.1 - - [24/May/2026 00:48:49] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:53:33] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:53:33] "GET /static/css/style.css?v=5.0 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:53:33] "GET /static/js/app.js?v=6.8 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:53:34] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:53:34] "GET /sw.js HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:53:34] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:53:34] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:53:34] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:53:34] "[36mGET /static/css/style.css?v=5.0 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:53:34] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:53:34] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 00:53:35] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:53:35] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 00:53:36] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:00:30] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:00:39] "GET /static/css/style.css?v=5.0 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:00:39] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:00:39] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:00:40] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:00:40] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:00:41] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:00:41] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:00:42] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:02:00] "GET /static/css/style.css?v=5.1 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:02:00] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:02:00] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:02:01] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:02:02] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:02:02] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:02:04] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:02:05] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:02:34] "POST /api/query_schedule HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:03:11] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:04:13] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:05:40] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:05:49] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:05:49] "GET /static/css/style.css?v=5.1 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:05:49] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:05:50] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:05:50] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:05:51] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:05:51] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:05:53] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:06:13] "[36mGET /static/css/style.css?v=5.1 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:06:13] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:06:13] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:06:13] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:06:14] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:06:14] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:06:14] "GET /?cb=12345 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:06:15] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:07:15] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:07:20] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:07:25] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:07:30] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:07:40] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:07:49] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:08:45] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:08:55] "[36mGET /static/css/style.css?v=5.1 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:08:55] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:08:55] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:08:56] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:08:57] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:08:57] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:08:57] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:08:57] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:09:21] "[36mGET /static/css/style.css?v=5.1 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:09:21] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:09:21] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:09:21] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:09:22] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:09:22] "POST /api/sync_profile HTTP/1.1" 200 -
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11671 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11671 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 00:48:44
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 00:48:48
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-24 00:53:33
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-24 00:53:36
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 01:00:40
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 01:02:04
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 01:05:49
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 01:06:14
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 01:08:56
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+127.0.0.1 - - [24/May/2026 01:09:23] "GET /?cb=999999 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:09:23] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:10:07] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:10:26] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:16:02] "GET /static/css/style.css?v=5.0 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:16:02] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:02] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:02] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:02] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:02] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:16:03] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:16:04] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:05] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:16:10] "GET /static/css/style.css?v=5.1 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:16:10] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:10] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:10] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:10] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:11] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:16:11] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:16:11] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:16:11] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:16] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [24/May/2026 01:16:16] "[36mGET /static/css/style.css?v=5.1 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:16] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:19] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [24/May/2026 01:16:19] "[36mGET /static/css/style.css?v=5.1 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:19] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:19] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:19] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:19] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:20] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:16:20] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:16:20] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:16:21] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:16:38] "GET /api/training/rules HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:21:23] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:21:41] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:21:41] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:21:41] "GET /static/css/style.css?v=5.1 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:21:42] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:21:43] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:21:43] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:21:44] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:21:44] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:21:57] "GET /static/css/style.css?v=5.2 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:21:57] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:21:57] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:21:57] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:21:58] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:21:58] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:21:59] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:21:59] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:22:05] "[36mGET /static/css/style.css?v=5.2 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:22:05] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:22:05] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:22:06] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:22:06] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:22:06] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:22:07] "GET /?cache_bust=12345 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:22:08] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:22:22] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:22:59] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:24:10] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:24:10] "GET /static/js/app.js?v=6.8 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:24:10] "GET /static/css/style.css?v=5.2 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:24:10] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [24/May/2026 01:24:10] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:24:11] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:24:11] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:24:12] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:24:12] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:24:18] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:24:20] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:25:28] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:25:29] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:26:29] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:27:00] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:27:00] "[36mGET /static/css/style.css?v=5.2 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:27:00] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:27:00] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:27:01] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:27:01] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:27:02] "GET /?cache_bust=99999 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:27:02] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:28:07] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:28:07] "GET /static/css/style.css?v=5.3 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:28:07] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:28:09] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:28:09] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:28:09] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:28:10] "GET /?cache_bust=totally_random_1122334455 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:28:13] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:30:08] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:30:08] "[36mGET /static/css/style.css?v=5.3 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:30:08] "[36mGET /static/js/app.js?v=6.8 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:30:08] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:30:08] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:30:09] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:30:09] "POST /api/sync_profile HTTP/1.1" 200 -
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 01:09:22
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-24 01:16:03
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-24 01:16:10
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-24 01:16:19
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[Self-Healing] Detected header mismatch in sheet 'AI_指令集': ['觸發語句', '執行動作', '備註'] vs standard ['觸發語句', '執行動作']. Overwriting...
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 01:21:43
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 01:21:58
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 01:22:06
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: Zzs1_jgIyobJ8irFB~UfxEDfMeVWnf2ynVeJlAeAoGP8vv1fXnTPoo.Tq_8xQhDpR9jNc0F_AmhU3VXYMKyF.CCmUBwktvOhJ6Hs1WBSTg8lHONBhemj7cLR6Uwrjdwk
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: doPwZ0sp1KYsD5Et0tPweMt0OC9zFF
+  subscription_expires_at: 2027-05-24 01:24:09
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 01:27:01
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+  enable_period: True
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: 5V0opZz4e2CUzK7bWcnJBkSzsaiGQN
+  subscription_expires_at: 2027-05-24 01:28:10
+  subscription_type: YEARLY_AI
+  timezone: Asia/Taipei
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  user_gender: girl
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: BmmGRcEodgkaZyuyL69a8WtkKhGuNuPnKjm53ilCJ59kzYRlmqW1F4i38gPFfa0ArxoEXI11OfJVKvl0m7qmvwsKTuYp3qSh6jIDNO5dpl7E5UtNQTTZ~IuOdFc.ZciK
+127.0.0.1 - - [24/May/2026 01:30:11] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [24/May/2026 01:30:13] "GET /?cache_bust=99999 HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:30:14] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:30:15] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:30:18] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:30:20] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:30:26] "GET /api/training/rules HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 01:31:31] "GET /api/todo HTTP/1.1" 200 -

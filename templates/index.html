@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="UniTask">
     
-    <link rel="stylesheet" href="/static/css/style.css?v=5.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=5.3">
     <link rel="apple-touch-icon" href="/static/icons/icon.png">
     <link rel="icon" type="image/png" href="/static/icons/icon.png">
     <!-- Google Fonts -->
@@ -335,11 +335,11 @@
     <div class="action-card">
         <!-- 第一層：母分頁 -->
         <div class="parent-tabs">
-            <button class="tab-btn active" onclick="switchTab('finance', event)">💰 記帳</button>
-            <button class="tab-btn" onclick="switchTab('schedule', event)"><span class="dynamic-date-wrapper"><span class="date-top"></span><span class="date-num current-day-val"></span></span> 行程 {% if session.get('subscription_type') == 'NONE' %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
-            <button class="tab-btn" onclick="switchTab('memo', event)">📝 備忘 {% if session.get('subscription_type') == 'NONE' %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
-            <button class="tab-btn tab-health" onclick="switchTab('health', event)">🌸 女性 {% if session.get('subscription_type') == 'NONE' %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
-            <button class="tab-btn" onclick="switchTab('stock', event)">📈 存股 {% if not session.get('subscription_type') or session.get('subscription_type') in ['NONE', 'MONTHLY_AI'] %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
+            <button class="tab-btn active" id="tab_btn_finance" onclick="switchTab('finance', event)">💰 記帳</button>
+            <button class="tab-btn" id="tab_btn_schedule" onclick="switchTab('schedule', event)"><span class="dynamic-date-wrapper"><span class="date-top"></span><span class="date-num current-day-val"></span></span> 行程 {% if session.get('subscription_type') == 'NONE' %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
+            <button class="tab-btn" id="tab_btn_memo" onclick="switchTab('memo', event)">📝 備忘 {% if session.get('subscription_type') == 'NONE' %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
+            <button class="tab-btn tab-health" id="tab_btn_health" onclick="switchTab('health', event)">🌸 女性 {% if session.get('subscription_type') == 'NONE' %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
+            <button class="tab-btn" id="tab_btn_stock" onclick="switchTab('stock', event)">📈 存股 {% if not session.get('subscription_type') or session.get('subscription_type') in ['NONE', 'MONTHLY_AI'] %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
         </div>
         
         <!-- 第二層：子功能選單 -->
@@ -366,10 +366,10 @@
             </div>
             <!-- 備忘子選單 -->
             <div id="sub_memo" class="sub-menu">
-                <button class="sub-btn" onclick="openModal('memoModal')">📔 生活紀錄</button>
-                <button class="sub-btn" onclick="openModal('todoModal')">✅ 待辦事項</button>
-                <button class="sub-btn" onclick="openModal('pocketModal')">📍 口袋名單</button>
-                <button class="sub-btn" onclick="openModal('wishlistModal')">🎁 願望清單</button>
+                <button class="sub-btn" id="sub_btn_diary" onclick="openModal('memoModal')">📔 生活紀錄</button>
+                <button class="sub-btn" id="sub_btn_todo" onclick="openModal('todoModal')">✅ 待辦事項</button>
+                <button class="sub-btn" id="sub_btn_pocket" onclick="openModal('pocketModal')">📍 口袋名單</button>
+                <button class="sub-btn" id="sub_btn_wishlist" onclick="openModal('wishlistModal')">🎁 願望清單</button>
             </div>
             <!-- 健康子選單 -->
             <div id="sub_health" class="sub-menu">
@@ -1589,12 +1589,12 @@
                         <label style="font-weight: 700; color: #334155; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; margin: 0;">⚧️ 性別偏好</label>
                         <div class="setting-radio-group" style="padding: 0; display: flex; gap: 16px; align-items: center;">
                             <label class="setting-radio-label" style="margin: 0;">
-                                <input type="radio" name="setting_gender" value="girl" id="gender_girl_radio" onchange="handleSettingGenderChange('girl')">
+                                <input type="radio" name="setting_gender" value="girl" id="gender_girl_radio" onchange="handleSettingGenderChange('girl'); window.saveAndApplySystemSettings();">
                                 <span class="radio-custom"></span>
                                 <span>🌸 女性</span>
                             </label>
                             <label class="setting-radio-label" style="margin: 0;">
-                                <input type="radio" name="setting_gender" value="boy" id="gender_boy_radio" onchange="handleSettingGenderChange('boy')">
+                                <input type="radio" name="setting_gender" value="boy" id="gender_boy_radio" onchange="handleSettingGenderChange('boy'); window.saveAndApplySystemSettings();">
                                 <span class="radio-custom"></span>
                                 <span>🔷 男性</span>
                             </label>
@@ -1606,9 +1606,66 @@
                             🌸 啟用「女性生理健康」追蹤功能
                         </span>
                         <label class="premium-switch" style="margin: 0;">
-                            <input type="checkbox" id="setting_enable_period" checked>
+                            <input type="checkbox" id="setting_enable_period" onchange="window.saveAndApplySystemSettings();">
                             <span class="switch-slider"></span>
                         </label>
+                    </div>
+                    <!-- 📱 首頁顯示模組自訂區 -->
+                    <div style="border-top: 1px dashed #cbd5e1; padding-top: 10px; margin-top: 2px;">
+                        <label style="font-weight: 700; color: #334155; font-size: 0.9rem; display: block; margin-bottom: 8px;">📱 首頁顯示模組自訂</label>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <!-- 存股開關 -->
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="font-size: 0.82rem; color: #475569;">📈 顯示「台股/ETF 存股頁籤」</span>
+                                <label class="premium-switch" style="margin: 0; transform: scale(0.85);">
+                                    <input type="checkbox" id="setting_show_stock" onchange="window.saveAndApplySystemSettings();">
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                            
+                            <!-- 備忘母開關 -->
+                            <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px dashed #f1f5f9; padding-top: 6px;">
+                                <span style="font-size: 0.82rem; color: #334155; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                                    📝 啟用「個人備忘功能頁籤」
+                                </span>
+                                <label class="premium-switch" style="margin: 0; transform: scale(0.85);">
+                                    <input type="checkbox" id="setting_enable_memo" onchange="window.saveAndApplySystemSettings();">
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                            
+                            <!-- 縮排子開關容器 (樹狀階層結構) -->
+                            <div id="nested_memo_options" class="setting-nested-group">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+                                    <span style="font-size: 0.82rem; color: #475569;">📔 生活紀錄與日記</span>
+                                    <label class="premium-switch" style="margin: 0; transform: scale(0.78);">
+                                        <input type="checkbox" id="setting_show_diary" onchange="window.saveAndApplySystemSettings();">
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+                                    <span style="font-size: 0.82rem; color: #475569;">📝 今日待辦清單</span>
+                                    <label class="premium-switch" style="margin: 0; transform: scale(0.78);">
+                                        <input type="checkbox" id="setting_show_todo" onchange="window.saveAndApplySystemSettings();">
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+                                    <span style="font-size: 0.82rem; color: #475569;">📍 口袋私房名單</span>
+                                    <label class="premium-switch" style="margin: 0; transform: scale(0.78);">
+                                        <input type="checkbox" id="setting_show_pocket" onchange="window.saveAndApplySystemSettings();">
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <span style="font-size: 0.82rem; color: #475569;">🎁 個人願望清單</span>
+                                    <label class="premium-switch" style="margin: 0; transform: scale(0.78);">
+                                        <input type="checkbox" id="setting_show_wishlist" onchange="window.saveAndApplySystemSettings();">
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <!-- AI 訓練室快捷入口 -->
                     <div style="border-top: 1px dashed #cbd5e1; padding-top: 10px; margin-top: 2px;">
@@ -1618,7 +1675,6 @@
                         </button>
                     </div>
                 </div>
-                <button onclick="saveSystemSettings()" style="width: 100%; padding: 12px; border-radius: 16px; border: none; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; font-weight: 700; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35); transition: all 0.3s ease;">儲存設定 💾</button>
             </div>
         </div>
     </div>
@@ -1760,26 +1816,45 @@
             }
         };
 
-        window.saveSystemSettings = () => {
+        window.saveAndApplySystemSettings = () => {
             const genderRadio = document.querySelector('input[name="setting_gender"]:checked');
             const gender = genderRadio ? genderRadio.value : 'girl';
             const enablePeriod = document.getElementById('setting_enable_period').checked;
+            const showStock = document.getElementById('setting_show_stock').checked;
+            const enableMemo = document.getElementById('setting_enable_memo').checked;
+            
+            const showTodo = document.getElementById('setting_show_todo').checked;
+            const showPocket = document.getElementById('setting_show_pocket').checked;
+            const showDiary = document.getElementById('setting_show_diary').checked;
+            const showWishlist = document.getElementById('setting_show_wishlist').checked;
             
             localStorage.setItem('user_gender', gender);
             localStorage.setItem('enable_period_tracking', enablePeriod);
+            localStorage.setItem('show_stock_tab', showStock);
+            localStorage.setItem('enable_memo_tab', enableMemo);
+            
+            localStorage.setItem('show_todo_btn', showTodo);
+            localStorage.setItem('show_pocket_btn', showPocket);
+            localStorage.setItem('show_diary_btn', showDiary);
+            localStorage.setItem('show_wishlist_btn', showWishlist);
             localStorage.setItem('user_profile_configured', 'true');
             
             window.syncOnboardingToBackend(gender, enablePeriod);
             window.applySystemSettings();
-            window.closeModal('settingsModal');
-            alert('系統偏好設定已儲存！💾');
         };
 
         window.applySystemSettings = () => {
             const gender = localStorage.getItem('user_gender') || 'girl';
             const enablePeriod = localStorage.getItem('enable_period_tracking') !== 'false';
+            const showStock = localStorage.getItem('show_stock_tab') !== 'false';
+            const enableMemo = localStorage.getItem('enable_memo_tab') !== 'false';
             
-            // 🎯 新增：動態切換 Header 的性別配色 Class
+            const showTodo = localStorage.getItem('show_todo_btn') !== 'false';
+            const showPocket = localStorage.getItem('show_pocket_btn') !== 'false';
+            const showDiary = localStorage.getItem('show_diary_btn') !== 'false';
+            const showWishlist = localStorage.getItem('show_wishlist_btn') !== 'false';
+            
+            // 1. 性別與主體配色控制
             const headerEl = document.querySelector('.header');
             if (headerEl) {
                 if (gender === 'boy') {
@@ -1791,26 +1866,105 @@
                 }
             }
             
-            // 更新設定選單選項
+            // 更新設定選單 DOM 狀態
             const genderRadio = document.getElementById(`gender_${gender}_radio`);
             if (genderRadio) genderRadio.checked = true;
             
             const periodCheckbox = document.getElementById('setting_enable_period');
             if (periodCheckbox) periodCheckbox.checked = enablePeriod;
             
-            // 隱藏/顯示「經期」頁籤按鈕
+            const stockCheckbox = document.getElementById('setting_show_stock');
+            if (stockCheckbox) stockCheckbox.checked = showStock;
+            
+            const memoCheckbox = document.getElementById('setting_enable_memo');
+            if (memoCheckbox) memoCheckbox.checked = enableMemo;
+            
+            const todoCheckbox = document.getElementById('setting_show_todo');
+            if (todoCheckbox) todoCheckbox.checked = showTodo;
+            
+            const pocketCheckbox = document.getElementById('setting_show_pocket');
+            if (pocketCheckbox) pocketCheckbox.checked = showPocket;
+            
+            const diaryCheckbox = document.getElementById('setting_show_diary');
+            if (diaryCheckbox) diaryCheckbox.checked = showDiary;
+
+            const wishlistCheckbox = document.getElementById('setting_show_wishlist');
+            if (wishlistCheckbox) wishlistCheckbox.checked = showWishlist;
+
+            // 2. 樹狀階層禁用狀態與折疊動效
+            const nestedMemoOptions = document.getElementById('nested_memo_options');
+            if (nestedMemoOptions) {
+                if (enableMemo) {
+                    nestedMemoOptions.classList.remove('disabled');
+                } else {
+                    nestedMemoOptions.classList.add('disabled');
+                }
+            }
+
+            // 3. 顯示/隱藏「經期」頁籤按鈕
             const periodTab = document.querySelector('.tab-health');
             if (periodTab) {
                 if (enablePeriod) {
                     periodTab.style.display = 'block';
                 } else {
                     periodTab.style.display = 'none';
-                    // 若當前在健康頁面，自動切換到行程頁面
                     if (periodTab.classList.contains('active')) {
-                        const scheduleTab = document.querySelector('.parent-tabs button:first-child');
+                        const scheduleTab = document.getElementById('tab_btn_schedule') || document.querySelector('.parent-tabs button:first-child');
                         if (scheduleTab) scheduleTab.click();
                     }
                 }
+            }
+
+            // 4. 顯示/隱藏「存股」頁籤按鈕 (方案 C)
+            const stockTab = document.getElementById('tab_btn_stock');
+            if (stockTab) {
+                if (showStock) {
+                    stockTab.style.display = 'block';
+                } else {
+                    stockTab.style.display = 'none';
+                    if (stockTab.classList.contains('active')) {
+                        const scheduleTab = document.getElementById('tab_btn_schedule') || document.querySelector('.parent-tabs button:first-child');
+                        if (scheduleTab) scheduleTab.click();
+                    }
+                }
+            }
+
+            // 5. 顯示/隱藏「備忘」大功能頁籤按鈕 (母開關)
+            const memoTab = document.getElementById('tab_btn_memo');
+            if (memoTab) {
+                if (enableMemo) {
+                    memoTab.style.display = 'block';
+                } else {
+                    memoTab.style.display = 'none';
+                    if (memoTab.classList.contains('active')) {
+                        const scheduleTab = document.getElementById('tab_btn_schedule') || document.querySelector('.parent-tabs button:first-child');
+                        if (scheduleTab) scheduleTab.click();
+                    }
+                }
+            }
+
+            // 6. 顯示/隱藏「今日待辦清單」按鈕 (子開關 1)
+            const todoBtn = document.getElementById('sub_btn_todo');
+            if (todoBtn) {
+                todoBtn.style.display = (enableMemo && showTodo) ? 'block' : 'none';
+            }
+
+            // 7. 顯示/隱藏「口袋私房名單」按鈕 (子開關 2)
+            const pocketBtn = document.getElementById('sub_btn_pocket');
+            if (pocketBtn) {
+                pocketBtn.style.display = (enableMemo && showPocket) ? 'block' : 'none';
+            }
+
+            // 8. 顯示/隱藏「生活紀錄與日記」按鈕 (子開關 3)
+            const diaryBtn = document.getElementById('sub_btn_diary');
+            if (diaryBtn) {
+                diaryBtn.style.display = (enableMemo && showDiary) ? 'block' : 'none';
+            }
+
+            // 9. 顯示/隱藏「個人願望清單」按鈕 (子開關 4)
+            const wishlistBtn = document.getElementById('sub_btn_wishlist');
+            if (wishlistBtn) {
+                wishlistBtn.style.display = (enableMemo && showWishlist) ? 'block' : 'none';
             }
         };
 
