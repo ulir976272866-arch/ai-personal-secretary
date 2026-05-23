@@ -848,15 +848,21 @@ select.form-input {
 
 .sub-btn {
     flex: 1;
-    padding: 10px 5px;
+    padding: 10px 2px;
     border: 1.5px solid #e2e8f0;
     background: white;
     border-radius: 10px;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 600;
     color: #475569;
     cursor: pointer;
     transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    white-space: nowrap;
+    letter-spacing: -0.5px;
 }
 
 .sub-btn:active {
