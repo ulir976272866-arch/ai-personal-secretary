@@ -1452,3 +1452,7 @@ Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei
 127.0.0.1 - - [24/May/2026 01:30:20] "POST /api/sync_profile HTTP/1.1" 200 -
 127.0.0.1 - - [24/May/2026 01:30:26] "GET /api/training/rules HTTP/1.1" 200 -
 127.0.0.1 - - [24/May/2026 01:31:31] "GET /api/todo HTTP/1.1" 200 -
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/multiprocessing/resource_tracker.py:224: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
+[Stock Sync] 資料清洗完成，共計 11671 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11671 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
