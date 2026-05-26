@@ -4529,6 +4529,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     `).join('');
                 }
 
+                // 渲染經前期健康預警
+                const pmsAlertCard = document.getElementById('pms_prediction_alert_card');
+                const pmsAlertBody = document.getElementById('pms_alert_body');
+                if (pmsAlertCard && pmsAlertBody) {
+                    if (data.pms_alert && data.pms_alert.has_data) {
+                        pmsAlertBody.innerHTML = data.pms_alert.tips;
+                        pmsAlertCard.style.display = 'block';
+                    } else {
+                        pmsAlertCard.style.display = 'none';
+                    }
+                }
+
                 // --- 繪製月曆與詳情 ---
                 window.menstrualData = data;
                 const today = new Date();
@@ -4686,7 +4698,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         showToast(data.message, 'error');
                     }
                 } else if (isSymptom) {
-                    window.openModal('symptomModal');
+                    window.selectedCalendarDate = new Date();
+                    window.openSymptomModalForSelectedDate();
                 }
             } catch (e) {
                 console.error(e);
@@ -4758,31 +4771,103 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    window.openSymptomModalForSelectedDate = async () => {
+        const d = window.selectedCalendarDate || new Date();
+        const yearStr = d.getFullYear();
+        const monthStr = String(d.getMonth() + 1).padStart(2, '0');
+        const dayStr = String(d.getDate()).padStart(2, '0');
+        const dateStr = `${yearStr}/${monthStr}/${dayStr}`;
+        
+        // 1. 動態更新彈窗標題
+        const titleEl = document.querySelector('#menstrualSymptomsModal .modal-title');
+        if (titleEl) {
+            titleEl.innerHTML = `🩺 紀錄 ${dateStr} 症狀`;
+        }
+        
+        // 2. 將選定日期存入隱藏輸入框，方便存檔時傳遞
+        let hiddenDateInput = document.getElementById('selected_symptom_date');
+        if (!hiddenDateInput) {
+            hiddenDateInput = document.createElement('input');
+            hiddenDateInput.type = 'hidden';
+            hiddenDateInput.id = 'selected_symptom_date';
+            const modalContent = document.querySelector('#menstrualSymptomsModal .modal-content');
+            if (modalContent) modalContent.appendChild(hiddenDateInput);
+        }
+        if (hiddenDateInput) hiddenDateInput.value = dateStr;
+        
+        // 3. 先載入最新症狀選項清單，以防自訂選項更新
+        try {
+            const res = await fetch('/api/health/symptoms/options');
+            const data = await res.json();
+            if (data.status === 'success') {
+                const list = document.getElementById('symptoms_list');
+                const logged = window.menstrualData?.symptoms_dict?.[dateStr];
+                const loggedSymptoms = logged ? logged.symptoms.split('、') : [];
+                
+                list.innerHTML = data.data.map(opt => {
+                    const isChecked = loggedSymptoms.includes(opt) ? 'checked' : '';
+                    return `
+                        <div style="background: white; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="sym_${opt}" value="${opt}" ${isChecked} style="width: 16px; height: 16px; accent-color: #ec4899;">
+                            <label for="sym_${opt}" style="font-size: 0.9rem; color: #334155; user-select: none;">${opt}</label>
+                            <span onclick="window.deleteSymptom('${opt}')" style="color: #94a3b8; font-size: 0.8rem; margin-left: 5px; cursor: pointer;">&times;</span>
+                        </div>
+                    `;
+                }).join('');
+                
+                // 填寫備註
+                const loggedNote = logged ? logged.note : '';
+                const noteTextarea = document.getElementById('symptom_note');
+                if (noteTextarea) {
+                    noteTextarea.value = loggedNote;
+                }
+            }
+        } catch (e) {
+            console.error('載入及預填症狀失敗:', e);
+        }
+        
+        // 4. 開啟彈窗
+        window.openModal('menstrualSymptomsModal');
+    };
+
     window.saveSymptoms = async () => {
+        const btn = document.getElementById('save_symptoms_btn');
+        const originalHtml = btn ? btn.innerHTML : '儲存今日症狀 💾';
+        
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="premium-spinner" style="width: 14px; height: 14px; display: inline-block; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; vertical-align: middle; margin-right: 6px; animation: spin 1s linear infinite;"></span> 正在儲存...`;
+            btn.style.opacity = '0.8';
+        }
+        
         const checkboxes = document.querySelectorAll('#symptoms_list input[type="checkbox"]:checked');
         const selected = Array.from(checkboxes).map(cb => cb.value);
-        
-        if (selected.length === 0) {
-            showToast('請至少勾選一項症狀哦', 'error');
-            return;
-        }
+        const note = document.getElementById('symptom_note')?.value || '';
+        const hiddenDateInput = document.getElementById('selected_symptom_date');
+        const date = hiddenDateInput ? hiddenDateInput.value : '';
         
         try {
             const res = await fetch('/api/health/symptoms/record', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({symptoms: selected})
+                body: JSON.stringify({symptoms: selected, note: note, date: date})
             });
             const data = await res.json();
             if (data.status === 'success') {
                 showToast(data.message, 'success');
-                closeModal('symptomModal');
+                closeModal('menstrualSymptomsModal');
                 window.loadHealthInfo();
             } else {
                 showToast(data.message, 'error');
             }
         } catch (e) {
             showToast('儲存失敗', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                btn.style.opacity = '1';
+            }
         }
     };
 
@@ -5998,6 +6083,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 cell.classList.add('selected');
             }
             
+            // 🩺 症狀紀錄小徽章
+            if (!isSkeleton) {
+                const cellDateKey = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+                if (window.menstrualData?.symptoms_dict?.[cellDateKey]) {
+                    const badge = document.createElement('span');
+                    badge.style.position = 'absolute';
+                    badge.style.right = '1px';
+                    badge.style.bottom = '1px';
+                    badge.style.fontSize = '0.55rem';
+                    badge.innerText = '🩺';
+                    cell.appendChild(badge);
+                }
+            }
+            
             // Date text
             const textNode = document.createElement('span');
             textNode.innerText = d.getDate();
@@ -6196,6 +6295,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 detailCard.style.background = 'rgba(240, 253, 244, 0.8)';
                 detailCard.style.borderColor = '#bbf7d0';
             }
+        }
+        
+        // 3. 檢查是否有已記錄的症狀
+        const dateKey = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+        const hasLoggedSymptom = window.menstrualData?.symptoms_dict?.[dateKey];
+        if (hasLoggedSymptom) {
+            detailSymptoms.innerHTML = `<b>🩺 已記錄症狀：</b> ${hasLoggedSymptom.symptoms}${hasLoggedSymptom.note ? '<br><b>📝 備註：</b>' + hasLoggedSymptom.note : ''}`;
+        }
+        
+        // 4. 動態顯示與切換編輯按鈕的文字
+        const editBtn = document.getElementById('edit_symptom_for_selected_date_btn');
+        if (editBtn) {
+            if (hasLoggedSymptom) {
+                editBtn.innerText = '✏️ 編輯症狀';
+            } else {
+                editBtn.innerText = '➕ 紀錄症狀';
+            }
+            editBtn.style.display = 'block';
         }
     };
 

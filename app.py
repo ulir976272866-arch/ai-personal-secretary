@@ -581,7 +581,7 @@ def get_sheet_urls():
         
     gids = session.get('sheet_gids', {})
     
-    required_titles = ['記帳', '💰股票投資組合', '日記', '待辦', '願望', '口袋', '生理紀錄', 'AI_指令集']
+    required_titles = ['記帳', '💰股票投資組合', '日記', '待辦', '願望', '口袋', '生理紀錄', 'AI_指令集', '生理症狀紀錄']
     has_all_gids = gids and all(
         (t in gids) or 
         (t == '口袋' and '口袋名單' in gids) or 
@@ -612,7 +612,19 @@ def get_sheet_urls():
     def get_url_with_gid(title, default_sheet_id=None):
         current_sheet_id = default_sheet_id if (is_owner and default_sheet_id) else spreadsheet_id
         
-        # 尋找對應的分頁 GID
+        # 尋找對應的分頁 GID，若快取中不存在則主動重新向 Google 查詢以自癒快取
+        if title not in gids:
+            try:
+                service = get_sheets_service()
+                meta = service.spreadsheets().get(spreadsheetId=current_sheet_id).execute()
+                for s in meta.get('sheets', []):
+                    title_name = s.get('properties', {}).get('title')
+                    sheet_gid = s.get('properties', {}).get('sheetId')
+                    gids[title_name] = sheet_gid
+                session['sheet_gids'] = gids
+            except Exception as e:
+                print(f"Force fetch GIDs failed for {title}: {e}")
+                
         gid = gids.get(title)
         
         # 口袋名單別名雙向相容
@@ -639,6 +651,7 @@ def get_sheet_urls():
         "wish_sheet_url": get_url_with_gid('願望', os.getenv('WISH_SHEET_ID')),
         "pocket_sheet_url": get_url_with_gid('口袋', os.getenv('POCKET_SHEET_ID')),
         "health_sheet_url": get_url_with_gid('生理紀錄', os.getenv('HEALTH_SHEET_ID')),
+        "symptom_sheet_url": get_url_with_gid('生理症狀紀錄', os.getenv('HEALTH_SHEET_ID')),
         "training_sheet_url": get_url_with_gid('AI_指令集', os.getenv('HEALTH_SHEET_ID'))
     }
 def ensure_user_spreadsheet():
@@ -692,7 +705,8 @@ def ensure_user_spreadsheet():
                     '生理紀錄': [['年度', '月份', '日期', '動作', '症狀/心情', '週期', '備註']],
                     '口袋': [['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度', '常用']],
                     'AI_指令集': [['觸發語句', '執行動作']],
-                    '💰股票投資組合': [['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']]
+                    '💰股票投資組合': [['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']],
+                    '生理症狀紀錄': [['日期', '症狀', '備註', '寫入時間']]
                 }
                 
                 # 兼容「願望清單」或「願望」
@@ -936,7 +950,8 @@ def self_heal_missing_sheet_values(range_name, spreadsheet_id, service, original
         '口袋': ['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度', '常用'],
         '口袋名單': ['ID', '類別', '名稱', '地點', '地點區域', '備註', '建立時間', '緯度', '經度', '常用'],
         'AI_指令集': ['觸發語句', '執行動作'],
-        '💰股票投資組合': ['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']
+        '💰股票投資組合': ['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註'],
+        '生理症狀紀錄': ['日期', '症狀', '備註', '寫入時間']
     }
     
     err_msg = str(original_err)
@@ -1062,7 +1077,8 @@ def get_sheet_values(range_name, spreadsheet_id=None):
                 '口袋': ['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度', '常用'],
                 '口袋名單': ['ID', '類別', '名稱', '地點', '地點區域', '備註', '建立時間', '緯度', '經度', '常用'],
                 'AI_指令集': ['觸發語句', '執行動作'],
-                '💰股票投資組合': ['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']
+                '💰股票投資組合': ['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註'],
+                '生理症狀紀錄': ['日期', '症狀', '備註', '寫入時間']
             }
             
             if sheet_title in standard_headers_map:
@@ -4048,11 +4064,63 @@ def get_health_info():
         
         # 歷史紀錄小於 2 筆即為冷啟動狀態
         is_cold_start = len(history) < 2
+        
+        # 讀取獨立的生理症狀紀錄
+        symptoms_rows = get_sheet_values('生理症狀紀錄', spreadsheet_id=health_id)
+        symptoms_dict = {}
+        if symptoms_rows and len(symptoms_rows) > 1:
+            for r in symptoms_rows[1:]:
+                if len(r) >= 2 and r[0].strip():
+                    raw_date = r[0].strip()
+                    try:
+                        parsed_date = datetime.strptime(raw_date.replace('-', '/'), "%Y/%m/%d")
+                        date_key = parsed_date.strftime("%Y/%m/%d")
+                    except:
+                        date_key = raw_date
+                    symptoms_dict[date_key] = {
+                        "symptoms": r[1].strip(),
+                        "note": r[2].strip() if len(r) > 2 else ""
+                    }
+                    
+        # 計算經前症狀預警與貼心提醒
+        pms_alert = None
+        if parsed_history and symptoms_dict:
+            period_starts = [item["dt"] for item in parsed_history]
+            pms_symptoms = []
+            gap_days_list = []
+            
+            for date_str, info in symptoms_dict.items():
+                try:
+                    sym_dt = datetime.strptime(date_str, "%Y/%m/%d")
+                    future_starts = [p_start for p_start in period_starts if p_start >= sym_dt]
+                    if future_starts:
+                        closest_start = min(future_starts)
+                        gap = (closest_start - sym_dt).days
+                        if 1 <= gap <= 7:
+                            gap_days_list.append(gap)
+                            pms_symptoms.extend([s.strip() for s in info["symptoms"].split("、") if s.strip()])
+                except:
+                    pass
+            
+            if pms_symptoms and gap_days_list:
+                from collections import Counter
+                counter = Counter(pms_symptoms)
+                top_symptoms = [item[0] for item in counter.most_common(2)]
+                avg_gap = round(sum(gap_days_list) / len(gap_days_list))
+                symptoms_phrase = "、".join(top_symptoms)
+                pms_alert = {
+                    "has_data": True,
+                    "avg_gap": avg_gap,
+                    "top_symptoms": symptoms_phrase,
+                    "tips": f"根據您的歷史紀錄，生理期前約 {avg_gap} 天您常伴隨「{symptoms_phrase}」等經前症狀，這幾天請多喝溫水、清淡飲食並保持充足睡眠喔！"
+                }
                   
         return jsonify({
             "status": "success",
             "history": history[:3],
             "is_cold_start": is_cold_start,
+            "symptoms_dict": symptoms_dict,
+            "pms_alert": pms_alert,
             **status
         })
     except Exception as e:
@@ -4390,7 +4458,8 @@ def ensure_all_sheets_warning_protected(spreadsheet_id, service=None):
             '口袋': ['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度', '常用'],
             '口袋名單': ['ID', '類別', '名稱', '地點', '地點區域', '備註', '建立時間', '緯度', '經度', '常用'],
             'AI_指令集': ['觸發語句', '執行動作'],
-            '💰股票投資組合': ['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']
+            '💰股票投資組合': ['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註'],
+            '生理症狀紀錄': ['日期', '症狀', '備註', '寫入時間']
         }
         
         reqs = []
@@ -5518,34 +5587,86 @@ def record_symptoms():
     
     selected = request.json.get('symptoms', [])
     symptoms_str = "、".join(selected)
+    note_str = request.json.get('note', '').strip()
+    target_date = request.json.get('date', '').strip()
+    
+    # 確保日期格式為 YYYY/MM/DD
+    try:
+        parsed_dt = datetime.strptime(target_date.replace('-', '/'), "%Y/%m/%d")
+        target_date = parsed_dt.strftime("%Y/%m/%d")
+    except:
+        target_date = datetime.now(TW_TZ).strftime("%Y/%m/%d")
+        
+    now_str = datetime.now(TW_TZ).strftime("%Y/%m/%d %H:%M:%S")
     
     try:
-        # 動態尋找最新一筆非 SYSTEM 的有效生理紀錄
         service = get_sheets_service()
-        rows = get_sheet_values('生理紀錄', spreadsheet_id=health_id)
-        latest_row_idx = None
-        if rows and len(rows) > 1:
-            for idx, row in enumerate(rows):
-                if idx == 0:
+        # 讀取現有生理症狀紀錄
+        rows = get_sheet_values('生理症狀紀錄', spreadsheet_id=health_id)
+        
+        header = ['日期', '症狀', '備註', '寫入時間']
+        data_rows = []
+        
+        # 提取現有數據行 (過濾表頭)
+        if rows and len(rows) > 0:
+            for r in rows:
+                if len(r) > 0 and r[0].strip() == '日期':
+                    header = [x.strip() for x in r]
                     continue
-                if len(row) > 0 and row[0] == "SYSTEM":
-                    continue
-                start_str = row[2] if len(row) > 2 else ""
-                if not start_str or start_str == "SYSTEM_NOTICE":
-                    continue
+                if len(r) > 0 and r[0].strip():
+                    # 確保資料列長度至少有 4 列，以防解析崩潰
+                    padded_row = r + [""] * (4 - len(r))
+                    data_rows.append(padded_row)
+                    
+        # 尋找是否已存在該日期的紀錄 (透過 datetime 解析比較，進行 Upsert)
+        existing_idx = None
+        target_dt = None
+        try:
+            target_dt = datetime.strptime(target_date.strip().replace('-', '/'), "%Y/%m/%d")
+        except:
+            pass
+            
+        if target_dt:
+            for idx, r in enumerate(data_rows):
                 try:
-                    # 測試是否為有效日期
-                    datetime.strptime(start_str.strip(), "%Y/%m/%d")
-                    latest_row_idx = idx
-                    break
-                except: pass
+                    row_dt = datetime.strptime(r[0].strip().replace('-', '/'), "%Y/%m/%d")
+                    if row_dt == target_dt:
+                        existing_idx = idx
+                        break
+                except:
+                    if r[0].strip() == target_date:
+                        existing_idx = idx
+                        break
+                        
+        new_row = [target_date, symptoms_str, note_str, now_str]
+        if existing_idx is not None:
+            data_rows[existing_idx] = new_row
+        else:
+            data_rows.append(new_row)
+            
+        # 依照日期進行降序排列 (越接近當下的時間，即日期越大，在最上面)
+        def get_row_date(row):
+            try:
+                return datetime.strptime(row[0].strip().replace('-', '/'), "%Y/%m/%d")
+            except:
+                return datetime.min
                 
-        target_row = (latest_row_idx + 1) if latest_row_idx is not None else 2
-        service.spreadsheets().values().update(
-            spreadsheetId=health_id, range=f"生理紀錄!G{target_row}",
-            valueInputOption="USER_ENTERED", body={"values": [[symptoms_str]]}
+        data_rows.sort(key=get_row_date, reverse=True)
+        
+        # 合併表頭與排序後的資料
+        all_values = [header] + data_rows
+        
+        # 覆寫整個工作表，以保持排序一致且防止殘留數據
+        service.spreadsheets().values().clear(
+            spreadsheetId=health_id, range="生理症狀紀錄!A:D"
         ).execute()
-        return jsonify({"status": "success", "message": "症狀已記錄！🩺"})
+        
+        service.spreadsheets().values().update(
+            spreadsheetId=health_id, range="生理症狀紀錄!A1",
+            valueInputOption="USER_ENTERED", body={"values": all_values}
+        ).execute()
+        
+        return jsonify({"status": "success", "message": f"{target_date} 症狀已記錄！🩺"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 

@@ -376,6 +376,7 @@
                 <button class="sub-btn" onclick="openModal('healthModal')">🌸 經期看板</button>
                 <button class="sub-btn" onclick="openModal('trackingModal')">🌡️ 生理追蹤</button>
                 <button class="sub-btn" onclick="openModal('menstrualBackfillModal')">📝 生理歷程</button>
+                <button class="sub-btn" onclick="window.open('{{ symptom_sheet_url }}', '_blank')">🩺 生理症狀表</button>
             </div>
         </div>
     </div>
@@ -1054,6 +1055,12 @@
                     </div>
                 </div>
 
+                <!-- 🩺 經前期健康預警 (全新增) -->
+                <div id="pms_prediction_alert_card" style="background: #fffdfd; border: 1.5px solid #ffe4e6; border-radius: 16px; padding: 14px 16px; margin-bottom: 15px; font-size: 0.82rem; color: #be123c; line-height: 1.6; display: none; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.02); text-align: left;">
+                    <div style="font-weight: 800; color: #be123c; font-size: 0.88rem; margin-bottom: 6px; display: flex; align-items: center; gap: 5px;">🩺 經前期健康預警</div>
+                    <div id="pms_alert_body" style="color: #64748b; font-size: 0.78rem; line-height: 1.5;">正在加載歷史健康分析...</div>
+                </div>
+
                 <!-- 💡 貼心閨蜜小叮嚀 (V4.0) -->
                 <div id="health_tips_card" style="background: rgba(255, 241, 242, 0.8); border: 1.5px dashed #fecdd3; border-radius: 16px; padding: 14px 16px; margin-bottom: 15px; font-size: 0.85rem; color: #be123c; font-weight: 700; line-height: 1.6; display: none; animation: slideUp 0.3s ease; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.02);">
                     💡 正在加載閨蜜專屬叮嚀...
@@ -1074,7 +1081,7 @@
 
             <div class="modal-footer" style="background: #fff1f2; border-top-color: #ffe4e6;">
                 <button onclick="openCloudHealthSheet('{{ health_sheet_url }}')" class="sheet-link-btn" style="color: #e11d48; background: #fff; border-color: #fecdd3;">
-                    ☁️ 開啟健康紀錄表
+                    🌸 開啟經期時間表
                 </button>
             </div>
         </div>
@@ -1120,12 +1127,18 @@
                         <span id="cal_detail_cycle" style="font-size: 0.72rem; background: rgba(255, 255, 255, 0.7); padding: 2px 6px; border-radius: 6px; color: #be123c; font-weight: 800;">第 -- 天</span>
                     </div>
                     <div id="cal_detail_pregnancy" style="font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">--</div>
-                    <div id="cal_detail_symptoms" style="color: #64748b; font-size: 0.78rem; line-height: 1.4; border-top: 1px dashed rgba(225, 29, 72, 0.15); margin-top: 6px; padding-top: 6px;">無特殊症狀與記錄</div>
+                    <!-- 症狀與編輯按鈕 -->
+                    <div style="border-top: 1px dashed rgba(225, 29, 72, 0.15); margin-top: 6px; padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
+                        <div id="cal_detail_symptoms" style="color: #64748b; font-size: 0.78rem; line-height: 1.4; flex: 1;">無特殊症狀與記錄</div>
+                        <button id="edit_symptom_for_selected_date_btn" onclick="window.openSymptomModalForSelectedDate()" style="margin-left: 10px; padding: 4px 10px; background: #e11d48; color: white; border: none; border-radius: 8px; font-size: 0.75rem; font-weight: 800; cursor: pointer; transition: all 0.2s; white-space: nowrap; display: none;">
+                            ➕ 紀錄症狀
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer" style="background: #fff1f2; border-top-color: #ffe4e6;">
-                <button onclick="closeModal('trackingModal')" class="sheet-link-btn" style="color: #e11d48; background: #fff; border-color: #fecdd3;">
-                    關閉
+                <button onclick="window.open('{{ symptom_sheet_url }}', '_blank')" class="sheet-link-btn" style="color: #be123c; background: #fff; border-color: #fecdd3;">
+                    🩺 開啟生理症狀表
                 </button>
             </div>
         </div>
@@ -1179,7 +1192,13 @@
                         <button onclick="window.addSymptomOption()" style="padding: 8px 14px; background: #e11d48; color: white; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">新增</button>
                     </div>
                     
-                    <button onclick="window.saveSymptoms()" class="form-btn" style="background: linear-gradient(135deg, #e11d48 0%, #be123c 100%); color: white; width: 100%; border-radius: 12px; padding: 10px; font-size: 0.85rem; font-weight: 800; border: none; box-shadow: 0 4px 10px rgba(225, 29, 72, 0.15); cursor: pointer;">
+                    <!-- 備註輸入框 -->
+                    <div style="margin-bottom: 15px;">
+                        <label for="symptom_note" style="display: block; font-size: 0.8rem; color: #475569; font-weight: 700; margin-bottom: 6px;">📝 備註 / 身體感受：</label>
+                        <textarea id="symptom_note" placeholder="記錄今天的身體感受（選填）..." style="width: 100%; height: 60px; padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 0.8rem; outline: none; background: white; resize: none; box-sizing: border-box;"></textarea>
+                    </div>
+
+                    <button id="save_symptoms_btn" onclick="window.saveSymptoms()" class="form-btn" style="background: linear-gradient(135deg, #e11d48 0%, #be123c 100%); color: white; width: 100%; border-radius: 12px; padding: 10px; font-size: 0.85rem; font-weight: 800; border: none; box-shadow: 0 4px 10px rgba(225, 29, 72, 0.15); cursor: pointer; margin-bottom: 0;">
                         儲存今日症狀 💾
                     </button>
                 </div>
