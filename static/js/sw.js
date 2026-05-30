@@ -1,9 +1,9 @@
-const CACHE_NAME = 'ai-secretary-v1.0';
+const CACHE_NAME = 'ai-secretary-v1.1';
 const ASSETS_TO_CACHE = [
     '/',
     '/static/manifest.json',
     '/static/css/style.css?v=5.0',
-    '/static/js/app.js?v=6.8',
+    '/static/js/app.js?v=6.9',
     '/static/icons/icon.png',
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
 ];
