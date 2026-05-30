@@ -62,6 +62,40 @@
     </style>
 </head>
 <body>
+    {% if config.DEBUG and os.getenv("SHOW_DEV_SANDBOX", "false").lower() == "true" %}
+    <div id="dev-sandbox-bar" style="position: fixed; top: 0; left: 0; right: 0; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.15); z-index: 10000; padding: 8px 16px; display: flex; align-items: center; justify-content: center; gap: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <span style="font-size: 0.72rem; font-weight: 800; color: #fcd34d; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); padding: 2px 8px; border-radius: 99px; letter-spacing: 0.5px; text-transform: uppercase;">⚠️ 沙盒調試</span>
+        <button onclick="devSwitchRole('FREE')" style="padding: 4px 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">🆓 模擬免費版</button>
+        <button onclick="devSwitchRole('BASIC')" style="padding: 4px 10px; background: rgba(20, 184, 166, 0.15); border: 1px solid rgba(20, 184, 166, 0.3); border-radius: 8px; color: #99f6e4; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(20, 184, 166, 0.25)'" onmouseout="this.style.background='rgba(20, 184, 166, 0.15)'">🥈 模擬基礎版</button>
+        <button onclick="devSwitchRole('PREMIUM')" style="padding: 4px 10px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: #bae6fd; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(56, 189, 248, 0.25)'" onmouseout="this.style.background='rgba(56, 189, 248, 0.15)'">🥇 模擬旗艦版</button>
+        <button onclick="devSwitchRole('DEVELOPER')" style="padding: 4px 10px; background: rgba(236, 72, 153, 0.15); border: 1px solid rgba(236, 72, 153, 0.3); border-radius: 8px; color: #fbcfe8; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(236, 72, 153, 0.25)'" onmouseout="this.style.background='rgba(236, 72, 153, 0.15)'">🛠️ 模擬開發者</button>
+    </div>
+    <script>
+    async function devSwitchRole(role) {
+        try {
+            const res = await fetch('/dev/switch_role', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({role: role})
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                window.location.reload();
+            } else {
+                alert('切換失敗: ' + data.message);
+            }
+        } catch (e) {
+            alert('連線失敗');
+        }
+    }
+    </script>
+    <style>
+    /* 避開調試條的高度 */
+    #app-container, body {
+        padding-top: 36px !important;
+    }
+    </style>
+    {% endif %}
     <!-- 🌟 PWA 極速加載 Preloader 🌟 -->
     <div id="pwa-preloader">
         <div class="preloader-spinner"></div>
@@ -220,7 +254,7 @@
                     <div class="user-text-info">
                         <div class="user-name-wrapper">
                             <span class="user-name">{{ user_info.name if user_info else '使用者' }}</span>
-                            {% if session.get('user_email') == 'ulir976272866@gmail.com' %}
+                            {% if session.get('user_email')|lower == 'ulir976272866@gmail.com' %}
                                 <span class="user-badge-dev">🛠️ 開發者</span>
                             {% elif session.get('subscription_type') == 'YEARLY_AI' %}
                                 {% if session.get('is_trial_active') %}
@@ -300,7 +334,7 @@
                     <!-- AI 智慧點數膠囊 -->
                     {% if not allow_payment %}
                     <div class="ai-points-mini-pill" style="cursor: default; pointer-events: none;" title="系統當前已暫時關閉儲值與訂閱功能">
-                        {% if session.get('user_email') == 'ulir976272866@gmail.com' %}
+                        {% if session.get('user_email')|lower == 'ulir976272866@gmail.com' %}
                             AI 智慧點數: <span>∞</span> 點 💎
                         {% else %}
                             AI 智慧點數: <span>{{ session.get('ai_points', 0) }}</span> 點 💎
@@ -311,7 +345,7 @@
                         {% if session.get('is_trial_active') %}
                             🎁 7天試用中: <span>{{ session.get('ai_points', 0) }}</span> 點 💎
                         {% else %}
-                            {% if session.get('user_email') == 'ulir976272866@gmail.com' %}
+                            {% if session.get('user_email')|lower == 'ulir976272866@gmail.com' %}
                                 AI 智慧點數: <span>∞</span> 點 💎
                             {% elif session.get('subscription_type') == 'NONE' %}
                                 AI 智慧點數: <span>{{ session.get('ai_points', 0) }}</span> / 3 點 💎

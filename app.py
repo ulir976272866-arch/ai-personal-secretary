@@ -90,6 +90,7 @@ from googleapiclient.errors import HttpError
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'), override=True)
 
 app = Flask(__name__)
+app.jinja_env.globals.update(os=os)
 print("--- [DEBUG] SINGLE_USER_MODE in Flask initialization:", os.getenv("SINGLE_USER_MODE"), "---")
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "ai_personal_secretary_super_secret_key_12345")
 # 配置 PWA 會員登入長效記憶：將 session 的有效期設定為 365 天，直到按登出才失效
@@ -2653,7 +2654,7 @@ def chat():
             if not spreadsheet_id:
                 return jsonify({"status": "error", "message": "尚未連結試算表"})
             report_text = get_stock_portfolio_report_text(spreadsheet_id)
-            return jsonify({"status": "success", "type": "chat", "message": report_text})
+            return jsonify({"status": "success", "type": "query_stock_portfolio", "message": report_text})
 
         elif intent_type == "delete_last_expense":
             service = get_sheets_service()
@@ -4669,7 +4670,7 @@ def query_stock_portfolio_api():
         return jsonify({"status": "error", "message": "尚未連結試算表"})
         
     report_text = get_stock_portfolio_report_text(spreadsheet_id)
-    return jsonify({"status": "success", "message": report_text})
+    return jsonify({"status": "success", "type": "query_stock_portfolio", "message": report_text})
 
 @app.route('/api/stock/portfolio', methods=['GET'])
 def get_stock_portfolio():

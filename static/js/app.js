@@ -2963,6 +2963,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (window.openAddStockTxModalWithValues) {
                         window.openAddStockTxModalWithValues(data.stock_data);
                     }
+                } else if (data.type === 'query_stock_portfolio') {
+                    window.deliverStockPortfolio(data);
                 } else if (data.type === 'stock_locked') {
                     appendMessage(data.message);
                 } else {
@@ -5522,6 +5524,24 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/\n/g, '<br>');
     }
 
+    window.deliverStockPortfolio = (data) => {
+        // 第一個對話氣泡：智慧證券持股部位總覽
+        appendMessage(formatStockMarkdown(data.message || data.reply));
+        
+        // 第二個對話氣泡：我的存股網頁鏈接
+        setTimeout(() => {
+            const emailParam = window.USER_EMAIL ? `?email=${encodeURIComponent(window.USER_EMAIL)}` : '';
+            // 自動偵測環境：本機測試連本機存股系統，線上則連 Cloud Run
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const stockBaseUrl = isLocal 
+                ? `http://localhost:3000` 
+                : `https://stock-navigation-system-662049004454.europe-west1.run.app`;
+            const stockUrl = `${stockBaseUrl}${emailParam}`;
+            const portalLinkText = `<div style="background: linear-gradient(135deg, #3a4750 0%, #303841 100%); border: 1px solid #4f5b66; border-radius: 16px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25); display: flex; flex-direction: column; gap: 8px;"><div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 1.15rem;">📡</span><strong style="color: #d4af37; font-size: 0.95rem; font-weight: 800; letter-spacing: 0.5px;">大戶資金存股導航系統已就緒</strong></div><p style="color: #cfd8dc; font-size: 0.8rem; margin: 0; line-height: 1.45;">已為您接通大戶爆量量能排行榜與巴菲特內在價值估值系統！點擊下方按鈕即可跳轉至存股導航系統。</p><a href="${stockUrl}" target="_blank" style="align-self: flex-start; margin-top: 4px; display: inline-flex; align-items: center; gap: 6px; background: #8e9eab; color: #1c2331; font-size: 0.8rem; font-weight: 700; padding: 6px 14px; border-radius: 20px; text-decoration: none; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"><span>開啟存股導航系統</span> ↗</a></div>`;
+            appendMessage(portalLinkText);
+        }, 400);
+    };
+
     // --- 投資持股直出對話框核心 ---
     window.queryStockPortfolioSummary = async () => {
         appendMessage(`查詢當前證券持股...`, true);
@@ -5532,7 +5552,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await res.json();
             if (data.status === 'success') {
-                appendMessage(formatStockMarkdown(data.message));
+                window.deliverStockPortfolio(data);
             } else {
                 appendMessage("❌ 查詢失敗：" + data.message);
             }
