@@ -504,13 +504,13 @@ body {
 .calc-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-top: 15px;
+    gap: 8px;
+    margin-top: 10px;
 }
 
 .calc-btn {
-    padding: 10px 0;
-    border-radius: 14px;
+    padding: 8px 0;
+    border-radius: 12px;
     border: none;
     background: #f1f5f9;
     color: var(--text-dark);
@@ -654,11 +654,11 @@ button, .calc-btn, .send-btn, .voice-btn, .close-modal, .menu-trigger {
 /* 按鈕樣式優化 */
 .submit-btn {
     width: 100%;
-    padding: 16px;
+    padding: 14px;
     border-radius: 16px;
     border: none;
     color: white !important;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 800;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -771,25 +771,26 @@ select.form-input {
     }
 
     .modal-header {
-        padding: calc(15px + env(safe-area-inset-top, 0px)) 15px 15px;
+        padding: calc(15px + env(safe-area-inset-top, 0px)) 15px 10px;
         background: white;
         flex-shrink: 0;
     }
 
     .modal-body {
-        padding: 0 25px 25px;
+        padding: 0 20px 20px;
         overflow-y: auto !important;
-        max-height: 60vh; /* 確保內容超出時強制啟動垂直滾動條，儲存按鈕永不被遮擋 */
+        flex: 1;
+        max-height: none; /* 讓其自動伸展填滿，由外層 modal-content 控制總高 */
         -webkit-overflow-scrolling: touch;
     }
 
     .modal-footer {
-        padding: 15px 25px calc(15px + env(safe-area-inset-bottom, 0px));
+        padding: 10px 20px calc(15px + env(safe-area-inset-bottom, 0px));
     }
 
     .modal-title {
         font-size: 1.2rem;
-        margin-bottom: 15px;
+        margin-bottom: 5px;
         margin-left: 5px;
     }
 
