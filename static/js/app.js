@@ -1246,6 +1246,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         modalEl.classList.add('show');
+        document.body.style.overflow = 'hidden'; // 防止 iOS 底層滑動造成排版跑位
 
         // 分支邏輯優化 (V11.1)
         if (id === 'wishlistModal') window.loadWishes();
@@ -1315,6 +1316,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('show'));
             window.editingEventId = null;
+        }
+        
+        // 如果已經沒有任何打開的彈窗，恢復底層滑動
+        if (!document.querySelector('.modal-backdrop.show')) {
+            document.body.style.overflow = '';
         }
     };
 

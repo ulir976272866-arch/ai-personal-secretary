@@ -517,6 +517,10 @@ body {
     font-size: 1rem;
     font-weight: 700;
     cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transform: translateZ(0); /* 解決 iOS Safari 點擊目標漂移(跑版) Bug */
 }
 
 .calc-btn.op {
