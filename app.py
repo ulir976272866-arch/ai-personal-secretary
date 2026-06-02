@@ -7,6 +7,7 @@ import json
 import uuid
 import hashlib
 import urllib.parse
+import math
 import requests
 import pymysql
 from datetime import datetime, time, timedelta, timezone
@@ -653,53 +654,100 @@ def get_sheet_urls():
         "pocket_sheet_url": get_url_with_gid('口袋', os.getenv('POCKET_SHEET_ID')),
         "health_sheet_url": get_url_with_gid('生理紀錄', os.getenv('HEALTH_SHEET_ID')),
         "symptom_sheet_url": get_url_with_gid('生理症狀紀錄', os.getenv('HEALTH_SHEET_ID')),
-        "training_sheet_url": get_url_with_gid('AI_指令集', os.getenv('HEALTH_SHEET_ID'))
+        "training_sheet_url": get_url_with_gid('AI_指令集', os.getenv('HEALTH_SHEET_ID')),
+        "bill_split_sheet_url": get_url_with_gid('代墊待收款')
     }
 def ensure_user_spreadsheet():
     """
     檢查使用者雲端硬碟是否有 AI_Personal_Secretary_Data。
     若無則自動在使用者個人雲端硬碟建立一組全新的資料表並初始化所有欄位。
     """
+    spreadsheet_id = None
+    
+    # 1. 優先嘗試從 session 獲取
     if 'spreadsheet_id' in session:
-        return session['spreadsheet_id']
-        
-    # 如果是創作者本人的 Email 登入，直接回傳最原始的歷史資料表，避免新建空白表！
-    try:
-        user_info = get_user_info()
-        if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
-            session['spreadsheet_id'] = os.getenv("GOOGLE_SHEET_ID")
-            print(f"Owner logged in. Reusing existing original spreadsheet: {os.getenv('GOOGLE_SHEET_ID')}")
-            return os.getenv("GOOGLE_SHEET_ID")
-    except Exception as e:
-        print(f"Error checking owner email in ensure_user_spreadsheet: {e}")
-        
-    creds = get_valid_credentials()
-    if not creds:
-        return os.getenv("GOOGLE_SHEET_ID")
-        
-    try:
-        drive_service = get_drive_service()
-        sheets_service = get_sheets_service()
-        
-        spreadsheet_name = "AI_Personal_Secretary_Data"
-        query = f"name = '{spreadsheet_name}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
-        results = drive_service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
-        files = results.get('files', [])
-        
-        if files:
-            spreadsheet_id = files[0]['id']
+        spreadsheet_id = session['spreadsheet_id']
+    else:
+        # 2. 如果是創作者本人的 Email 登入，直接回傳最原始的歷史資料表，避免新建空白表！
+        try:
+            user_info = get_user_info()
+            if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
+                spreadsheet_id = os.getenv("GOOGLE_SHEET_ID")
+                session['spreadsheet_id'] = spreadsheet_id
+                print(f"Owner logged in. Reusing existing original spreadsheet: {spreadsheet_id}")
+        except Exception as e:
+            print(f"Error checking owner email in ensure_user_spreadsheet: {e}")
+
+    # 3. 如果非創作者且尚未找到，則透過 Google Drive 尋找
+    if not spreadsheet_id:
+        creds = get_valid_credentials()
+        if not creds:
+            spreadsheet_id = os.getenv("GOOGLE_SHEET_ID")
             session['spreadsheet_id'] = spreadsheet_id
-            print(f"Found existing spreadsheet in user drive: {spreadsheet_id}")
-            if 'user_email' in session:
-                update_user_sheet_id(session['user_email'], spreadsheet_id)
-            
-            # 🛡️ 主動式缺頁自癒修復機制 (Proactive Missing Sheet Self-Healing Guard)
+        else:
             try:
+                drive_service = get_drive_service()
+                spreadsheet_name = "AI_Personal_Secretary_Data"
+                query = f"name = '{spreadsheet_name}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+                results = drive_service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+                files = results.get('files', [])
+                
+                if files:
+                    spreadsheet_id = files[0]['id']
+                    session['spreadsheet_id'] = spreadsheet_id
+                    print(f"Found existing spreadsheet in user drive: {spreadsheet_id}")
+                    if 'user_email' in session:
+                        update_user_sheet_id(session['user_email'], spreadsheet_id)
+                else:
+                    # 找不到時，會在後續流程建立全新試算表
+                    pass
+            except Exception as e:
+                print(f"Error checking user drive for spreadsheet: {e}")
+                spreadsheet_id = os.getenv("GOOGLE_SHEET_ID")
+                session['spreadsheet_id'] = spreadsheet_id
+
+    # 4. 🛡️ 若已有 resolved 的 spreadsheet_id，執行主動式缺頁自癒修復機制 (只在 session 無 self_healing_done 時執行一次)
+    if spreadsheet_id:
+        if not session.get('self_healing_done'):
+            try:
+                sheets_service = get_sheets_service()
                 sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
                 existing_titles = [s['properties']['title'] for s in sheet_meta.get('sheets', [])]
                 
+                # 1. 檢查是否存在「固定開銷」且不存在「固定支出」。若是，則自動重命名為「固定支出」以自癒相容。
+                if '固定開銷' in existing_titles and '固定支出' not in existing_titles:
+                    print("[Self-Healing] Detected '固定開銷' tab, renaming to '固定支出'...")
+                    fixed_expenses_sheet_id = None
+                    for s in sheet_meta.get('sheets', []):
+                        if s['properties']['title'] == '固定開銷':
+                            fixed_expenses_sheet_id = s['properties']['sheetId']
+                            break
+                    if fixed_expenses_sheet_id is not None:
+                        try:
+                            rename_request = {
+                                'updateSheetProperties': {
+                                    'properties': {
+                                        'sheetId': fixed_expenses_sheet_id,
+                                        'title': '固定支出'
+                                    },
+                                    'fields': 'title'
+                                }
+                            }
+                            sheets_service.spreadsheets().batchUpdate(
+                                spreadsheetId=spreadsheet_id,
+                                body={'requests': [rename_request]}
+                            ).execute()
+                            print("[Self-Healing] Renamed '固定開銷' to '固定支出' successfully!")
+                            existing_titles = [t if t != '固定開銷' else '固定支出' for t in existing_titles]
+                            # Update sheet_meta in memory to reflect the new title
+                            for s in sheet_meta.get('sheets', []):
+                                if s['properties']['title'] == '固定開銷':
+                                    s['properties']['title'] = '固定支出'
+                        except Exception as rename_err:
+                            print(f"[Self-Healing] Error renaming '固定開銷' to '固定支出': {rename_err}")
+
                 required_sheets = {
-                    '記帳': [['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別']],
+                    '記帳': [['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別', '子分類']],
                     '待辦': [['建立日期', '事項/內容', '分類', '狀態', '唯一 ID', '建立時間', '優先級']],
                     '日記': [['日期', '內容', '天氣', '心情', '時間']],
                     '願望': [['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間']],
@@ -707,7 +755,9 @@ def ensure_user_spreadsheet():
                     '口袋': [['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度', '常用']],
                     'AI_指令集': [['觸發語句', '執行動作']],
                     '💰股票投資組合': [['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']],
-                    '生理症狀紀錄': [['日期', '症狀', '備註', '寫入時間']]
+                    '生理症狀紀錄': [['日期', '症狀', '備註', '寫入時間']],
+                    '固定支出': [['建立日期', '項目名稱', '類別設定', '子分類', '金額設定', '每月自動執行日', '最後執行月份', '唯一 ID']],
+                    '代墊待收款': [['建立日期', '帳目描述', '總金額', '墊款人', '分攤人(逗號分隔)', '各分攤明細(JSON/描述)', '狀態', '唯一 ID', '建立時間']]
                 }
                 
                 # 兼容「願望清單」或「願望」
@@ -745,21 +795,92 @@ def ensure_user_spreadsheet():
                     # 重新獲取最新的 sheet meta 以更新 GIDs
                     sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
                 
+                # 靜默檢查「記帳」分頁表頭是否包含 子分類 欄，若無則自動補上
+                try:
+                    record_header_res = sheets_service.spreadsheets().values().get(
+                        spreadsheetId=spreadsheet_id,
+                        range='記帳!A1:H1'
+                    ).execute()
+                    header_vals = record_header_res.get('values', [[]])[0]
+                    if '子分類' not in header_vals:
+                        print("[Self-Healing] '子分類' header not found in '記帳' sheet, adding it to Column H...")
+                        sheets_service.spreadsheets().values().update(
+                            spreadsheetId=spreadsheet_id,
+                            range='記帳!H1',
+                            valueInputOption='USER_ENTERED',
+                            body={'values': [['子分類']]}
+                        ).execute()
+                        print("[Self-Healing] Successfully added '子分類' header to '記帳' sheet!")
+                except Exception as header_err:
+                    print(f"[Self-Healing] Error ensuring '子分類' header in '記帳': {header_err}")
+                
                 # 確保 session 中有最新、完整的 GIDs
                 gids = {}
                 for s in sheet_meta.get('sheets', []):
                     title = s['properties']['title']
                     gids[title] = s['properties']['sheetId']
                 session['sheet_gids'] = gids
+                
+                # -------------------------------------------------------------
+                # 🛡️ 全面巡檢並補上缺失的表頭保護鎖 (Warning Only)
+                # -------------------------------------------------------------
+                protect_requests = []
+                for s in sheet_meta.get('sheets', []):
+                    title = s['properties']['title']
+                    s_id = s['properties']['sheetId']
+                    
+                    # 檢查第一列 (Row 1) 是否已設有警告保護鎖
+                    has_protection = any(
+                        p.get('range', {}).get('startRowIndex') == 0 and p.get('range', {}).get('endRowIndex') == 1
+                        for p in s.get('protectedRanges', [])
+                    )
+                    
+                    if not has_protection:
+                        # 取得該分頁的正確欄數
+                        col_count = 10  # 預設給一個涵蓋範圍
+                        if title in required_sheets:
+                            col_count = len(required_sheets[title][0])
+                            
+                        protect_requests.append({
+                            "addProtectedRange": {
+                                "protectedRange": {
+                                    "range": {
+                                        "sheetId": s_id,
+                                        "startRowIndex": 0,
+                                        "endRowIndex": 1,
+                                        "startColumnIndex": 0,
+                                        "endColumnIndex": col_count
+                                    },
+                                    "description": f"系統 {title} 核心表頭，請勿任意變動以防當機",
+                                    "warningOnly": True
+                                }
+                            }
+                        })
+                        
+                if protect_requests:
+                    try:
+                        sheets_service.spreadsheets().batchUpdate(
+                            spreadsheetId=spreadsheet_id,
+                            body={'requests': protect_requests}
+                        ).execute()
+                        print(f"[Self-Healing] Successfully added protection locks to {len(protect_requests)} sheets!")
+                    except Exception as protect_err:
+                        print(f"[Self-Healing] Error adding protection locks: {protect_err}")
+                # -------------------------------------------------------------
+
+                session['self_healing_done'] = True
                 session.modified = True
                 print(f"Restored and verified all GIDs in session: {gids}")
                 
             except Exception as ex:
                 print(f"Error in sheet self-healing mechanism: {ex}")
                 
-            return spreadsheet_id
-            
-        print("Spreadsheet not found in user drive. Creating and initializing a brand new one...")
+        return spreadsheet_id
+
+    # 5. 若仍無 spreadsheet_id，則代表需要新建並初始化一個全新試算表
+    try:
+        sheets_service = get_sheets_service()
+        spreadsheet_name = "AI_Personal_Secretary_Data"
         spreadsheet_metadata = {
             'properties': {
                 'title': spreadsheet_name
@@ -792,7 +913,7 @@ def ensure_user_spreadsheet():
         ).execute()
         
         headers = {
-            '記帳!A1:G1': [['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別']],
+            '記帳!A1:H1': [['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別', '子分類']],
             '待辦!A1:F1': [['唯一 ID', '事項/內容', '優先級', '分類', '狀態', '建立時間']],
             '日記!A1:E1': [['日期', '內容', '天氣', '心情', '時間']],
             '願望!A1:F1': [['唯一 ID', '願望名稱', '預算', '狀態', '實際花費', '建立時間']],
@@ -1185,12 +1306,21 @@ def __getattr__(name):
         return get_calendar_id()
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
+# 收入母子分類硬編碼對照表
+INCOME_SUB_CATEGORIES = {
+    "薪資": ["正職薪水", "兼職時薪", "小費進帳"],
+    "獎金": ["年終獎金", "績效/三節", "專案分紅"],
+    "投資獲利": ["股票股利/價差", "基金配息", "定存利息", "加密貨幣"],
+    "副業收入": ["諮詢服務", "個人項目", "團購/分潤", "諮詢隨喜/小費"],
+    "變更/退款": ["購物退款", "代墊款收回", "其他雜項"]
+}
+
 # 記帳分類與 Emoji 映射對照表 (確保雲端與本地端都有超高顏值 Emoji 符號)
 CATEGORY_EMOJI_MAP = {
     # 支出分類
-    "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "投資": "📈", "公益": "💖", "未分類": "❓",
+    "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖", "未分類": "❓",
     # 收入分類
-    "薪資": "💰", "獎金": "🧧", "投資獲利": "💹", "退款": "🔙", "其他進帳": "🪙"
+    "薪資": "💼", "獎金": "🧧", "投資獲利": "💹", "副業收入": "🔮", "變更/退款": "↩️"
 }
 
 def format_category_with_emoji(category, is_income=False):
@@ -2294,7 +2424,7 @@ def ecpay_result():
 
 @app.route('/api/sync_profile', methods=['POST'])
 def sync_profile():
-    """同步前端設定的性別、生理期啟用狀態與時區"""
+    """同步前端設定的性別、生理期啟用狀態與時區，並自動執行固定支出檢查"""
     data = request.json or {}
     gender = data.get('gender', 'girl')
     enable_period = data.get('enable_period', True)
@@ -2304,12 +2434,23 @@ def sync_profile():
     session['enable_period'] = enable_period
     session['timezone'] = timezone_str
     
-    print(f"Profile synced: gender={gender}, enable_period={enable_period}, timezone={timezone_str}")
+    # 執行固定支出自動補記檢查
+    executed_items = []
+    spreadsheet_id = get_spreadsheet_id()
+    if spreadsheet_id:
+        try:
+            service = get_sheets_service()
+            executed_items = check_and_execute_fixed_expenses(service, spreadsheet_id)
+        except Exception as e:
+            print(f"[sync_profile] Fixed expenses execution error: {e}")
+
+    print(f"Profile synced: gender={gender}, enable_period={enable_period}, timezone={timezone_str}, executed={executed_items}")
     return jsonify({
         "status": "success",
         "gender": gender,
         "enable_period": enable_period,
-        "timezone": timezone_str
+        "timezone": timezone_str,
+        "executed_items": executed_items
     })
 
 @app.route('/chat', methods=['POST'])
@@ -2375,6 +2516,8 @@ def chat():
             bypass_data = {"type": "query_stock_portfolio"}
         elif user_text == "開啟記帳表單":
             bypass_data = {"type": "open_spreadsheet"}
+        elif user_text in ["查詢代墊", "代墊查詢", "代墊款", "待收代墊款"]:
+            bypass_data = {"type": "query_bill_splits"}
         elif user_text.startswith("+行程"):
             try:
                 parts = user_text[3:].strip().split(',')
@@ -2392,7 +2535,7 @@ def chat():
         parsed_data = bypass_data
     else:
         ai_rules_str = ""
-        expense_categories = ["食", "衣", "住", "行", "育", "樂", "醫", "投資", "公益"]
+        expense_categories = ["食", "衣", "住", "行", "育", "樂", "醫", "保險費", "貸款", "儲蓄/投資", "公益"]
         try:
             service_sheets = get_sheets_service()
             # 讀取記帳分類
@@ -2467,7 +2610,7 @@ def chat():
         - 如果是行程：提取標題、時間與地點。
         
         【意圖判斷】：
-        - 記帳：type: "expense" (item, amount, category: {cat_list_str}, expense_type: "income" 或 "expense")
+        - 記帳：type: "expense" (item, amount, category: {cat_list_str}, sub_category: "對應的子分類", expense_type: "income" 或 "expense")
         - 行事曆：type: "calendar" (title, start_time, location)
         - 查詢行程/未來/今日/本週行程：type: "query_schedule" (days: 查詢天數，預設 1) (例如：「今日行程」、「這週行程」、「未來三天行程」)
         - 查詢已完成行程：type: "query_completed_schedule" (keyword: 搜尋關鍵字如離職或 null, days: 過去查詢天數，預設 30) (例如：「查詢過去30天內完成的行程」、「我上週完成了什麼」、「搜尋已完成的池府王爺行程」、「查詢過三天內已完成的行程」)
@@ -2487,7 +2630,15 @@ def chat():
         - 輝達 / Nvidia / NVDA -> "NASDAQ:NVDA"
         - 特斯拉 / Tesla / TSLA -> "NASDAQ:TSLA"
         
-        【特別規則】：如果是領錢、薪水、進帳、退款、中獎等屬於「收入」，請將 expense_type 設為 "income"。
+        【特別規則 (收入母子分類映射)】：
+        如果是領錢、薪水、進帳、退款、中獎等屬於「收入」，請將 expense_type 設為 "income"。
+        並且 category 只能從以下五大母分類挑選，且必須配對正確的 sub_category：
+        1. "薪資" -> sub_category: "正職薪水"、"兼職時薪"、"小費進帳"
+        2. "獎金" -> sub_category: "年終獎金"、"績效/三節"、"專案分紅"
+        3. "投資獲利" -> sub_category: "股票股利/價差"、"基金配息"、"定存利息"、"加密貨幣"
+        4. "副業收入" -> sub_category: "諮詢服務"、"個人項目"、"團購/分潤"、"諮詢隨喜/小費"
+        5. "變更/退款" -> sub_category: "購物退款"、"代墊款收回"、"其他雜項"
+        * 關鍵提示：當使用者說「收到諮詢隨喜」或「小費」時，請對應到 category: "副業收入", sub_category: "諮詢隨喜/小費" 或 category: "薪資", sub_category: "小費進帳"。
         {ai_rules_str}
         請回傳 JSON。
         """
@@ -2603,7 +2754,7 @@ def chat():
 
         elif intent_type == "expense":
             service = get_sheets_service()
-            # 欄位順序：年度(A), 月份(B), 日期(C), 收入(D), 支出(E), 金額(F), 類別(G)
+            # 欄位順序：年度(A), 月份(B), 日期(C), 收入(D), 支出(E), 金額(F), 母分類(G), 子分類(H)
             is_income = parsed_data.get('expense_type') == 'income'
             body = {'values': [[
                 str(now.year), 
@@ -2612,9 +2763,10 @@ def chat():
                 parsed_data.get('item') if is_income else "", 
                 "" if is_income else parsed_data.get('item'), 
                 parsed_data.get('amount'), 
-                format_category_with_emoji(parsed_data.get('category'), is_income)
+                format_category_with_emoji(parsed_data.get('category'), is_income),
+                parsed_data.get('sub_category', '')
             ]]}
-            service.spreadsheets().values().append(spreadsheetId=SPREADSHEET_ID, range='記帳!A:G', valueInputOption='USER_ENTERED', body=body).execute()
+            service.spreadsheets().values().append(spreadsheetId=SPREADSHEET_ID, range='記帳!A:H', valueInputOption='USER_ENTERED', body=body).execute()
             _, cat_report, cat_dict, _ = get_monthly_report(service, now)
             emoji = "💰" if is_income else "💸"
             label = "收入" if is_income else "支出"
@@ -2728,6 +2880,36 @@ def chat():
                     "fee": fee,
                     "date": date
                 }
+            })
+
+        elif intent_type == "query_bill_splits":
+            spreadsheet_id = get_spreadsheet_id()
+            if not spreadsheet_id:
+                return jsonify({"status": "error", "message": "尚未設定 GOOGLE_SHEET_ID"})
+            
+            rows = get_sheet_values('代墊待收款', spreadsheet_id=spreadsheet_id)
+            data_list = []
+            if rows and len(rows) > 1:
+                for row in rows[1:]:
+                    while len(row) < 9:
+                        row.append('')
+                    data_list.append({
+                        "date": row[0],
+                        "description": row[1],
+                        "total_amount": row[2],
+                        "payer": row[3],
+                        "friends": row[4].split(',') if row[4] else [],
+                        "breakdown": json.loads(row[5]) if row[5] else {},
+                        "status": row[6],
+                        "id": row[7],
+                        "time": row[8]
+                    })
+            data_list.reverse()
+            return jsonify({
+                "status": "success",
+                "type": "query_bill_splits",
+                "data": data_list,
+                "message": "已為您查詢到最新的代墊款清單："
             })
 
         elif intent_type == "chat":
@@ -2963,6 +3145,7 @@ def get_completed_schedule_response(keyword, days):
         loc_label = f"\n📍 地址：{item['location']}" if item['location'] else ""
         msg += f"{i}. [{item['date']}] {item['title']}{status_label}{time_label}{loc_label}\n"
         
+
     return jsonify({
         "status": "success",
         "type": "query_completed_schedule",
@@ -3059,8 +3242,9 @@ def manual_action():
                 return jsonify({"status": "error", "message": "尚未設定 GOOGLE_SHEET_ID"}), 400
                 
             service = get_sheets_service()
-            # A:Year, B:Month, C:Date, D:IncomeItem, E:ExpenseItem, F:Amount, G:Category
+            # A:Year, B:Month, C:Date, D:IncomeItem, E:ExpenseItem, F:Amount, G:Category, H:SubCategory
             is_income = data.get('expense_type') == 'income'
+            sub_category = data.get('sub_category', '').strip()
             values = [[
                 now.strftime('%Y'), 
                 f"'{now.strftime('%m')}", 
@@ -3068,12 +3252,13 @@ def manual_action():
                 data.get('item') if is_income else "", # 收入項目
                 "" if is_income else data.get('item'), # 支出項目
                 data.get('amount'), 
-                format_category_with_emoji(data.get('category'), is_income)
+                format_category_with_emoji(data.get('category'), is_income),
+                sub_category
             ]]
             body = {'values': values}
             service.spreadsheets().values().append(
                 spreadsheetId=SPREADSHEET_ID,
-                range='記帳!A:G',
+                range='記帳!A:H',
                 valueInputOption='USER_ENTERED',
                 body=body
             ).execute()
@@ -3092,6 +3277,848 @@ def manual_action():
         return jsonify({"status": "error", "message": f"執行失敗：{str(e)}"}), 500
 
     return jsonify({"status": "error", "message": "未知的動作類型"}), 400
+
+# =================================================================
+# 💸 代墊款智慧拆帳 API (V3.7 Step 4)
+# =================================================================
+
+@app.route('/api/bill_split/parse', methods=['POST'])
+def parse_bill_split():
+    """
+    使用 AI 解析自然語言，產出拆帳項目、我的份額、以及朋友分攤明細的結構化 JSON
+    """
+    data = request.json or {}
+    text = data.get('text', '').strip()
+    friends = data.get('friends', [])
+    
+    if not text:
+        return jsonify({"status": "error", "message": "請輸入拆帳說明內文"}), 400
+        
+    if not GEMINI_API_KEY:
+        return jsonify({"status": "error", "message": "尚未設定 API Key"}), 400
+
+    now = datetime.now(TW_TZ)
+    friends_str = "、".join(friends) if friends else "無指定（請從內文判斷朋友並對齊）"
+    
+    prompt = f"""
+    你是一個精明的代墊款拆帳助理，現在時間是 {now.strftime('%Y-%m-%d %H:%M:%S')}。
+    你的任務是解析使用者輸入的複雜「代墊/幫付/我先付」等拆帳場景，並將其轉化為精確的結構化 JSON。
+
+    使用者指定的朋友姓名列表（若無指定，請自行從內文提取，或代表為「朋友1」、「朋友2」等，且優先匹配並保持前後一致）：
+    {friends_str}
+
+    請仔細閱讀使用者的原始文字：
+    「{text}」
+
+    【解析與分攤規則】：
+    1. 提取所有可能的費用項目名稱（如「去程火車票」、「回程火車」、「Uber」等）。
+    2. 判斷該交易整體的消費主體類別（category），且必須是以下清單之一：
+       ["食", "衣", "住", "行", "育", "樂", "醫", "保險費", "貸款", "儲蓄/投資", "公益", "未分類"]
+       （例如：火車、計程車、機票選「行」；吃飯、外送選「食」；看電影、買遊戲選「樂」；看醫生選「醫」；房租選「住」等等）。
+    3. 對於每一筆費用項目，計算：
+       - 項目名稱（name）
+       - 該項目總金額（total_amount，必須是數值，可以包含小數或整數）
+       - 分攤人數說明（split_description，例如「3人均分」、「自己」、「他們」）
+       - 我的份額（my_share，表示我自己應負擔的份額。如果是均分項目，為 總金額 / 總人數；如果是專屬我的費用，為該項總額；如果是專屬別人的費用，為 0）
+       - 朋友的份額總和（friends_share，表示其他人負擔的總和）
+       - 各別成員分攤明細（breakdown，一個字典，鍵為成員姓名，值為該成員負擔金額。注意：只列出除了「自己」之外的其他人！如果使用者指定了朋友名單，優先用指定的名字，否則用內文提及的名字，或者「朋友1」、「朋友2」等）
+    4. 計算總金額加總：
+       - 我的總支出（my_total_expense）：所有項目我自己應負擔的份額（my_share）之和。
+       - 代墊待收款總額（friends_total_receivable）：所有項目中朋友應負擔的份額（friends_share）總和，即別人欠我的錢。
+       - 朋友分攤總明細（friend_breakdown）：一個字典，鍵為朋友姓名，值為該朋友累計應歸還我的金額總和。
+    5. 狀態判定（status）：
+       - 如果幾乎所有項目都成功解析，且數字加總完全對齊吻合，狀態回傳 "success"。
+       - 如果有些項目有金額但不確定分攤人數或分攤人，或者少數資訊無法解析，狀態回傳 "partial"。
+       - 如果完全無法解析出有意義的費用，狀態回傳 "failed"。
+
+    【回傳格式】：
+    請只回傳一個 JSON 物件，格式如下，不要包含 markdown (如 ```json) 或 any 額外文字：
+    {{
+      "status": "success", 
+      "category": "該交易整體的消費主體類別",
+      "items": [
+        {{
+          "name": "項目名稱",
+          "total_amount": 項目總金額,
+          "split_description": "分攤說明",
+          "my_share": 我的份額,
+          "friends_share": 朋友份額總和,
+          "breakdown": {{
+            "朋友姓名1": 朋友1應分攤金額,
+            "朋友姓名2": 朋友2應分攤金額
+          }}
+        }}
+      ],
+      "my_total_expense": 我的總支出金額,
+      "friends_total_receivable": 代墊待收款總額,
+      "friend_breakdown": {{
+        "朋友姓名1": 朋友1應歸還總金額,
+        "朋友姓名2": 朋友2應歸還總金額
+      }}
+    }}
+    """
+    
+    try:
+        model = genai.GenerativeModel('gemini-3.1-flash-lite')
+        response = model.generate_content([prompt])
+        text_reply = response.text.replace('```json', '').replace('```', '').strip()
+        parsed = json.loads(text_reply)
+        
+        # 進行基本的欄位防呆確保
+        if 'status' not in parsed: parsed['status'] = 'success'
+        if 'category' not in parsed: parsed['category'] = '未分類'
+        if 'items' not in parsed: parsed['items'] = []
+        if 'my_total_expense' not in parsed: parsed['my_total_expense'] = 0
+        if 'friends_total_receivable' not in parsed: parsed['friends_total_receivable'] = 0
+        if 'friend_breakdown' not in parsed: parsed['friend_breakdown'] = {}
+        
+        return jsonify(parsed)
+    except Exception as e:
+        print(f"[AI Bill Split Parse Error] {e}")
+        return jsonify({
+            "status": "failed",
+            "message": f"AI 解析出錯: {str(e)}",
+            "items": [],
+            "my_total_expense": 0,
+            "friends_total_receivable": 0,
+            "friend_breakdown": {}
+        })
+
+@app.route('/api/bill_splits', methods=['GET'])
+def get_bill_splits():
+    """
+    獲取使用者所有的「待收/部分收回」代墊拆帳清單
+    """
+    spreadsheet_id = get_spreadsheet_id()
+    if not spreadsheet_id:
+        return jsonify({"status": "error", "message": "尚未設定 GOOGLE_SHEET_ID"}), 400
+        
+    try:
+        rows = get_sheet_values('代墊待收款', spreadsheet_id=spreadsheet_id)
+        if not rows or len(rows) <= 1:
+            return jsonify({"status": "success", "data": []})
+            
+        data_list = []
+        # 表頭：'建立日期', '帳目描述', '總金額', '墊款人', '分攤人(逗號分隔)', '各分攤明細(JSON/描述)', '狀態', '唯一 ID', '建立時間'
+        for idx, row in enumerate(rows[1:]):
+            while len(row) < 9:
+                row.append('')
+            
+            # 若為已結清或已收回，則不顯示在清單中
+            if row[6] in ['已結清', '已收回']:
+                continue
+                
+            try:
+                breakdown = json.loads(row[5])
+            except Exception as json_err:
+                # 容錯處理：如果不是 JSON，將其當作字串，或者預設空字典
+                breakdown = {}
+                
+            data_list.append({
+                "date": row[0],
+                "description": row[1],
+                "total_amount": row[2],
+                "payer": row[3],
+                "friends": row[4],
+                "breakdown": breakdown,
+                "status": row[6],
+                "id": row[7],
+                "time": row[8]
+            })
+            
+        # 照時間降序排列 (最新在最上面)
+        data_list.reverse()
+        return jsonify({"status": "success", "data": data_list})
+    except Exception as e:
+        print(f"[GET Bill Splits Error] {e}")
+        return jsonify({"status": "error", "message": f"載入清單失敗: {str(e)}"}), 500
+
+@app.route('/api/bill_split/save', methods=['POST'])
+def save_bill_split():
+    """
+    確認代墊拆帳 (Flow B - 完整流水分攤制)：
+    1. 寫入「代墊待收款」分頁 (狀態：待收，分攤明細 JSON 附帶分類儲存)
+    2. 自動在「記帳」分頁新增一筆該項目的「總代墊金額」(無條件進位，分類為真實分類，子分類為使用者選定或拆帳分攤)
+    """
+    spreadsheet_id = get_spreadsheet_id()
+    if not spreadsheet_id:
+        return jsonify({"status": "error", "message": "尚未設定 GOOGLE_SHEET_ID"}), 400
+        
+    data = request.json or {}
+    description = data.get('description', '').strip()
+    total_amount = data.get('total_amount', 0)
+    friends = data.get('friends', [])
+    breakdown = data.get('breakdown', {})
+    my_expense = data.get('my_expense', 0)
+    category = data.get('category', '').strip() or '未分類'
+    sub_category = data.get('sub_category', '').strip() or '拆帳分攤'
+    
+    if not description or not breakdown:
+        return jsonify({"status": "error", "message": "描述或分攤明細不能為空"}), 400
+        
+    try:
+        service = get_sheets_service()
+        now = datetime.now(TW_TZ)
+        unique_id = str(uuid.uuid4())
+        
+        # 1. 寫入「代墊待收款」
+        # 額外在 breakdown JSON 中儲存真實分類與子分類，便於還款時精準記為該分類下的「負值支出」
+        breakdown['_category'] = category
+        breakdown['_sub_category'] = sub_category
+        
+        friends_comma = ",".join(friends)
+        breakdown_json = json.dumps(breakdown, ensure_ascii=False)
+        
+        bill_split_row = [
+            now.strftime('%Y/%m/%d'),
+            description,
+            total_amount,
+            '我',
+            friends_comma,
+            breakdown_json,
+            '待收',
+            unique_id,
+            now.strftime('%Y-%m-%d %H:%M:%S')
+        ]
+        
+        service.spreadsheets().values().append(
+            spreadsheetId=spreadsheet_id,
+            range='代墊待收款!A:I',
+            valueInputOption='USER_ENTERED',
+            body={'values': [bill_split_row]}
+        ).execute()
+        
+        # 2. 寫入「總代墊金額」 (墊付總額 + 個人花費) 到記帳本，支援銀行全額流出對帳 (Flow B)
+        # 真實新台幣沒有小數點，總額進行無條件進位 (math.ceil)
+        gross_expense = math.ceil(float(total_amount) + float(my_expense))
+        if gross_expense > 0:
+            gross_row = [
+                now.strftime('%Y'),
+                f"'{now.strftime('%m')}",
+                now.strftime('%Y/%m/%d'),
+                "", # 收入項目為空
+                f"{description} (代墊與個人拆帳總額)",
+                gross_expense,
+                format_category_with_emoji(category, False),
+                sub_category
+            ]
+            service.spreadsheets().values().append(
+                spreadsheetId=spreadsheet_id,
+                range='記帳!A:H',
+                valueInputOption='USER_ENTERED',
+                body={'values': [gross_row]}
+            ).execute()
+            
+        # 呼叫小助手重新計算本月總額以獲得最新狀態
+        _, cat_report, cat_dict, _ = get_monthly_report(service, now)
+        
+        # 1. Block 1: Core Bookkeeping Sync
+        formatted_category = format_category_with_emoji(category, False)
+        block1 = f"真實記帳已自動歸位 [{formatted_category}] 類別，金額：${gross_expense} 元 (墊付總額)"
+
+        # 2. Block 2: Debt Ledger Status & Pill buttons
+        breakdown_items = []
+        for name, details in breakdown.items():
+            if name.startswith('_'):
+                continue
+            owed = details.get('owed', 0)
+            received = details.get('received', 0)
+            balance = owed - received
+            if balance > 0:
+                breakdown_items.append(f"👥 {name}: <b>${balance}</b> [ ⏳ 待收 ]")
+        
+        block2_list = "<br>".join(breakdown_items) if breakdown_items else "• 目前無未結算債務。"
+        
+        # Full HTML Card Layout with glassmorphism Morandi tints & Compact spacing (V3.9)
+        html_message = f"""
+<div class="chat-split-card" style="padding: 8px; border-radius: 16px; border: 1.5px solid rgba(244, 63, 94, 0.2); background: linear-gradient(135deg, rgba(244, 63, 94, 0.08) 0%, rgba(244, 63, 94, 0.02) 100%); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 6px 20px 0 rgba(31, 38, 135, 0.04); margin: 4px 0; font-size: 0.85rem;">
+    <div style="font-weight: 800; font-size: 0.95rem; margin-bottom: 4px; color: #f43f5e; display: flex; align-items: center; gap: 4px;">
+        💸 代墊拆帳成功完成！
+    </div>
+    <div style="font-size: 0.8rem; line-height: 1.3; color: var(--text-color, #334155); margin-bottom: 4px;">
+        <b>項目描述：</b>{description}<br>
+        <b>總代墊金額：</b>${total_amount}
+    </div>
+    <div style="font-size: 0.8rem; line-height: 1.3; color: #f43f5e; font-weight: 700; margin-bottom: 4px; padding: 4px 8px; border-radius: 8px; background: rgba(244, 63, 94, 0.05); border: 1px solid rgba(244, 63, 94, 0.1);">
+        🎯 {block1}
+    </div>
+    <div style="font-size: 0.8rem; line-height: 1.3; color: var(--text-color, #334155); margin-bottom: 4px; padding: 4px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(0, 0, 0, 0.03);">
+        <b>📋 朋友欠款明細：</b><br>
+        {block2_list}
+    </div>
+    <div class="card-pill-actions" style="display: flex; flex-wrap: wrap; gap: 6px; border-top: 1px dashed rgba(244, 63, 94, 0.15); padding-top: 6px; justify-content: flex-end;">
+        <button class="repay-pill-btn" data-id="{unique_id}" style="background: rgba(244, 63, 94, 0.1); border: 1.5px solid rgba(244, 63, 94, 0.3); color: #f43f5e; padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">✅ 一鍵收回</button>
+    </div>
+</div>
+""".replace('\n', '')
+        
+        return jsonify({
+            "status": "success",
+            "message": html_message,
+            "unique_id": unique_id,
+            "description": description,
+            "my_expense": my_expense,
+            "category": category,
+            "breakdown": breakdown,
+            "friends": friends,
+            "total_amount": total_amount,
+            "chart_data": cat_dict
+        })
+    except Exception as e:
+        print(f"[Save Bill Split Error] {e}")
+        return jsonify({"status": "error", "message": f"儲存失敗: {str(e)}"}), 500
+
+@app.route('/api/bill_split/repay', methods=['POST'])
+def repay_bill_split():
+    """
+    朋友還錢核銷：
+    1. 更新該筆代墊拆帳中指定朋友的「received」金額，並更新該行
+    2. 自動在「記帳」中記一筆「代墊款回收」收入
+    3. 若該筆所有人都還清，更新狀態為「已結清」，並將該行移動到分頁最底部
+    """
+    spreadsheet_id = get_spreadsheet_id()
+    if not spreadsheet_id:
+        return jsonify({"status": "error", "message": "尚未設定 GOOGLE_SHEET_ID"}), 400
+        
+    data = request.json or {}
+    unique_id = data.get('id', '').strip()
+    friend_name = data.get('friend_name', '').strip() # 可以為 'unnamed' 或特定朋友名字
+    
+    if not unique_id:
+        return jsonify({"status": "error", "message": "ID 不能為空"}), 400
+        
+    try:
+        service = get_sheets_service()
+        now = datetime.now(TW_TZ)
+        
+        # 1. 取得所有代墊款資料並找出 target 行
+        rows = get_sheet_values('代墊待收款', spreadsheet_id=spreadsheet_id)
+        if not rows:
+            return jsonify({"status": "error", "message": "找不到任何代墊資料"}), 404
+            
+        target_row_idx = -1
+        target_row = None
+        for idx, row in enumerate(rows[1:]):
+            row_num = idx + 2
+            while len(row) < 9:
+                row.append('')
+            if row[7].strip() == unique_id:
+                target_row_idx = row_num
+                target_row = row
+                break
+                
+        if target_row_idx == -1:
+            return jsonify({"status": "error", "message": "找不到該筆代墊拆帳項目"}), 404
+            
+        # 2. 原地變更時間戳記 (狀態將在確認是否全部還款後更新)
+        target_row[8] = now.strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 3. 計算本次被還款的金額，用於寫入「負支出」對帳
+        try:
+            breakdown_old = json.loads(rows[target_row_idx - 1][5])
+        except:
+            breakdown_old = {}
+            
+        category_from_row = breakdown_old.get('_category', '未分類')
+        sub_category_from_row = breakdown_old.get('_sub_category', '拆帳分攤')
+        
+        repaid_amount = 0
+        if friend_name and friend_name in breakdown_old:
+            owed = breakdown_old[friend_name].get('owed', 0)
+            received = breakdown_old[friend_name].get('received', 0)
+            repaid_amount = float(owed) - float(received)
+        else:
+            for name, details in breakdown_old.items():
+                if name.startswith('_'):
+                    continue
+                owed = details.get('owed', 0)
+                received = details.get('received', 0)
+                repaid_amount += (float(owed) - float(received))
+                
+        # 4. 更新 breakdown JSON 將所有人（或指定朋友）設為已結清
+        try:
+            breakdown = json.loads(target_row[5])
+        except:
+            breakdown = {}
+            
+        if friend_name and friend_name in breakdown:
+            breakdown[friend_name]['received'] = breakdown[friend_name].get('owed', 0)
+        else:
+            for name in breakdown:
+                if name.startswith('_'):
+                    continue
+                breakdown[name]['received'] = breakdown[name].get('owed', 0)
+                
+        target_row[5] = json.dumps(breakdown, ensure_ascii=False)
+        
+        # 檢查是否所有人都已還清
+        all_settled = True
+        for name, details in breakdown.items():
+            if name.startswith('_'):
+                continue
+            if float(details.get('owed', 0)) - float(details.get('received', 0)) > 0:
+                all_settled = False
+                break
+                
+        if all_settled:
+            target_row[6] = "已收回"
+        else:
+            target_row[6] = "待收"
+        
+        # 5. 原地安全更新 Google Sheet 代墊分頁 (A:I)
+        service.spreadsheets().values().update(
+            spreadsheetId=spreadsheet_id,
+            range=f'代墊待收款!A{target_row_idx}:I{target_row_idx}',
+            valueInputOption='USER_ENTERED',
+            body={'values': [target_row]}
+        ).execute()
+        
+        # 6. 自動在「記帳」分頁中新增一筆該分類下的「負值支出」，真實記載代墊款回收 (Flow B)
+        # 真實新台幣無小數點，還款進行無條件進位 (math.ceil)
+        repaid_ceil = math.ceil(repaid_amount)
+        if repaid_ceil > 0:
+            repay_row = [
+                now.strftime('%Y'),
+                f"'{now.strftime('%m')}",
+                now.strftime('%Y/%m/%d'),
+                "", # 收入項目為空
+                f"代墊款回收 - {friend_name if (friend_name and friend_name != 'unnamed') else target_row[1]}", # 支出項目
+                -repaid_ceil, # 金額 (負值支出代表還款回收)
+                format_category_with_emoji(category_from_row, False),
+                sub_category_from_row
+            ]
+            service.spreadsheets().values().append(
+                spreadsheetId=spreadsheet_id,
+                range='記帳!A:H',
+                valueInputOption='USER_ENTERED',
+                body={'values': [repay_row]}
+            ).execute()
+        
+        # 重新計算本月總額以獲得最新狀態
+        _, cat_report, cat_dict, _ = get_monthly_report(service, now)
+        
+        msg = f"💸 已成功將該筆代墊項目狀態更新為「已收回」，最新時間：{target_row[8]}，並已記錄回收金額 ${repaid_ceil} 元為負支出！"
+        return jsonify({
+            "status": "success",
+            "message": msg,
+            "chart_data": cat_dict
+        })
+    except Exception as e:
+        print(f"[Repay Bill Split Error] {e}")
+        return jsonify({"status": "error", "message": f"還款核銷失敗: {str(e)}"}), 500
+
+# =================================================================
+# ⏰ 每月固定支出自動補記與 CRUD API (V3.7)
+# =================================================================
+
+def check_and_execute_fixed_expenses(service, spreadsheet_id):
+    """
+    檢查「固定支出」分頁，若有項目已到期 (當前日期.day >= 執行日) 且當月未執行 (最後執行月份 != 當月)，
+    則將其補記至「記帳」分頁中，並將「最後執行月份」更新為當前月份。
+    """
+    executed_items = []
+    try:
+        now = datetime.now(TW_TZ)
+        current_day = now.day
+        current_year = now.strftime('%Y')
+        current_month = f"'{now.strftime('%m')}" # 為了維持 GSheet 文字格式，加上單引號
+        current_month_str = now.strftime('%Y-%m') # 用於標記最後執行月份，例如 '2026-06'
+        current_date_str = now.strftime('%Y/%m/%d')
+
+        # 讀取固定支出
+        res = service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id,
+            range='固定支出!A:H'
+        ).execute()
+        rows = res.get('values', [])
+        if not rows or len(rows) <= 1:
+            return executed_items
+
+        # 表頭對應：建立日期, 項目名稱, 母分類, 子分類, 金額, 執行日(每月), 最後執行月份, 唯一ID
+        for idx, row in enumerate(rows[1:]):
+            row_num = idx + 2  # 行號，1-indexed，表頭是 1，所以第一筆資料是 2
+
+            # 補足列長度以防 len(row) 不足
+            while len(row) < 8:
+                row.append('')
+
+            name = row[1].strip() if row[1] else ""
+            category = row[2].strip() if row[2] else ""
+            sub_category = row[3].strip() if row[3] else ""
+            amount_val = row[4].strip() if row[4] else ""
+            execute_day_val = row[5].strip() if row[5] else ""
+            last_executed = row[6].strip() if row[6] else ""
+            unique_id = row[7].strip() if row[7] else ""
+
+            if not name or not amount_val or not execute_day_val:
+                continue
+
+            try:
+                amount = int(float(amount_val))
+            except ValueError:
+                continue
+
+            try:
+                execute_day = int(float(execute_day_val))
+            except ValueError:
+                execute_day = 1
+
+            # 補齊唯一 ID 自癒
+            if not unique_id:
+                unique_id = str(uuid.uuid4())
+                row[7] = unique_id
+                service.spreadsheets().values().update(
+                    spreadsheetId=spreadsheet_id,
+                    range=f'固定支出!H{row_num}',
+                    valueInputOption='USER_ENTERED',
+                    body={'values': [[unique_id]]}
+                ).execute()
+
+            # 檢查是否到期且尚未執行
+            if current_day >= execute_day and last_executed != current_month_str:
+                # 執行補記到「記帳!A:H」
+                # 記帳表頭：['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別', '子分類']
+                formatted_category = format_category_with_emoji(category, is_income=False)
+                new_transaction = [
+                    current_year,
+                    current_month,
+                    current_date_str,
+                    "", # 收入項目
+                    name, # 支出項目
+                    amount,
+                    formatted_category,
+                    sub_category
+                ]
+                
+                service.spreadsheets().values().append(
+                    spreadsheetId=spreadsheet_id,
+                    range='記帳!A:H',
+                    valueInputOption='USER_ENTERED',
+                    body={'values': [new_transaction]}
+                ).execute()
+
+                # 更新固定支出該列的「最後執行月份」為當月
+                service.spreadsheets().values().update(
+                    spreadsheetId=spreadsheet_id,
+                    range=f'固定支出!G{row_num}',
+                    valueInputOption='USER_ENTERED',
+                    body={'values': [[current_month_str]]}
+                ).execute()
+
+                executed_items.append({"name": name, "amount": amount})
+                
+    except Exception as e:
+        print(f"[Fixed Expenses Auto Check Error] {e}")
+        
+    return executed_items
+
+@app.route('/api/fixed_expenses', methods=['GET', 'POST'])
+def handle_fixed_expenses():
+    spreadsheet_id = get_spreadsheet_id()
+    if not spreadsheet_id:
+        return jsonify({"status": "error", "message": "尚未設定 GOOGLE_SHEET_ID"}), 400
+        
+    service = get_sheets_service()
+    now = datetime.now(TW_TZ)
+    
+    if request.method == 'GET':
+        try:
+            res = service.spreadsheets().values().get(
+                spreadsheetId=spreadsheet_id,
+                range='固定支出!A:H'
+            ).execute()
+            rows = res.get('values', [])
+            fixed_expenses = []
+            
+            if len(rows) > 1:
+                # 遍歷資料列
+                for idx, row in enumerate(rows[1:]):
+                    row_num = idx + 2
+                    while len(row) < 8:
+                        row.append('')
+                    
+                    unique_id = row[7].strip()
+                    if not unique_id:
+                        unique_id = str(uuid.uuid4())
+                        service.spreadsheets().values().update(
+                            spreadsheetId=spreadsheet_id,
+                            range=f'固定支出!H{row_num}',
+                            valueInputOption='USER_ENTERED',
+                            body={'values': [[unique_id]]}
+                        ).execute()
+                        row[7] = unique_id
+                        
+                    try:
+                        amount = int(float(row[4])) if row[4] else 0
+                    except ValueError:
+                        amount = 0
+                        
+                    try:
+                        execute_day = int(float(row[5])) if row[5] else 1
+                    except ValueError:
+                        execute_day = 1
+                        
+                    fixed_expenses.append({
+                        "created_date": row[0],
+                        "name": row[1],
+                        "category": row[2],
+                        "sub_category": row[3],
+                        "amount": amount,
+                        "execute_day": execute_day,
+                        "last_executed_month": row[6],
+                        "id": unique_id
+                    })
+            return jsonify({"status": "success", "fixed_expenses": fixed_expenses})
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"獲取固定支出失敗: {str(e)}"}), 500
+            
+    elif request.method == 'POST':
+        # 新增一筆固定支出
+        data = request.json or {}
+        name = data.get('name', '').strip()
+        category = data.get('category', '').strip()
+        sub_category = data.get('sub_category', '').strip()
+        amount = data.get('amount')
+        execute_day = data.get('execute_day')
+        
+        if not name or amount is None or execute_day is None:
+            return jsonify({"status": "error", "message": "欄位填寫不完整"}), 400
+            
+        try:
+            amount = int(amount)
+            execute_day = int(execute_day)
+        except ValueError:
+            return jsonify({"status": "error", "message": "金額與執行日必須為數字"}), 400
+            
+        if execute_day < 1 or execute_day > 28:
+            return jsonify({"status": "error", "message": "執行日必須在 1 到 28 日之間"}), 400
+            
+        created_date = now.strftime('%Y/%m/%d')
+        unique_id = str(uuid.uuid4())
+        
+        # 邊界規則：若當前日期已大於等於執行日，當月應立即補記一次
+        current_day = now.day
+        current_month_str = now.strftime('%Y-%m')
+        last_executed_month = ""
+        immediate_execute = False
+        
+        if current_day >= execute_day:
+            last_executed_month = current_month_str
+            immediate_execute = True
+            
+        new_row = [
+            created_date,
+            name,
+            category,
+            sub_category,
+            amount,
+            execute_day,
+            last_executed_month,
+            unique_id
+        ]
+        
+        try:
+            service.spreadsheets().values().append(
+                spreadsheetId=spreadsheet_id,
+                range='固定支出!A:H',
+                valueInputOption='USER_ENTERED',
+                body={'values': [new_row]}
+            ).execute()
+            
+            # 如果符合立即執行補記
+            if immediate_execute:
+                formatted_category = format_category_with_emoji(category, is_income=False)
+                new_transaction = [
+                    now.strftime('%Y'),
+                    f"'{now.strftime('%m')}",
+                    now.strftime('%Y/%m/%d'),
+                    "", # 收入項目
+                    name, # 支出項目
+                    amount,
+                    formatted_category,
+                    sub_category
+                ]
+                service.spreadsheets().values().append(
+                    spreadsheetId=spreadsheet_id,
+                    range='記帳!A:H',
+                    valueInputOption='USER_ENTERED',
+                    body={'values': [new_transaction]}
+                ).execute()
+                
+            return jsonify({
+                "status": "success", 
+                "message": "已新增固定支出" + ("，且因當月已到期，系統已自動為您補記一筆！" if immediate_execute else "。"),
+                "immediate_execute": immediate_execute
+            })
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"新增失敗: {str(e)}"}), 500
+
+@app.route('/api/fixed_expenses/update', methods=['POST'])
+def update_fixed_expense():
+    spreadsheet_id = get_spreadsheet_id()
+    if not spreadsheet_id:
+        return jsonify({"status": "error", "message": "尚未設定 GOOGLE_SHEET_ID"}), 400
+        
+    service = get_sheets_service()
+    data = request.json or {}
+    unique_id = data.get('id', '').strip()
+    name = data.get('name', '').strip()
+    category = data.get('category', '').strip()
+    sub_category = data.get('sub_category', '').strip()
+    amount = data.get('amount')
+    execute_day = data.get('execute_day')
+    
+    if not unique_id or not name or amount is None or execute_day is None:
+        return jsonify({"status": "error", "message": "欄位填寫不完整"}), 400
+        
+    try:
+        amount = int(amount)
+        execute_day = int(execute_day)
+    except ValueError:
+        return jsonify({"status": "error", "message": "金額與執行日必須為數字"}), 400
+        
+    if execute_day < 1 or execute_day > 28:
+        return jsonify({"status": "error", "message": "執行日必須在 1 到 28 日之間"}), 400
+        
+    try:
+        res = service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id,
+            range='固定支出!A:H'
+        ).execute()
+        rows = res.get('values', [])
+        
+        target_row_num = -1
+        last_executed_month = ""
+        for idx, row in enumerate(rows[1:]):
+            row_num = idx + 2
+            while len(row) < 8:
+                row.append('')
+            if row[7].strip() == unique_id:
+                target_row_num = row_num
+                last_executed_month = row[6].strip()
+                break
+                
+        if target_row_num == -1:
+            return jsonify({"status": "error", "message": "找不到該固定支出項目"}), 404
+            
+        now = datetime.now(TW_TZ)
+        current_day = now.day
+        current_month_str = now.strftime('%Y-%m')
+        immediate_execute = False
+        
+        # 邊界規則：若修改後當前日期已大於等於執行日，且當月尚未執行，以新金額執行補記
+        if current_day >= execute_day and last_executed_month != current_month_str:
+            last_executed_month = current_month_str
+            immediate_execute = True
+            
+        # 更新該列
+        updated_row = [
+            rows[target_row_num - 1][0], # 保持建立日期不變
+            name,
+            category,
+            sub_category,
+            amount,
+            execute_day,
+            last_executed_month,
+            unique_id
+        ]
+        
+        service.spreadsheets().values().update(
+            spreadsheetId=spreadsheet_id,
+            range=f'固定支出!A{target_row_num}:H{target_row_num}',
+            valueInputOption='USER_ENTERED',
+            body={'values': [updated_row]}
+        ).execute()
+        
+        if immediate_execute:
+            formatted_category = format_category_with_emoji(category, is_income=False)
+            new_transaction = [
+                now.strftime('%Y'),
+                f"'{now.strftime('%m')}",
+                now.strftime('%Y/%m/%d'),
+                "", # 收入項目
+                name, # 支出項目
+                amount,
+                formatted_category,
+                sub_category
+            ]
+            service.spreadsheets().values().append(
+                spreadsheetId=spreadsheet_id,
+                range='記帳!A:H',
+                valueInputOption='USER_ENTERED',
+                body={'values': [new_transaction]}
+            ).execute()
+            
+        return jsonify({
+            "status": "success", 
+            "message": "修改固定支出成功" + ("，且因當月已到期，系統已自動為您補記一筆！" if immediate_execute else "。"),
+            "immediate_execute": immediate_execute
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"修改失敗: {str(e)}"}), 500
+
+@app.route('/api/fixed_expenses/delete', methods=['POST'])
+def delete_fixed_expense():
+    spreadsheet_id = get_spreadsheet_id()
+    if not spreadsheet_id:
+        return jsonify({"status": "error", "message": "尚未設定 GOOGLE_SHEET_ID"}), 400
+        
+    service = get_sheets_service()
+    data = request.json or {}
+    unique_id = data.get('id', '').strip()
+    
+    if not unique_id:
+        return jsonify({"status": "error", "message": "ID 不能為空"}), 400
+        
+    try:
+        # 1. 獲取固定支出的 sheetId
+        spreadsheet_metadata = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        fixed_expenses_sheet_id = None
+        for sheet in spreadsheet_metadata['sheets']:
+            if sheet['properties']['title'] == '固定支出':
+                fixed_expenses_sheet_id = sheet['properties']['sheetId']
+                break
+                
+        if fixed_expenses_sheet_id is None:
+            return jsonify({"status": "error", "message": "找不到固定支出分頁"}), 404
+            
+        # 2. 找到 ID 所在的行號
+        res = service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id,
+            range='固定支出!A:H'
+        ).execute()
+        rows = res.get('values', [])
+        
+        target_row_idx = -1
+        for idx, row in enumerate(rows[1:]):
+            row_num = idx + 2
+            while len(row) < 8:
+                row.append('')
+            if row[7].strip() == unique_id:
+                target_row_idx = row_num - 1 # 0-indexed row index
+                break
+                
+        if target_row_idx == -1:
+            return jsonify({"status": "error", "message": "找不到該固定支出項目"}), 404
+            
+        # 3. 刪除該行
+        body = {
+            'requests': [{
+                'deleteDimension': {
+                    'range': {
+                        'sheetId': fixed_expenses_sheet_id,
+                        'dimension': 'ROWS',
+                        'startIndex': target_row_idx,
+                        'endIndex': target_row_idx + 1
+                    }
+                }
+            }]
+        }
+        service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
+        
+        return jsonify({"status": "success", "message": "刪除固定支出項目成功"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"刪除失敗: {str(e)}"}), 500
 
 # --- 備忘、願望、待辦 API ---
 @app.route('/api/memo', methods=['GET', 'POST'])

@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="UniTask">
     
-    <link rel="stylesheet" href="/static/css/style.css?v=5.3">
+    <link rel="stylesheet" href="/static/css/style.css?v=6.3">
     <link rel="apple-touch-icon" href="/static/icons/icon.png">
     <link rel="icon" type="image/png" href="/static/icons/icon.png">
     <!-- Google Fonts -->
@@ -20,6 +20,19 @@
     <!-- Chart.js (v4.4.3 pinned, bundled build - no sourceMappingURL to avoid 404 DevTools warnings) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.js"></script>
 
+    <script>
+        // ☀️🌙 初始化深色模式 (立即執行以防止畫面閃爍 FOUC)
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else if (savedTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark'); // 預設跟隨系統
+            }
+        })();
+    </script>
     <style>
         /* 🌟 PWA 智慧相容 html/body 預設底色，徹底消除黑屏閃爍 🌟 */
         html, body {
@@ -130,29 +143,62 @@
             <div class="login-header-glow"></div>
             <div class="login-icon">🌸</div>
             <h2>AI 專屬小秘書</h2>
-            <p class="login-subtitle">您的個人隱私智慧生活管家</p>
+            <p class="login-subtitle">
+                您的 <span id="typewriter-text" style="color: #0d9488; font-weight: 700;">隱私智慧生活管家</span><span class="cursor">|</span>
+            </p>
             
-            <div class="login-features">
-                <div class="feature-item">
-                    <span class="feature-emoji">📅</span>
-                    <div class="feature-text">
-                        <strong>智慧行事曆</strong>
-                        <span>Gemini 自動解析語意排程</span>
+            <div class="login-carousel-wrapper">
+                <div class="login-carousel" id="loginCarousel">
+                    <div class="carousel-item">
+                        <span class="feature-emoji">📅</span>
+                        <div class="feature-text">
+                            <strong>語意智慧排程</strong>
+                            <span>用說的就能安排好一天</span>
+                        </div>
+                    </div>
+                    <div class="carousel-item">
+                        <span class="feature-emoji">💰</span>
+                        <div class="feature-text">
+                            <strong>雲端財務管家</strong>
+                            <span>每一分錢都有它的歸屬</span>
+                        </div>
+                    </div>
+                    <div class="carousel-item">
+                        <span class="feature-emoji">📈</span>
+                        <div class="feature-text">
+                            <strong>存股大盤觀測</strong>
+                            <span>做自己的專屬理財操盤手</span>
+                        </div>
+                    </div>
+                    <div class="carousel-item">
+                        <span class="feature-emoji">🌸</span>
+                        <div class="feature-text">
+                            <strong>專屬健康閨蜜</strong>
+                            <span>比您更懂您的身體密碼</span>
+                        </div>
+                    </div>
+                    <div class="carousel-item">
+                        <span class="feature-emoji">🛒</span>
+                        <div class="feature-text">
+                            <strong>靈感口袋名單</strong>
+                            <span>收納生活中的每個悸動</span>
+                        </div>
+                    </div>
+                    <div class="carousel-item">
+                        <span class="feature-emoji">🔒</span>
+                        <div class="feature-text">
+                            <strong>絕對隱私安全</strong>
+                            <span>您的數據只屬於您自己</span>
+                        </div>
                     </div>
                 </div>
-                <div class="feature-item">
-                    <span class="feature-emoji">💰</span>
-                    <div class="feature-text">
-                        <strong>自動化記帳</strong>
-                        <span>即時收支統計與雲端記帳本</span>
-                    </div>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-emoji">🌸</span>
-                    <div class="feature-text">
-                        <strong>生理健康關懷</strong>
-                        <span>經期預測與自適應 AI 閨蜜風格</span>
-                    </div>
+                <div class="carousel-indicators" id="carouselIndicators">
+                    <span class="dot active"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
                 </div>
             </div>
 
@@ -229,6 +275,76 @@
             const modal = document.getElementById('loginNdaModal');
             if (modal) modal.style.display = 'none';
         };
+
+        // Typewriter Effect
+        const phrases = ["專屬排程秘書", "雲端財務管家", "貼心健康閨蜜", "大盤觀測樞紐", "隱私生活管家"];
+        let phraseIndex = 0;
+        let charIndex = 0;
+        let isDeleting = false;
+        const twEl = document.getElementById("typewriter-text");
+
+        function typeWriter() {
+            if (!twEl) return;
+            const currentPhrase = phrases[phraseIndex];
+            
+            if (isDeleting) {
+                twEl.innerText = currentPhrase.substring(0, charIndex - 1);
+                charIndex--;
+            } else {
+                twEl.innerText = currentPhrase.substring(0, charIndex + 1);
+                charIndex++;
+            }
+
+            let typeSpeed = isDeleting ? 40 : 100;
+
+            if (!isDeleting && charIndex === currentPhrase.length) {
+                typeSpeed = 2000;
+                isDeleting = true;
+            } else if (isDeleting && charIndex === 0) {
+                isDeleting = false;
+                phraseIndex = (phraseIndex + 1) % phrases.length;
+                typeSpeed = 500;
+            }
+            setTimeout(typeWriter, typeSpeed);
+        }
+        if(document.getElementById("typewriter-text")) setTimeout(typeWriter, 1000);
+
+        // Carousel Logic
+        const carousel = document.getElementById('loginCarousel');
+        const dots = document.querySelectorAll('.carousel-indicators .dot');
+        let autoScrollTimer;
+        
+        if (carousel && dots.length > 0) {
+            const updateDots = () => {
+                const index = Math.round(carousel.scrollLeft / carousel.offsetWidth);
+                dots.forEach((dot, i) => {
+                    dot.classList.toggle('active', i === index);
+                });
+            };
+            
+            carousel.addEventListener('scroll', updateDots);
+            
+            const startAutoScroll = () => {
+                autoScrollTimer = setInterval(() => {
+                    let nextIndex = Math.round(carousel.scrollLeft / carousel.offsetWidth) + 1;
+                    if (nextIndex >= dots.length) {
+                        carousel.scrollTo({ left: 0, behavior: 'smooth' });
+                    } else {
+                        carousel.scrollTo({ left: nextIndex * carousel.offsetWidth, behavior: 'smooth' });
+                    }
+                }, 3500);
+            };
+            
+            const stopAutoScroll = () => clearInterval(autoScrollTimer);
+            
+            carousel.addEventListener('touchstart', stopAutoScroll, {passive: true});
+            carousel.addEventListener('touchend', startAutoScroll);
+            carousel.addEventListener('mouseenter', stopAutoScroll);
+            carousel.addEventListener('mouseleave', startAutoScroll);
+            
+            // Start scroll after a short delay
+            setTimeout(startAutoScroll, 1000);
+        }
     </script>
 
     {% else %}
@@ -315,7 +431,7 @@
                 
                 <!-- 右側組：按鈕在右上角，點數膠囊在按鈕下方 -->
                 <div class="header-right-group">
-                    <div class="header-actions">
+                    <div class="header-actions" style="display: flex; gap: 8px;">
                         <button onclick="openModal('settingsModal')" class="action-icon-btn" title="系統設定">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="3"></circle>
@@ -355,6 +471,17 @@
                         {% endif %}
                     </div>
                     {% endif %}
+
+                    <!-- 深色模式切換開關（AI 點數膠囊下方） -->
+                    <div id="themeToggleBtn" class="theme-switch-wrapper theme-switch-below-pill" title="切換深淺色模式">
+                        <span class="theme-switch-label">深色模式</span>
+                        <div class="theme-switch-track">
+                            <div class="theme-switch-thumb">
+                                <span class="thumb-icon-sun">☀️</span>
+                                <span class="thumb-icon-moon">🌙</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -381,6 +508,7 @@
             <!-- 記帳子選單 (預設 Active) -->
             <div id="sub_finance" class="sub-menu active">
                 <button class="sub-btn" onclick="openModal('expenseModal')">💰 我要記帳</button>
+                <button class="sub-btn" onclick="openFixedExpensesModal()">⏰ 固定支出</button>
                 <button class="sub-btn" onclick="queryFinanceSummary()">📊 本月合計</button>
                 <button class="sub-btn" onclick="window.open('{{ finance_sheet_url }}', '_blank')">☁️ 雲端帳簿</button>
             </div>
@@ -539,11 +667,11 @@
                             <small style="color: #94a3b8; font-size: 0.6rem;">▼</small>
                         </div>
                         <input type="hidden" id="todo_category" value="">
+                        <div id="todo_cat_dropdown" class="todo-dropdown-content"></div>
                     </div>
                     <input type="text" id="todo_title" placeholder="輸入新任務..." autocomplete="off" style="flex: 1; min-width: 0; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff;">
                     <button id="submitTodoBtn" onclick="saveTodo()" style="background: #3b82f6; color: white; border: none; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.3; pointer-events: none; transition: all 0.2s;">✓</button>
                 </div>
-                <div id="todo_cat_dropdown" class="todo-dropdown-content"></div>
                 <div style="display: flex; gap: 10px; margin-top: 15px; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch;">
                     <div class="priority-opt red" data-value="急要" onclick="selectPriority(this, '急要')" style="padding: 6px 12px; font-size: 0.8rem;">🔴 急要</div>
                     <div class="priority-opt yellow" data-value="重要" onclick="selectPriority(this, '重要')" style="padding: 6px 12px; font-size: 0.8rem;">🟡 重要</div>
@@ -716,20 +844,29 @@
             </div>
         </div>
     </div>
-    <!-- 手動記帳彈窗 -->
+    <!-- 手動記帳與代墊款彈窗 -->
     <div id="expenseModal" class="modal-backdrop">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">💰 手動記帳</h2>
-                <button class="close-modal" onclick="closeModal('expenseModal')">✕</button>
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header" style="flex-direction: column; align-items: stretch; gap: 10px; border-bottom: none; padding-bottom: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <h2 class="modal-title" style="font-size: 1.25rem; font-weight: 800;">💰 記帳管理</h2>
+                    <button class="close-modal" onclick="closeModal('expenseModal')">✕</button>
+                </div>
+                <!-- Premium Tabs (V3.7 Step 4) -->
+                <div class="expense-tab-nav" style="display: flex; background: var(--bg-card, #f1f5f9); padding: 4px; border-radius: 14px; gap: 4px; margin-top: 5px;">
+                    <button id="tab_manual_expense" class="tab-btn active" onclick="switchExpenseTab('manual')" style="flex: 1; border: none; background: #fff; padding: 8px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; color: var(--text-color, #1e293b); cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">💸 新增收支</button>
+                    <button id="tab_bill_split" class="tab-btn" onclick="switchExpenseTab('bill_split')" style="flex: 1; border: none; background: transparent; padding: 8px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; color: var(--text-muted, #64748b); cursor: pointer; transition: all 0.2s ease;">📋 待收代墊款</button>
+                </div>
             </div>
-            <div class="modal-body">
+            
+            <!-- Tab 1: 手動記帳 -->
+            <div id="manual_expense_tab_content" class="modal-body" style="padding-top: 15px;">
                 <!-- 收支切換器 (V18.0 Premium Toggle) -->
-                <div class="expense-type-toggle" style="display: flex; background: #f1f5f9; padding: 4px; border-radius: 14px; margin-bottom: 12px; gap: 4px;">
-                    <button type="button" id="type_expense" onclick="setExpenseType('expense')" class="type-btn active" style="flex: 1; padding: 8px 10px; border: none; border-radius: 11px; font-weight: 800; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 6px; background: white; color: #ef4444; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                <div class="expense-type-toggle">
+                    <button type="button" id="type_expense" onclick="setExpenseType('expense')" class="type-btn active">
                         💸 支出
                     </button>
-                    <button type="button" id="type_income" onclick="setExpenseType('income')" class="type-btn" style="flex: 1; padding: 8px 10px; border: none; border-radius: 11px; font-weight: 800; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 6px; background: transparent; color: #64748b;">
+                    <button type="button" id="type_income" onclick="setExpenseType('income')" class="type-btn">
                         💰 收入
                     </button>
                 </div>
@@ -738,9 +875,9 @@
                 <div style="margin-bottom: 12px;">
                     <label id="item_label" style="display: block; font-size: 0.85rem; font-weight: 700; color: #475569; margin-bottom: 6px;">支出項目與分類</label>
                     <div style="display: flex; gap: 8px; align-items: center; width: 100%; position: relative;">
-                        <!-- ① 分類自訂下拉選單 (左側，寬 105px) -->
-                        <div id="expense_cat_selector" class="custom-select" style="width: 105px; position: relative; flex-shrink: 0;">
-                            <div id="selected_expense_cat" onclick="toggleExpenseCategoryDropdown()" style="padding: 10px 8px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.8rem; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 42px; white-space: nowrap; overflow: hidden; height: 42px; box-sizing: border-box;">
+                        <!-- ① 分類自訂下拉選單 (左側，寬 95px) -->
+                        <div id="expense_cat_selector" class="custom-select" style="width: 95px; position: relative; flex-shrink: 0;">
+                            <div id="selected_expense_cat" onclick="window.toggleExpenseCategoryDropdown()" style="padding: 10px 6px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.8rem; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 42px; white-space: nowrap; overflow: hidden; height: 42px; box-sizing: border-box;">
                                 <span id="current_expense_cat_display" style="overflow: hidden; text-overflow: ellipsis;">🍔 食</span>
                                 <small style="color: #94a3b8; font-size: 0.6rem;">▼</small>
                             </div>
@@ -752,11 +889,25 @@
                             <!-- 下拉選單區 -->
                             <div id="expense_cat_dropdown" class="todo-dropdown-content" style="left: 0; min-width: 180px;"></div>
                         </div>
+
+                        <!-- ② 子分類選擇下拉選單 (中間，寬 95px，動態顯示，V3.7 同行省空間設計) -->
+                        <div id="manual_expense_sub_cat_group" class="custom-select" style="width: 95px; flex-shrink: 0; display: none; position: relative;">
+                            <div id="selected_expense_sub_cat" onclick="window.toggleExpenseSubCategoryDropdown()" style="padding: 10px 6px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.8rem; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 42px; white-space: nowrap; overflow: hidden; height: 42px; box-sizing: border-box;">
+                                <span id="current_expense_sub_cat_display" style="overflow: hidden; text-overflow: ellipsis; color: #94a3b8;">選擇子分類</span>
+                                <small style="color: #94a3b8; font-size: 0.6rem;">▼</small>
+                            </div>
+                            <input type="hidden" id="expense_sub_category_hidden" value="">
+                            <select id="manual_expense_sub_category" style="display: none;"></select>
+                            
+                            <!-- 下拉選單區 -->
+                            <div id="expense_sub_cat_dropdown" class="todo-dropdown-content" style="left: 0; min-width: 150px;"></div>
+                        </div>
                         
-                        <!-- ② 項目輸入框 -->
+                        <!-- ③ 項目輸入框 -->
                         <input type="text" id="expense_item" class="form-input" placeholder="消費了什麼？" style="flex: 1; min-width: 0; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff; margin-bottom: 0; box-sizing: border-box;">
                     </div>
                 </div>
+
                 <div class="form-group" style="margin-bottom: 12px;">
                     <label>金額 (支援加減乘除)</label>
                     <div id="calc_history" class="calc-history" style="text-align: right; font-size: 0.85rem; color: #94a3b8; height: 1.1rem; margin-bottom: 2px;"></div>
@@ -823,10 +974,187 @@
 
                 <button id="submitExpense" class="submit-btn btn-expense">確認支出記帳 💸</button>
             </div>
+            
+            <!-- Tab 2: 代墊待收款清單 -->
+            <div id="bill_split_tab_content" class="modal-body" style="display: none; padding-top: 15px;">
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 12px; padding-right: 2px;">
+                    <button onclick="window.startNewManualBillSplit()" style="background: rgba(26, 188, 156, 0.08); border: 1px dashed rgba(26, 188, 156, 0.3); color: #1abc9c; border-radius: 12px; padding: 6px 12px; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 4px; outline: none; transition: all 0.2s ease;">
+                        ＋ 新增代墊拆帳
+                    </button>
+                </div>
+                <div id="bill_split_list_container" style="max-height: 44vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 5px 2px;">
+                    <!-- 動態渲染代墊待收款卡片 -->
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button id="modal_sheet_link_btn" onclick="window.open('{{ finance_sheet_url }}', '_blank')" class="sheet-link-btn" data-finance-url="{{ finance_sheet_url }}" data-bill-split-url="{{ bill_split_sheet_url }}">
+                    ☁️ 打開雲端試算表
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 每月固定支出彈窗 (V3.7 Premium Fixed Expenses Modal) -->
+    <div id="fixedExpensesModal" class="modal-backdrop">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">⏰ 每月固定支出設定</h2>
+                <button class="close-modal" onclick="closeModal('fixedExpensesModal')">✕</button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- 1. 列表檢視畫面 -->
+                <div id="fixed_expenses_list_view">
+                    <div id="fixed_expenses_list_container" class="fixed-expenses-list" style="max-height: 45vh; overflow-y: auto; margin-bottom: 15px; padding-right: 2px;">
+                        <!-- 動態渲染卡片 -->
+                    </div>
+                    
+                    <div class="fixed-expense-total" style="background: rgba(13, 148, 136, 0.05); border: 1px solid rgba(13, 148, 136, 0.2); border-radius: 18px; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted);">每月固定支出合計</span>
+                        <span id="fixed_expense_total_amount" style="font-weight: 800; font-size: 1.1rem; color: #0d9488;">$0 / 月</span>
+                    </div>
+                    
+                    <button class="submit-btn" onclick="showFixedExpenseForm()" style="margin-top: 0; background: var(--primary-color); height: 42px;">＋ 新增固定支出</button>
+                </div>
+                
+                <!-- 2. 新增/編輯表單畫面 -->
+                <div id="fixed_expenses_form_view" style="display: none;">
+                    <input type="hidden" id="fixed_expense_id">
+                    
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">項目名稱</label>
+                        <input type="text" id="fixed_expense_name" class="form-input" placeholder="例如：房租、手機網路費" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">分類設定</label>
+                        <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
+                            <!-- 母分類 -->
+                            <select id="fixed_expense_category" class="form-input" onchange="window.onFixedExpenseCategoryChange(this.value)" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 8px; margin-bottom: 0;">
+                                <option value="">選擇母分類</option>
+                            </select>
+                            
+                            <!-- 子分類 -->
+                            <select id="fixed_expense_sub_category" class="form-input" disabled style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 8px; margin-bottom: 0; opacity: 0.6;">
+                                <option value="">選擇子分類</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">金額設定</label>
+                        <input type="text" id="fixed_expense_amount" class="form-input" placeholder="輸入固定支出金額" oninput="this.value = this.value.replace(/[^0-9]/g, '')" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 18px;">
+                        <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">每月自動執行日</label>
+                        <select id="fixed_expense_day" class="form-input" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
+                            <!-- 1到28日 -->
+                        </select>
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px;">
+                        <button class="submit-btn" onclick="saveFixedExpense()" style="flex: 1; margin-top: 0; background: var(--primary-color); height: 42px;">✅ 確認儲存</button>
+                        <button class="submit-btn" onclick="hideFixedExpenseForm()" style="width: 90px; margin-top: 0; background: #94a3b8; color: white; height: 42px;">✕ 取消</button>
+                    </div>
+                </div>
+            </div>
+            
             <div class="modal-footer">
                 <button onclick="window.open('{{ finance_sheet_url }}', '_blank')" class="sheet-link-btn">
                     ☁️ 打開雲端試算表
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💸 AI 拆帳朋友設定彈窗 (V3.7 Step 4) -->
+    <div id="billSplitFriendsModal" class="modal-backdrop" style="z-index: 2150; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(10px);">
+        <div class="modal-content" style="max-width: 400px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+                <h2 class="modal-title" style="font-size: 1.25rem; font-weight: 800;">👥 代墊對象是誰？</h2>
+                <button class="close-modal" onclick="closeModal('billSplitFriendsModal')">✕</button>
+            </div>
+            <div class="modal-body" style="padding-top: 15px;">
+                <p style="font-size: 0.85rem; color: var(--text-muted, #64748b); margin-bottom: 15px; line-height: 1.5;">
+                    請輸入參與分攤的朋友姓名（可留空，AI 將自動辨識並對齊）：
+                </p>
+                <div id="bill_split_friends_inputs" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted, #64748b); width: 60px; flex-shrink: 0;">朋友 1：</span>
+                        <input type="text" class="form-input friend-name-input" placeholder="例如：小明" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 38px; outline: none; background: #fff; padding: 0 10px; margin-bottom: 0; box-sizing: border-box;">
+                        <button type="button" onclick="removeFriendInput(this)" style="background: transparent; border: none; color: #ef4444; font-size: 1.1rem; cursor: pointer; display: none;">✕</button>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted, #64748b); width: 60px; flex-shrink: 0;">朋友 2：</span>
+                        <input type="text" class="form-input friend-name-input" placeholder="例如：阿偉" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 38px; outline: none; background: #fff; padding: 0 10px; margin-bottom: 0; box-sizing: border-box;">
+                        <button type="button" onclick="removeFriendInput(this)" style="background: transparent; border: none; color: #ef4444; font-size: 1.1rem; cursor: pointer; display: none;">✕</button>
+                    </div>
+                </div>
+                <button type="button" onclick="addFriendInputField()" style="background: transparent; border: 1px dashed var(--primary-color, #3b82f6); color: var(--primary-color, #3b82f6); font-size: 0.8rem; font-weight: 700; border-radius: 12px; padding: 8px; width: 100%; cursor: pointer; transition: all 0.2s; margin-bottom: 20px;">＋ 新增朋友欄位</button>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button class="submit-btn" onclick="submitBillSplitFriends(true)" style="margin-top: 0; background: #64748b; flex: 1; height: 42px;">略過，不填</button>
+                    <button class="submit-btn" onclick="submitBillSplitFriends(false)" style="margin-top: 0; background: var(--primary-color, #3b82f6); flex: 1.5; height: 42px;">下一步 →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✏️ 手動調整代墊拆帳彈窗 (V3.7 Step 4) -->
+    <div id="manualBillSplitModal" class="modal-backdrop" style="z-index: 2100; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(10px);">
+        <div class="modal-content" style="max-width: 520px; border-radius: 28px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <h2 class="modal-title">✏️ 手動調整代墊拆帳</h2>
+                <button class="close-modal" onclick="closeModal('manualBillSplitModal')">✕</button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 20px 24px;">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">帳目名稱 / 事件描述</label>
+                    <input type="text" id="manual_split_description" class="form-input" placeholder="例如：朋友聚餐、出遊交通" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">消費分類與子分類 (實體記帳類別)</label>
+                    <div style="display: flex; gap: 10px; width: 100%;">
+                        <!-- 母分類 -->
+                        <select id="manual_split_category" class="form-input" onchange="window.onManualSplitCategoryChange(this.value)" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;"></select>
+                        <!-- 子分類 -->
+                        <select id="manual_split_sub_category" class="form-input" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;"></select>
+                    </div>
+                </div>
+                
+                <h3 style="font-size: 0.95rem; font-weight: 800; margin: 15px 0 10px; color: var(--primary-color);">費用細項</h3>
+                <div id="manual_split_items_container" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;">
+                    <!-- 動態渲染費用項目表單卡片 -->
+                </div>
+                
+                <button type="button" onclick="addManualSplitItemRow()" style="background: rgba(59, 130, 246, 0.05); border: 1px dashed #3b82f6; color: #3b82f6; font-size: 0.85rem; font-weight: 700; border-radius: 12px; padding: 10px; width: 100%; cursor: pointer; transition: all 0.2s; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    ＋ 新增項目細項
+                </button>
+                
+                <!-- 拆帳結果預覽卡片 -->
+                <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.15); border-radius: 20px; padding: 15px 18px; margin-bottom: 20px;">
+                    <h4 style="font-size: 0.9rem; font-weight: 800; margin: 0 0 10px 0; color: #2563eb; display: flex; align-items: center; gap: 6px;">📊 拆帳結算預覽</h4>
+                    <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--text-muted);">✅ 我的總支出 (將記為個人支出)：</span>
+                            <span id="preview_my_expense" style="font-weight: 700; color: #16a34a;">$0</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(59, 130, 246, 0.2); padding-bottom: 6px; margin-bottom: 6px;">
+                            <span style="color: var(--text-muted);">💸 代墊待收款總額 (別人應還我)：</span>
+                            <span id="preview_total_receivable" style="font-weight: 700; color: #2563eb;">$0</span>
+                        </div>
+                        <div id="preview_friends_breakdown" style="display: flex; flex-direction: column; gap: 4px; padding-left: 10px; font-size: 0.8rem; color: var(--text-muted);">
+                            <!-- 各人欠款預覽 -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button class="submit-btn" onclick="saveManualBillSplitAdjustment()" style="margin-top: 0; background: var(--primary-color); flex: 1.5; height: 42px;">✅ 確認記帳</button>
+                    <button class="submit-btn" onclick="closeModal('manualBillSplitModal')" style="margin-top: 0; background: #94a3b8; flex: 1; height: 42px;">✕ 取消</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1405,7 +1733,7 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=6.8"></script>
+    <script src="/static/js/app.js?v=6.9"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&libraries=places&callback=initMap" async defer></script>
 
     <!-- 📊 存股看板 Modal (V3.2 - Interactive Premium Dashboard) -->
@@ -1855,6 +2183,7 @@
             }).then(res => res.json())
               .then(data => {
                   console.log("Profile and timezone synced successfully:", data);
+                  window.handleSyncProfileResponse(data);
               }).catch(err => {
                   console.error("Error syncing profile:", err);
               });
@@ -2021,6 +2350,18 @@
             }
         };
 
+        // 統一處理背景同步回傳的自動補記結果 (V3.7)
+        window.handleSyncProfileResponse = (data) => {
+            if (data && data.executed_items && data.executed_items.length > 0) {
+                const listStr = data.executed_items.map(item => `${item.name} $${item.amount}`).join('、');
+                setTimeout(() => {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(`⏰ 已自動補記每月固定支出：${listStr}`, 'success');
+                    }
+                }, 2000); // 延遲 2 秒避免畫面初載入時衝突
+            }
+        };
+
         // 自動背景同步時區（給老使用者直接抓時區）
         window.autoSyncTimezone = () => {
             const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -2034,7 +2375,12 @@
                     enable_period: enablePeriod,
                     timezone: userTimezone
                 })
-            });
+            }).then(res => res.json())
+              .then(data => {
+                  window.handleSyncProfileResponse(data);
+              }).catch(err => {
+                  console.error("Error auto-syncing profile:", err);
+              });
         };
         document.addEventListener('DOMContentLoaded', () => {
             // 自動應用偏好設定
@@ -2050,6 +2396,17 @@
             } else {
                 // 如果已經設定過，在背景靜默同步時區給後端
                 setTimeout(window.autoSyncTimezone, 1000);
+            }
+
+            // 綁定深淺色切換按鈕事件
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            if (themeToggleBtn) {
+                themeToggleBtn.addEventListener('click', () => {
+                    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+                    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                    document.documentElement.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                });
             }
 
             // 註冊 PWA Service Worker，優化 Cloud Run 冷啟動黑屏與快取速度

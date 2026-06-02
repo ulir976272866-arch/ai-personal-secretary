@@ -66,8 +66,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-    window.defaultExpenseCategories = ["食", "衣", "住", "行", "育", "樂", "醫", "投資", "公益"];
-    window.incomeCategories = ["薪資", "獎金", "投資獲利", "投資", "退款", "其他進帳"];
+    window.defaultExpenseCategories = ["食", "衣", "住", "行", "育", "樂", "醫", "保險費", "貸款", "儲蓄/投資", "公益"];
+    window.incomeCategories = ["薪資", "獎金", "投資獲利", "副業收入", "變更/退款"];
+
+    window.INCOME_SUB_CATEGORIES = {
+        "薪資": ["正職薪水", "兼職時薪", "小費進帳"],
+        "獎金": ["年終獎金", "績效/三節", "專案分紅"],
+        "投資獲利": ["股票股利/價差", "基金配息", "定存利息", "加密貨幣"],
+        "副業收入": ["諮詢服務", "個人項目", "團購/分潤", "諮詢隨喜/小費"],
+        "變更/退款": ["購物退款", "代墊款收回", "其他雜項"]
+    };
+
+    window.FINANCE_SUB_CATEGORIES = {
+        "食": ["早餐", "午餐", "晚餐", "飲料／咖啡", "外送", "超商／零食", "聚餐"],
+        "衣": ["上衣／褲子", "鞋子", "包包／配件", "保養／化妝品"],
+        "住": ["房租", "水費", "電費", "瓦斯費", "管理費", "手機費", "網路費", "修繕／家具", "清潔用品"],
+        "行": ["油錢／加油", "停車費", "大眾交通", "Uber／計程車", "高鐵／火車", "機票"],
+        "育": ["書籍", "課程／學費", "補習", "文具"],
+        "樂": ["電影／演唱會", "KTV", "旅遊", "遊戲", "訂閱娛樂"],
+        "醫": ["掛號／看診", "藥品", "健保", "保健品"],
+        "保險費": ["壽險", "醫療險", "車險", "產險", "其他保費"],
+        "貸款": [],
+        "儲蓄/投資": [],
+        "公益": []
+    };
 
     // --- 分類選單核心邏輯 (V23.0 完美修復版) ---
     window.updateExpenseCategoryDropdown = (mode = 'expense') => {
@@ -77,10 +99,10 @@ document.addEventListener('DOMContentLoaded', () => {
         select.innerHTML = '';
 
         const deletedCats = JSON.parse(localStorage.getItem('deletedExpenseCats') || '[]');
-        const customCats = window.loadExpenseCategories().filter(c => !deletedCats.includes(c.name));
+        const customCats = window.loadExpenseCategories().filter(c => !deletedCats.includes(c.name) && !window.defaultExpenseCategories.includes(c.name));
         
-        const incomeMap = { "薪資": "💰", "獎金": "🧧", "投資獲利": "💹", "投資": "📈", "退款": "🔙", "其他進帳": "🪙" };
-        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "投資": "📈", "公益": "💖" };
+        const incomeMap = { "薪資": "💼", "獎金": "🧧", "投資獲利": "💹", "副業收入": "🔮", "變更/退款": "↩️" };
+        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖" };
 
         let finalCategories = [];
         if (mode === 'income') {
@@ -129,6 +151,28 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('customExpenseCategories', JSON.stringify(cats));
     };
 
+    window.loadIncomeCategories = () => {
+        try {
+            const raw = localStorage.getItem('customIncomeCategories');
+            let stored = raw ? JSON.parse(raw) : [];
+            if (!Array.isArray(stored)) return [];
+            
+            return stored.map(c => {
+                if (typeof c === 'string') return { name: c, icon: '💰' };
+                if (c && typeof c === 'object' && c.name) {
+                    return { name: String(c.name).trim(), icon: c.icon || '💰' };
+                }
+                return null;
+            }).filter(c => c !== null);
+        } catch (e) {
+            return [];
+        }
+    };
+
+    window.saveIncomeCategories = (cats) => {
+        localStorage.setItem('customIncomeCategories', JSON.stringify(cats));
+    };
+
     window.updateExpenseDropdown = () => {
         // 直接使用統一的分類下拉選單更新
         const type = document.getElementById('expense_type')?.value || 'expense';
@@ -151,6 +195,62 @@ document.addEventListener('DOMContentLoaded', () => {
         if (displaySpan) displaySpan.innerHTML = name ? `${icon} ${name}` : '請選擇';
         if (hiddenInput) hiddenInput.value = name || '';
         if (hiddenSelect) hiddenSelect.value = name || '';
+        
+        if (window.onManualExpenseCategoryChange) {
+            window.onManualExpenseCategoryChange(name);
+        }
+    };
+
+    window.toggleExpenseSubCategoryDropdown = () => {
+        const dropdown = document.getElementById('expense_sub_cat_dropdown');
+        if (dropdown) dropdown.classList.toggle('show');
+    };
+
+    window.selectExpenseSubCategory = (name) => {
+        const dropdown = document.getElementById('expense_sub_cat_dropdown');
+        if (dropdown) dropdown.classList.remove('show');
+        
+        window.selectExpenseSubCategoryDisplay(name);
+    };
+
+    window.selectExpenseSubCategoryDisplay = (name) => {
+        const displaySpan = document.getElementById('current_expense_sub_cat_display');
+        const hiddenInput = document.getElementById('expense_sub_category_hidden');
+        const hiddenSelect = document.getElementById('manual_expense_sub_category');
+        if (displaySpan) {
+            displaySpan.innerHTML = name ? name : '選擇子分類';
+            displaySpan.style.color = name ? '#1e293b' : '#94a3b8';
+        }
+        if (hiddenInput) hiddenInput.value = name || '';
+        if (hiddenSelect) hiddenSelect.value = name || '';
+    };
+
+    window.onManualExpenseCategoryChange = (categoryName) => {
+        const mode = document.getElementById('expense_type')?.value || 'expense';
+        const subGroup = document.getElementById('manual_expense_sub_cat_group');
+        const subDropdown = document.getElementById('expense_sub_cat_dropdown');
+        
+        if (!subDropdown || !subGroup) return;
+        
+        let subCats = null;
+        if (mode === 'expense') {
+            subCats = window.FINANCE_SUB_CATEGORIES ? window.FINANCE_SUB_CATEGORIES[categoryName] : null;
+        } else {
+            subCats = window.INCOME_SUB_CATEGORIES ? window.INCOME_SUB_CATEGORIES[categoryName] : null;
+        }
+
+        if (subCats && subCats.length > 0) {
+            subGroup.style.display = 'block';
+            subDropdown.innerHTML = '';
+            subCats.forEach(sc => {
+                subDropdown.innerHTML += `<div class="todo-dropdown-item" onclick="event.stopPropagation(); window.selectExpenseSubCategory('${sc}')">${sc}</div>`;
+            });
+            window.selectExpenseSubCategoryDisplay('');
+        } else {
+            subGroup.style.display = 'none';
+            subDropdown.innerHTML = '';
+            window.selectExpenseSubCategoryDisplay('');
+        }
     };
 
     // 選取分類（含投資/公益特殊處理）
@@ -159,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (dropdown) dropdown.classList.remove('show');
 
         // 特殊分類：投資 → paywall
-        if (name === '投資' || name === '投資獲利') {
+        if (name === '投資' || name === '儲蓄/投資' || name === '投資獲利') {
             if (!window.checkFeatureAccess('stock')) {
                 const confirmed = await window.customConfirm(
                     '解鎖存股記帳雙向回填特權 💎',
@@ -198,16 +298,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const dropdown = document.getElementById('expense_cat_dropdown');
         if (!dropdown) return;
 
-        const deletedCats = JSON.parse(localStorage.getItem('deletedExpenseCats') || '[]');
-        const customCats = window.loadExpenseCategories().filter(c => !deletedCats.includes(c.name));
-
-        const incomeMap = { "薪資": "💰", "獎金": "🧧", "投資獲利": "💹", "投資": "📈", "退款": "🔙", "其他進帳": "🪙" };
-        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "投資": "📈", "公益": "💖" };
+        const incomeMap = { "薪資": "💼", "獎金": "🧧", "投資獲利": "💹", "副業收入": "🔮", "變更/退款": "↩️" };
+        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖" };
 
         let finalCategories = [];
         if (mode === 'income') {
-            finalCategories = window.incomeCategories.map(cat => ({ name: cat, icon: incomeMap[cat] || "💰" }));
+            const deletedCats = JSON.parse(localStorage.getItem('deletedIncomeCats') || '[]');
+            const customCats = window.loadIncomeCategories().filter(c => !deletedCats.includes(c.name) && !window.incomeCategories.includes(c.name));
+            const baseCats = window.incomeCategories.map(cat => ({ name: cat, icon: incomeMap[cat] || "💰" }));
+            const extraCats = customCats.map(cat => ({ name: cat.name, icon: cat.icon || "📝" }));
+            finalCategories = [...baseCats, ...extraCats];
         } else {
+            const deletedCats = JSON.parse(localStorage.getItem('deletedExpenseCats') || '[]');
+            const customCats = window.loadExpenseCategories().filter(c => !deletedCats.includes(c.name) && !window.defaultExpenseCategories.includes(c.name));
             const baseCats = window.defaultExpenseCategories.map(cat => ({ name: cat, icon: expenseMap[cat] || "💸" }));
             const extraCats = customCats.map(cat => ({ name: cat.name, icon: cat.icon || "📝" }));
             finalCategories = [...baseCats, ...extraCats];
@@ -217,7 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="todo-dropdown-item" onclick="window.selectExpenseCategory('${cat.name}', '${cat.icon}')">
                 <span>${cat.icon}</span>
                 <div style="flex: 1;">${cat.name}</div>
-                ${mode !== 'income' ? `<div class="cat-delete-btn" onclick="event.stopPropagation(); window.removeExpenseCategory('${cat.name}')">
+                ${ (mode === 'income' ? !window.incomeCategories.includes(cat.name) : !window.defaultExpenseCategories.includes(cat.name)) ? `<div class="cat-delete-btn" onclick="event.stopPropagation(); window.removeExpenseCategory('${cat.name}', '${mode}')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                 </div>` : ''}
             </div>
@@ -228,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     };
 
-    window.removeExpenseCategory = async (name) => {
+    window.removeExpenseCategory = async (name, mode = 'expense') => {
         const confirmed = await window.customConfirm(
             '確定刪除分類？',
             `您即將刪除「${name}」分類。<br><span style="font-size:0.75rem; color:#94a3b8;">(這不會影響已記錄的帳目)</span>`,
@@ -236,18 +339,23 @@ document.addEventListener('DOMContentLoaded', () => {
         );
         if (!confirmed) return;
 
-        // 移除自訂分類
-        let current = window.loadExpenseCategories().filter(c => c.name !== name);
-        window.saveExpenseCategories(current);
+        let currentMode = document.getElementById('expense_type')?.value || 'expense';
+        
+        if (currentMode === 'income') {
+            let current = window.loadIncomeCategories().filter(c => c.name !== name);
+            window.saveIncomeCategories(current);
+            let deleted = JSON.parse(localStorage.getItem('deletedIncomeCats') || '[]');
+            if (!deleted.includes(name)) deleted.push(name);
+            localStorage.setItem('deletedIncomeCats', JSON.stringify(deleted));
+        } else {
+            let current = window.loadExpenseCategories().filter(c => c.name !== name);
+            window.saveExpenseCategories(current);
+            let deleted = JSON.parse(localStorage.getItem('deletedExpenseCats') || '[]');
+            if (!deleted.includes(name)) deleted.push(name);
+            localStorage.setItem('deletedExpenseCats', JSON.stringify(deleted));
+        }
 
-        // 標記為刪除（備援）
-        let deleted = JSON.parse(localStorage.getItem('deletedExpenseCats') || '[]');
-        if (!deleted.includes(name)) deleted.push(name);
-        localStorage.setItem('deletedExpenseCats', JSON.stringify(deleted));
-
-        // 如果目前選的就是被刪除的，重設為食
         const currentVal = document.getElementById('expense_category_hidden')?.value;
-        const currentMode = document.getElementById('expense_type')?.value || 'expense';
         if (currentVal === name) {
             const fallback = currentMode === 'income' ? { name: '薪資', icon: '💰' } : { name: '食', icon: '🍔' };
             window.selectExpenseCategoryDisplay(fallback.name, fallback.icon);
@@ -264,22 +372,28 @@ document.addEventListener('DOMContentLoaded', () => {
         // 共用待辦清單的 customCatInput 彈窗 ✅
         const result = await window.customCatInput();
         if (result && result.name) {
-            let current = window.loadExpenseCategories();
+            const currentMode = document.getElementById('expense_type')?.value || 'expense';
+            let current = currentMode === 'income' ? window.loadIncomeCategories() : window.loadExpenseCategories();
+            
             if (!current.some(c => c.name === result.name)) {
-                current.push({ name: result.name, icon: result.icon || '💸' });
-                window.saveExpenseCategories(current);
+                current.push({ name: result.name, icon: result.icon || (currentMode === 'income' ? '💰' : '💸') });
+                if (currentMode === 'income') {
+                    window.saveIncomeCategories(current);
+                } else {
+                    window.saveExpenseCategories(current);
+                }
             }
 
             // 若曾被標記為刪除，移除該標記
-            let deleted = JSON.parse(localStorage.getItem('deletedExpenseCats') || '[]');
+            let deletedKey = currentMode === 'income' ? 'deletedIncomeCats' : 'deletedExpenseCats';
+            let deleted = JSON.parse(localStorage.getItem(deletedKey) || '[]');
             deleted = deleted.filter(c => c !== result.name);
-            localStorage.setItem('deletedExpenseCats', JSON.stringify(deleted));
+            localStorage.setItem(deletedKey, JSON.stringify(deleted));
 
-            const currentMode = document.getElementById('expense_type')?.value || 'expense';
             window.updateExpenseCategoryDropdown(currentMode);
             // ✅ 新增後自動選取該分類
-            window.selectExpenseCategory(result.name, result.icon || '💸');
-            showToast(`已新增並選取：${result.icon || '💸'} ${result.name}`, 'success');
+            window.selectExpenseCategory(result.name, result.icon || (currentMode === 'income' ? '💰' : '💸'));
+            showToast(`已新增並選取：${result.icon || (currentMode === 'income' ? '💰' : '💸')} ${result.name}`, 'success');
         }
     };
 
@@ -289,6 +403,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selector && !selector.contains(e.target)) {
             const dropdown = document.getElementById('expense_cat_dropdown');
             if (dropdown) dropdown.classList.remove('show');
+        }
+
+        // ✅ 點擊外部關閉子分類下拉選單 (V3.8 Fix)
+        const subSelector = document.getElementById('manual_expense_sub_cat_group');
+        if (subSelector && !subSelector.contains(e.target)) {
+            const subDropdown = document.getElementById('expense_sub_cat_dropdown');
+            if (subDropdown) subDropdown.classList.remove('show');
         }
 
         // ✅ 點擊外部關閉口袋名單分類下拉選單 (V6.2 Fix)
@@ -304,6 +425,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (todoSelector && todoDropdown && !todoSelector.contains(e.target) && !todoDropdown.contains(e.target)) {
             todoDropdown.classList.remove('show');
         }
+    });
+
+    // ✅ 電腦版防呆：滑鼠移開自動收合所有下拉選單 (V6.6 Feature)
+    const customSelects = document.querySelectorAll('.custom-select');
+    customSelects.forEach(select => {
+        select.addEventListener('mouseleave', () => {
+            // 找到該容器內所有具有 show 樣式的下拉選單並關閉
+            const openDropdowns = select.querySelectorAll('.show');
+            openDropdowns.forEach(dropdown => {
+                dropdown.classList.remove('show');
+            });
+        });
     });
 
     window.suggestExpenseEmoji = (text) => {
@@ -2875,6 +3008,49 @@ document.addEventListener('DOMContentLoaded', () => {
         const message = text || userInput.value.trim();
         if (!message && !file) return;
 
+        // --- 代墊款智慧拆帳前置攔截 (V3.7 Step 4) ---
+        const billSplitKeywords = ['代墊', '幫付', '我先付', '我代墊', '幫點', '幫買', '幫開', '拆帳'];
+        const queryKeywords = ['查詢代墊', '代墊查詢', '待收代墊款', '查代墊', '代墊款', '查詢待墊款'];
+        const isQuery = queryKeywords.some(kw => message.includes(kw));
+        
+        // 如果是查詢代墊款，直接開啟記帳管理彈窗並切換到待收分頁
+        if (isQuery && !text) {
+            userInput.value = '';
+            openModal('expenseModal');
+            if (typeof window.switchExpenseTab === 'function') {
+                setTimeout(() => {
+                    window.switchExpenseTab('bill_split');
+                }, 50);
+            }
+            return;
+        }
+        
+        const isBillSplit = billSplitKeywords.some(kw => message.includes(kw));
+        
+        // 只有在非直接傳入 text 且符合關鍵字時，才進行攔截並彈出 Step 1 朋友名稱設定視窗
+        if (isBillSplit && !text && !window.bypassBillSplitFriends) {
+            window.pendingBillSplitMessage = message;
+            window.pendingBillSplitFile = file;
+            userInput.value = '';
+            
+            // 重置朋友名稱輸入框 (保留兩個，清空內容)
+            const friendsContainer = document.getElementById('bill_split_friends_inputs');
+            friendsContainer.innerHTML = `
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted, #64748b); width: 60px; flex-shrink: 0;">朋友 1：</span>
+                    <input type="text" class="form-input friend-name-input" placeholder="例如：小明" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 38px; outline: none; background: #fff; padding: 0 10px; margin-bottom: 0; box-sizing: border-box;">
+                    <button type="button" onclick="removeFriendInput(this)" style="background: transparent; border: none; color: #ef4444; font-size: 1.1rem; cursor: pointer; display: none;">✕</button>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted, #64748b); width: 60px; flex-shrink: 0;">朋友 2：</span>
+                    <input type="text" class="form-input friend-name-input" placeholder="例如：阿偉" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 38px; outline: none; background: #fff; padding: 0 10px; margin-bottom: 0; box-sizing: border-box;">
+                    <button type="button" onclick="removeFriendInput(this)" style="background: transparent; border: none; color: #ef4444; font-size: 1.1rem; cursor: pointer; display: none;">✕</button>
+                </div>
+            `;
+            openModal('billSplitFriendsModal');
+            return;
+        }
+
         if (!text) {
             if (file) {
                 appendMessage(`[傳送圖片] ${message || ''}`, true);
@@ -2973,6 +3149,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.deliverStockPortfolio(data);
                 } else if (data.type === 'stock_locked') {
                     appendMessage(data.message);
+                } else if (data.type === 'query_bill_splits') {
+                    appendMessage(data.message);
+                    window.renderChatBillSplits(data.data);
                 } else {
                     appendMessage(data.message || data.reply);
                 }
@@ -3350,6 +3529,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const expenseType = document.getElementById('expense_type').value;
         const emoji = expenseType === 'income' ? '💰' : '💸';
 
+        // 1.5. 固定支出重複記帳防呆偵測
+        if (expenseType === 'expense' && window.fixedExpensesList && window.fixedExpensesList.length > 0) {
+            const matched = window.fixedExpensesList.find(fe => fe.name && fe.name.trim() === item.trim());
+            if (matched) {
+                const confirmed = await window.customConfirm(
+                    '⚠️ 固定支出重複偵測',
+                    `偵測到此項目「${item}」已設定在每月固定支出中（金額 $${matched.amount}，每月 ${matched.execute_day} 日自動執行）。您確定要手動再記一筆嗎？`,
+                    '⚠️',
+                    '確定新增'
+                );
+                if (!confirmed) {
+                    return; // 終止記帳
+                }
+            }
+        }
+
         // 鎖定確認按鈕防止重複提交
         const submitBtn = document.getElementById('submitExpense');
         if (submitBtn) {
@@ -3388,12 +3583,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         closeModal('expenseModal');
-        appendMessage(`${emoji} 記帳：${item} $${amount} [${category}]`, true);
+        const subHiddenInput = document.getElementById('expense_sub_category_hidden');
+        const subGroup = document.getElementById('manual_expense_sub_cat_group');
+        const sub_category = (subGroup && subGroup.style.display !== 'none' && subHiddenInput) ? subHiddenInput.value : '';
+        const displayCategory = sub_category ? `${category} > ${sub_category}` : category;
+        appendMessage(`${emoji} 記帳：${item} $${amount} [${displayCategory}]`, true);
         
         const res = await fetch('/api/manual_action', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'expense', expense_type: expenseType, item, amount: parseInt(amount), category })
+            body: JSON.stringify({ type: 'expense', expense_type: expenseType, item, amount: parseInt(amount), category, sub_category })
         });
         const data = await res.json();
         appendMessage(data.message);
@@ -3409,8 +3608,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 3. 投資/投資獲利正向同步引導 (一鍵直接跳轉分頁並預填 Modal)
-        if ((category === '投資' || category === '投資獲利') && window.checkFeatureAccess('stock')) {
-            const txType = category === '投資' ? '買進' : '賣出';
+        if ((category === '投資' || category === '儲蓄/投資' || category === '投資獲利') && window.checkFeatureAccess('stock')) {
+            const txType = (category === '投資' || category === '儲蓄/投資') ? '買進' : '賣出';
             const isConfirmed = await window.customConfirm(
                 '📈 引導至存股紀錄',
                 `偵測到這筆支出屬於投資性質。是否一鍵跳轉至【📈 存股】模組，直接自動為您開啟【${txType}】持股交易登記表單並預填內容？`,
@@ -3434,6 +3633,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('expense_item').value = '';
         clearCalc();
         window.clearReceiptFile();
+        const manualSubSelect = document.getElementById('manual_expense_sub_category');
+        if (manualSubSelect) {
+            manualSubSelect.value = '';
+            const subGroup = document.getElementById('manual_expense_sub_cat_group');
+            if (subGroup) subGroup.style.display = 'none';
+        }
     };
 
     window.loadMemos = async () => {
@@ -4517,6 +4722,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         tipsCardEl.style.color = tipsTextColor;
                         tipsCardEl.style.display = 'block';
                     }
+                }
+                
+                // 更新本次生理期時間 (紀錄開始日與結束日)
+                const currentStartEl = document.getElementById('health_current_start');
+                const currentEndEl = document.getElementById('health_current_end');
+                if (data.history && data.history.length > 0) {
+                    const latest = data.history[0];
+                    if (currentStartEl) currentStartEl.innerText = latest.start || '尚未開始';
+                    if (currentEndEl) {
+                        // 若為進行中，保留原設計的樣式，或顯示文字
+                        currentEndEl.innerText = (latest.end === '進行中' || !latest.end) ? '尚未記錄' : latest.end;
+                    }
+                } else {
+                    if (currentStartEl) currentStartEl.innerText = '尚未開始';
+                    if (currentEndEl) currentEndEl.innerText = '尚未記錄';
                 }
                 
                 // 更新統計看板
@@ -6345,4 +6565,1169 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化訂閱與試用倒數計時器（在所有函式宣告完成後呼叫，以防未定義錯誤）
     if (typeof window.initSubscriptionCountdown === 'function') window.initSubscriptionCountdown();
     if (typeof window.initTrialCountdown === 'function') window.initTrialCountdown();
+
+    // =================================================================
+    // ⏰ 固定支出管理邏輯 (V3.7 Premium Fixed Expenses CRUD)
+    // =================================================================
+    
+    window.fixedExpensesList = [];
+    window.editingFixedExpenseId = null;
+
+    window.openFixedExpensesModal = () => {
+        window.openModal('fixedExpensesModal');
+        window.hideFixedExpenseForm();
+        window.loadFixedExpenses();
+        window.initFixedExpenseCategoryDropdown();
+    };
+
+    window.loadFixedExpenses = async (silent = false) => {
+        const container = document.getElementById('fixed_expenses_list_container');
+        if (!silent && container) {
+            container.innerHTML = `<div style="text-align: center; padding: 20px; color: #94a3b8;">⏳ 正在讀取固定支出...</div>`;
+        }
+        
+        try {
+            const res = await fetch('/api/fixed_expenses');
+            const data = await res.json();
+            if (data.status === 'success') {
+                window.fixedExpensesList = data.fixed_expenses || [];
+                
+                if (silent) return;
+                
+                if (window.fixedExpensesList.length === 0) {
+                    container.innerHTML = `<div style="text-align: center; padding: 30px; color: #94a3b8; font-size: 0.85rem;">⏰ 尚未設定 any 每月固定支出唷！</div>`;
+                    document.getElementById('fixed_expense_total_amount').innerText = '$0 / 月';
+                    return;
+                }
+                
+                container.innerHTML = '';
+                let total = 0;
+                
+                window.fixedExpensesList.forEach(item => {
+                    total += item.amount;
+                    
+                    const emojiMap = {
+                        '食': '🍔', '衣': '👔', '住': '🏠', '行': '🚗', '育': '📚', '樂': '🎬', '醫': '🏥',
+                        '保險費': '🛡️', '貸款': '🏦', '儲蓄/投資': '💰', '公益': '💖'
+                    };
+                    const emoji = emojiMap[item.category] || '💸';
+                    
+                    const card = document.createElement('div');
+                    card.className = 'fixed-expense-card';
+                    card.style = 'background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;';
+                    
+                    const subText = item.sub_category ? ` > ${item.sub_category}` : '';
+                    card.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="font-size: 1.5rem;">${emoji}</div>
+                            <div>
+                                <div style="font-weight: bold; font-size: 0.88rem; color: #f8fafc;">${item.name}</div>
+                                <div style="font-size: 0.72rem; color: var(--text-muted);">${item.category}${subText}</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="text-align: right;">
+                                <div style="font-weight: 800; font-size: 0.95rem; color: #0d9488;">$${item.amount.toLocaleString()}</div>
+                                <div style="font-size: 0.65rem; color: var(--text-muted);">每月 ${item.execute_day} 日</div>
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button onclick="window.showFixedExpenseForm(${JSON.stringify(item).replace(/"/g, '&quot;')})" style="background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 4px;">✏️</button>
+                                <button onclick="window.deleteFixedExpense('${item.id}')" style="background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 4px;">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+                
+                document.getElementById('fixed_expense_total_amount').innerText = `$${total.toLocaleString()} / 月`;
+            } else {
+                if (!silent) container.innerHTML = `<div style="text-align: center; padding: 20px; color: #ef4444;">❌ 載入失敗：${data.message}</div>`;
+            }
+        } catch (err) {
+            console.error(err);
+            if (!silent) container.innerHTML = `<div style="text-align: center; padding: 20px; color: #ef4444;">❌ 連線失敗，請重試</div>`;
+        }
+    };
+
+    window.showFixedExpenseForm = (item = null) => {
+        document.getElementById('fixed_expenses_list_view').style.display = 'none';
+        document.getElementById('fixed_expenses_form_view').style.display = 'block';
+        
+        const daySelect = document.getElementById('fixed_expense_day');
+        daySelect.innerHTML = '';
+        for (let i = 1; i <= 28; i++) {
+            daySelect.innerHTML += `<option value="${i}">每月 ${i} 日自動補記</option>`;
+        }
+        
+        const subSelect = document.getElementById('fixed_expense_sub_category');
+        
+        if (item) {
+            window.editingFixedExpenseId = item.id;
+            document.getElementById('fixed_expense_id').value = item.id;
+            document.getElementById('fixed_expense_name').value = item.name;
+            document.getElementById('fixed_expense_category').value = item.category;
+            
+            // Populates subcategories and sets disabled / opacity correctly
+            window.onFixedExpenseCategoryChange(item.category);
+            if (subSelect) {
+                subSelect.value = item.sub_category || '';
+            }
+            document.getElementById('fixed_expense_amount').value = item.amount;
+            document.getElementById('fixed_expense_day').value = item.execute_day;
+        } else {
+            window.editingFixedExpenseId = null;
+            document.getElementById('fixed_expense_id').value = '';
+            document.getElementById('fixed_expense_name').value = '';
+            document.getElementById('fixed_expense_category').value = '';
+            
+            if (subSelect) {
+                subSelect.disabled = true;
+                subSelect.style.opacity = '0.6';
+                subSelect.innerHTML = '<option value="">選擇子分類</option>';
+                subSelect.value = '';
+            }
+            document.getElementById('fixed_expense_amount').value = '';
+            document.getElementById('fixed_expense_day').value = '1';
+        }
+    };
+
+    window.hideFixedExpenseForm = () => {
+        document.getElementById('fixed_expenses_list_view').style.display = 'block';
+        document.getElementById('fixed_expenses_form_view').style.display = 'none';
+    };
+
+    window.initFixedExpenseCategoryDropdown = () => {
+        const catSelect = document.getElementById('fixed_expense_category');
+        if (!catSelect) return;
+        
+        catSelect.innerHTML = '<option value="">選擇母分類</option>';
+        window.defaultExpenseCategories.forEach(cat => {
+            catSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+        });
+    };
+
+    window.onFixedExpenseCategoryChange = (categoryName) => {
+        const subSelect = document.getElementById('fixed_expense_sub_category');
+        if (!subSelect) return;
+        
+        const subCats = window.FINANCE_SUB_CATEGORIES[categoryName];
+        if (subCats && subCats.length > 0) {
+            subSelect.disabled = false;
+            subSelect.style.opacity = '1';
+            subSelect.innerHTML = '<option value="">選擇子分類</option>';
+            subCats.forEach(sc => {
+                subSelect.innerHTML += `<option value="${sc}">${sc}</option>`;
+            });
+        } else {
+            subSelect.disabled = true;
+            subSelect.style.opacity = '0.6';
+            subSelect.innerHTML = '<option value="">無子分類</option>';
+            subSelect.value = '';
+        }
+    };
+
+    window.saveFixedExpense = async () => {
+        const id = document.getElementById('fixed_expense_id').value;
+        const name = document.getElementById('fixed_expense_name').value.trim();
+        const category = document.getElementById('fixed_expense_category').value;
+        const subSelect = document.getElementById('fixed_expense_sub_category');
+        const sub_category = (subSelect && !subSelect.disabled) ? subSelect.value : '';
+        const amount = document.getElementById('fixed_expense_amount').value;
+        const execute_day = document.getElementById('fixed_expense_day').value;
+        
+        if (!name || !category || !amount || !execute_day) {
+            window.showToast('請將資料填寫完整！');
+            return;
+        }
+        
+        const endpoint = id ? '/api/fixed_expenses/update' : '/api/fixed_expenses';
+        const payload = {
+            id,
+            name,
+            category,
+            sub_category,
+            amount: parseInt(amount),
+            execute_day: parseInt(execute_day)
+        };
+        
+        try {
+            window.showToast('⏳ 正在儲存設定...', 'info');
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                window.showToast(data.message, 'success');
+                window.hideFixedExpenseForm();
+                window.loadFixedExpenses();
+            } else {
+                window.showToast(`❌ 儲存失敗: ${data.message}`, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            window.showToast('❌ 伺服器連線失敗', 'error');
+        }
+    };
+
+    window.deleteFixedExpense = async (id) => {
+        const matched = window.fixedExpensesList.find(fe => fe.id === id);
+        const name = matched ? matched.name : '此項目';
+        
+        const confirmed = await window.customConfirm(
+            '🗑️ 確定刪除固定支出？',
+            `您確定要刪除「${name}」的固定支出設定嗎？刪除後，系統將不再每月自動補記此筆項目。`,
+            '🗑️',
+            '確認刪除'
+        );
+        
+        if (!confirmed) return;
+        
+        try {
+            window.showToast('⏳ 正在刪除設定...', 'info');
+            const res = await fetch('/api/fixed_expenses/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                window.showToast(data.message, 'success');
+                window.loadFixedExpenses();
+            } else {
+                window.showToast(`❌ 刪除失敗: ${data.message}`, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            window.showToast('❌ 伺服器連線失敗', 'error');
+        }
+    };
+
+    // =================================================================
+    // 💸 代墊款智慧拆帳前端控制 (V3.7 Step 4)
+    // =================================================================
+
+    window.switchExpenseTab = (tab) => {
+        const tabManual = document.getElementById('tab_manual_expense');
+        const tabBillSplit = document.getElementById('tab_bill_split');
+        const contentManual = document.getElementById('manual_expense_tab_content');
+        const contentBillSplit = document.getElementById('bill_split_tab_content');
+        const sheetBtn = document.getElementById('modal_sheet_link_btn');
+        
+        if (tab === 'manual') {
+            tabManual.classList.add('active');
+            tabBillSplit.classList.remove('active');
+            tabManual.style.background = '#fff';
+            tabManual.style.color = 'var(--text-color, #1e293b)';
+            tabManual.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
+            tabBillSplit.style.background = 'transparent';
+            tabBillSplit.style.color = 'var(--text-muted, #64748b)';
+            tabBillSplit.style.boxShadow = 'none';
+            contentManual.style.display = 'block';
+            contentBillSplit.style.display = 'none';
+            
+            if (sheetBtn) {
+                const url = sheetBtn.getAttribute('data-finance-url');
+                sheetBtn.onclick = () => window.open(url, '_blank');
+            }
+        } else {
+            tabBillSplit.classList.add('active');
+            tabManual.classList.remove('active');
+            tabBillSplit.style.background = '#fff';
+            tabBillSplit.style.color = 'var(--text-color, #1e293b)';
+            tabBillSplit.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
+            tabManual.style.background = 'transparent';
+            tabManual.style.color = 'var(--text-muted, #64748b)';
+            tabManual.style.boxShadow = 'none';
+            contentManual.style.display = 'none';
+            contentBillSplit.style.display = 'block';
+            
+            if (sheetBtn) {
+                const url = sheetBtn.getAttribute('data-bill-split-url');
+                sheetBtn.onclick = () => window.open(url, '_blank');
+            }
+            
+            // 載入代墊拆帳列表
+            window.loadBillSplits();
+        }
+    };
+
+    window.addFriendInputField = () => {
+        const container = document.getElementById('bill_split_friends_inputs');
+        const friendCount = container.children.length + 1;
+        const div = document.createElement('div');
+        div.style.display = 'flex';
+        div.style.gap = '8px';
+        div.style.alignItems = 'center';
+        div.innerHTML = `
+            <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted, #64748b); width: 60px; flex-shrink: 0;">朋友 ${friendCount}：</span>
+            <input type="text" class="form-input friend-name-input" placeholder="例如：姓名" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 38px; outline: none; background: #fff; padding: 0 10px; margin-bottom: 0; box-sizing: border-box;">
+            <button type="button" onclick="removeFriendInput(this)" style="background: transparent; border: none; color: #ef4444; font-size: 1.1rem; cursor: pointer; display: block;">✕</button>
+        `;
+        container.appendChild(div);
+        updateFriendInputRemoveButtons();
+    };
+    
+    window.removeFriendInput = (btn) => {
+        const row = btn.parentNode;
+        row.parentNode.removeChild(row);
+        const container = document.getElementById('bill_split_friends_inputs');
+        Array.from(container.children).forEach((child, index) => {
+            child.querySelector('span').innerText = `朋友 ${index + 1}：`;
+        });
+        updateFriendInputRemoveButtons();
+    };
+    
+    function updateFriendInputRemoveButtons() {
+        const container = document.getElementById('bill_split_friends_inputs');
+        const rows = Array.from(container.children);
+        rows.forEach(row => {
+            const btn = row.querySelector('button');
+            if (btn) {
+                btn.style.display = rows.length > 2 ? 'block' : 'none';
+            }
+        });
+    }
+
+    window.submitBillSplitFriends = async (bypass) => {
+        closeModal('billSplitFriendsModal');
+        
+        let friends = [];
+        if (!bypass) {
+            const inputs = document.querySelectorAll('.friend-name-input');
+            inputs.forEach(input => {
+                const name = input.value.trim();
+                if (name) friends.push(name);
+            });
+        }
+        
+        window.currentBillSplitFriends = friends;
+        const origMsg = window.pendingBillSplitMessage;
+        const origFile = window.pendingBillSplitFile;
+        
+        if (!origMsg) {
+            // Manual bill split creation flow!
+            window.currentBillSplitData = {
+                description: '',
+                items: [
+                    { name: '', total_amount: 0, split_type: 'equal', breakdown: {} }
+                ],
+                my_total_expense: 0,
+                friends_total_receivable: 0,
+                friend_breakdown: {}
+            };
+            window.openManualBillSplitAdjustment();
+            return;
+        }
+        
+        let friendsHint = friends.length > 0 ? `👥 已設定分攤人：${friends.join('、')}。` : '👤 略過分攤人設定。';
+        appendMessage(`${friendsHint}\n正在進行 AI 智慧拆帳解析與費用拆算中... ⏳`);
+        
+        try {
+            const res = await fetch('/api/bill_split/parse', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: origMsg, friends: friends })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success' || data.status === 'partial') {
+                if (data.status === 'partial') {
+                    appendMessage('⚠️ 拆帳解析成功，但部分欄位可能需要您手動補填或微調：');
+                } else {
+                    appendMessage('💡 AI 已成功為您完成拆帳試算，請確認下方明細：');
+                }
+                window.renderBillSplitCard(data);
+            } else {
+                appendMessage('⚠️ AI 無法自動完成拆帳（可能因語句較為複雜或缺乏明確金額）。已為您開啟手動調整介面：');
+                // 使用預設空的/內文分析出的資料開啟手動調整
+                const fallbackData = {
+                    description: '',
+                    items: [{ name: '', total_amount: 0, split_type: 'equal', breakdown: {} }],
+                    my_total_expense: 0,
+                    friends_total_receivable: 0,
+                    friend_breakdown: {}
+                };
+                window.currentBillSplitData = fallbackData;
+                window.openManualBillSplitAdjustment();
+            }
+        } catch (err) {
+            console.error(err);
+            window.showToast('❌ AI 拆帳連線失敗', 'error');
+            appendMessage('❌ 伺服器連線失敗，請稍後再試。');
+        }
+    };
+
+    window.renderBillSplitCard = (data) => {
+        window.currentBillSplitData = data;
+        if (data.friend_breakdown) {
+            window.currentBillSplitFriends = Object.keys(data.friend_breakdown);
+        }
+        
+        const card = document.createElement('div');
+        card.className = 'bill-split-card message ai-message';
+        card.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.03) 100%)';
+        card.style.border = '1px solid rgba(59, 130, 246, 0.2)';
+        card.style.borderRadius = '16px';
+        card.style.padding = '12px';
+        card.style.margin = '8px 0';
+        card.style.boxShadow = '0 8px 32px rgba(0,0,0,0.03)';
+        
+        let itemsRowsHtml = '';
+        data.items.forEach(item => {
+            itemsRowsHtml += `
+                <div style="display:grid; grid-template-columns: 2fr 1fr 1.2fr 1.2fr; gap:6px; font-size:0.8rem; padding: 6px 0; border-bottom:1px dashed rgba(0,0,0,0.03);">
+                    <span style="font-weight:600; color:var(--text-color, #1e293b);">${item.name}</span>
+                    <span style="text-align:right; color:#64748b;">$${item.total_amount}</span>
+                    <span style="text-align:center; color:#64748b;">${item.split_description || '均分'}</span>
+                    <span style="text-align:right; font-weight:700; color:#16a34a;">$${item.my_share}</span>
+                </div>
+            `;
+        });
+        
+        let friendsOwedHtml = '';
+        for (const [name, amt] of Object.entries(data.friend_breakdown || {})) {
+            friendsOwedHtml += `
+                <div style="font-size:0.8rem; color:#64748b; padding-left:12px; margin-top:2px;">
+                    👥 ${name} 應還：<b style="color:#2563eb;">$${amt}</b>
+                </div>
+            `;
+        }
+        
+        card.innerHTML = `
+            <div style="font-weight: 800; font-size: 1rem; color: #2563eb; display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
+                💸 代墊款拆帳結算
+            </div>
+            
+            <!-- Table Header -->
+            <div style="display:grid; grid-template-columns: 2fr 1fr 1.2fr 1.2fr; gap:6px; font-size:0.75rem; border-bottom:1.5px solid rgba(59, 130, 246, 0.2); padding-bottom:6px; margin-bottom:4px;">
+                <span style="font-weight:700; color:#475569;">費用項目</span>
+                <span style="font-weight:700; color:#475569; text-align:right;">總金額</span>
+                <span style="font-weight:700; color:#475569; text-align:center;">分攤</span>
+                <span style="font-weight:700; color:#475569; text-align:right;">我的份額</span>
+            </div>
+            
+            <!-- Items -->
+            <div style="margin-bottom: 12px; max-height: 200px; overflow-y: auto;">
+                ${itemsRowsHtml}
+            </div>
+            
+            <!-- Summary Section -->
+            <div style="background: rgba(255,255,255,0.4); border-radius: 16px; padding: 12px; margin-bottom: 15px; border:1px solid rgba(255,255,255,0.5);">
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:700; color:#1e293b;">
+                    <span>✅ 我的個人支出合計：</span>
+                    <span style="color:#16a34a;">$${data.my_total_expense}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:700; color:#1e293b; margin-top:4px; border-bottom: 1px dashed rgba(0,0,0,0.06); padding-bottom:6px;">
+                    <span>💸 代墊待收款總額：</span>
+                    <span style="color:#2563eb;">$${data.friends_total_receivable}</span>
+                </div>
+                <div style="margin-top: 6px;">
+                    ${friendsOwedHtml}
+                </div>
+            </div>
+            
+            <!-- Buttons Group -->
+            <div style="display: flex; gap: 8px;">
+                <button onclick="window.confirmBillSplit()" class="submit-btn" style="flex: 1.5; margin-top: 0; background: var(--primary-color); height: 36px; font-size: 0.85rem; border-radius: 12px;">✅ 確認記帳</button>
+                <button onclick="window.openManualBillSplitAdjustment()" class="submit-btn" style="flex: 1; margin-top: 0; background: #64748b; height: 36px; font-size: 0.85rem; border-radius: 12px;">✏️ 手動調整</button>
+            </div>
+        `;
+        
+        chatHistory.appendChild(card);
+        scrollToBottom();
+    };
+
+    window.confirmBillSplit = async () => {
+        const data = window.currentBillSplitData;
+        if (!data) return;
+        
+        const description = data.description || '代墊拆帳項目';
+        const totalAmount = data.friends_total_receivable;
+        const friends = window.currentBillSplitFriends || [];
+        
+        // 整理 breakdown JSON
+        const breakdown = {};
+        if (friends.length === 0) {
+            breakdown['unnamed'] = { owed: totalAmount, received: 0 };
+        } else {
+            friends.forEach(f => {
+                const owed = data.friend_breakdown[f] || 0;
+                breakdown[f] = { owed: owed, received: 0 };
+            });
+        }
+        
+        const payload = {
+            description: description,
+            total_amount: totalAmount,
+            friends: friends,
+            breakdown: breakdown,
+            my_expense: data.my_total_expense,
+            category: data.category || '未分類',
+            sub_category: data.sub_category || '拆帳分攤'
+        };
+        
+        try {
+            window.showToast('⏳ 正在寫入雲端硬碟記帳本...', 'info');
+            const res = await fetch('/api/bill_split/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const resData = await res.json();
+            
+            if (resData.status === 'success') {
+                window.showToast('✅ 代墊拆帳成功寫入！', 'success');
+                window.loadBillSplits();
+                appendMessage(resData.message);
+            } else {
+                window.showToast(`❌ 寫入失敗: ${resData.message}`, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            window.showToast('❌ 伺服器連線失敗', 'error');
+        }
+    };
+
+    window.onManualSplitCategoryChange = (catName) => {
+        const subSelect = document.getElementById('manual_split_sub_category');
+        if (!subSelect) return;
+        
+        subSelect.innerHTML = '';
+        const subCats = window.FINANCE_SUB_CATEGORIES[catName];
+        
+        if (subCats && subCats.length > 0) {
+            subSelect.disabled = false;
+            subSelect.style.opacity = '1';
+            subSelect.innerHTML = subCats.map(sub => `<option value="${sub}">${sub}</option>`).join('');
+        } else {
+            subSelect.disabled = true;
+            subSelect.style.opacity = '0.6';
+            subSelect.innerHTML = '<option value="無子分類">無子分類</option>';
+        }
+    };
+
+    window.openManualBillSplitAdjustment = () => {
+        const data = window.currentBillSplitData;
+        if (!data) return;
+        
+        let desc = data.description || '';
+        if (desc === '手動新增代墊款' || desc === '代墊拆帳項目') {
+            desc = '';
+        }
+        document.getElementById('manual_split_description').value = desc;
+        
+        // Populating the category dropdown
+        const catSelect = document.getElementById('manual_split_category');
+        if (catSelect) {
+            const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖", "未分類": "❓" };
+            catSelect.innerHTML = window.defaultExpenseCategories.map(cat => 
+                `<option value="${cat}">${expenseMap[cat] || "📝"} ${cat}</option>`
+            ).join('') + `<option value="未分類">❓ 未分類</option>`;
+            
+            catSelect.value = data.category || '未分類';
+            
+            // Populate subcategories dynamically
+            window.onManualSplitCategoryChange(catSelect.value);
+            const subSelect = document.getElementById('manual_split_sub_category');
+            if (subSelect && data.sub_category) {
+                subSelect.value = data.sub_category;
+            }
+        }
+
+        const container = document.getElementById('manual_split_items_container');
+        container.innerHTML = '';
+        
+        // 如果有 items 則載入 items，否則載入一個空白行
+        if (data.items && data.items.length > 0) {
+            data.items.forEach(item => {
+                let name = item.name || '';
+                if (name === '費用項目 1' || name === '細項 1') {
+                    name = '';
+                }
+                window.addManualSplitItemRow(name, item.total_amount, item.split_type || 'equal', item.breakdown || {});
+            });
+        } else {
+            window.addManualSplitItemRow('', 0, 'equal', {});
+        }
+        
+        openModal('manualBillSplitModal');
+        window.calculateManualBillSplit();
+    };
+
+    window.addManualSplitItemRow = (name = '', amount = 0, splitType = 'equal', breakdown = {}) => {
+        const container = document.getElementById('manual_split_items_container');
+        const itemId = 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        const friends = window.currentBillSplitFriends || [];
+        const card = document.createElement('div');
+        card.className = 'manual-split-item-card';
+        card.id = itemId;
+        card.style.background = 'var(--bg-card, #f8fafc)';
+        card.style.border = '1px solid #e2e8f0';
+        card.style.borderRadius = '16px';
+        card.style.padding = '12px';
+        card.style.position = 'relative';
+
+        let friendsInputsHtml = '';
+        const members = ['自己', ...friends];
+        members.forEach(m => {
+            const defaultVal = breakdown[m] !== undefined ? breakdown[m] : 0;
+            friendsInputsHtml += `
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 0.8rem; font-weight: 700; color: #475569; width: 60px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${m}：</span>
+                    <input type="number" class="form-input member-split-amount" data-member="${m}" value="${defaultVal}" ${splitType === 'equal' ? 'readonly style="background:#f1f5f9; color:#64748b;"' : ''} placeholder="0" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.8rem; height: 32px; outline: none; background: #fff; padding: 0 8px; margin-bottom:0;" oninput="window.calculateManualBillSplit()">
+                </div>
+            `;
+        });
+        
+        card.innerHTML = `
+            <button type="button" onclick="this.parentNode.parentNode.removeChild(this.parentNode); window.calculateManualBillSplit();" style="position: absolute; top: 10px; right: 10px; background: transparent; border: none; color: #ef4444; font-size: 1.1rem; cursor: pointer; z-index: 10;">✕</button>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 10px; padding-right: 25px;">
+                <div style="flex: 1.5;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 4px;">項目名稱</label>
+                    <input type="text" class="form-input split-item-name" value="${name}" placeholder="如：去程火車" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.8rem; height: 34px; outline: none; background: #fff; padding: 0 8px; margin-bottom:0; box-sizing: border-box;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 4px;">總金額</label>
+                    <input type="number" class="form-input split-item-amount" value="${amount}" placeholder="0" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.8rem; height: 34px; outline: none; background: #fff; padding: 0 8px; margin-bottom:0; box-sizing: border-box;" oninput="window.updateItemSplitAmounts('${itemId}')">
+                </div>
+                <div style="flex: 1.2;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 4px;">分攤方式</label>
+                    <select class="form-input split-item-type" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.8rem; height: 34px; outline: none; background: #fff; padding: 0 4px; margin-bottom:0; box-sizing: border-box;" onchange="window.toggleSplitType('${itemId}', this.value)">
+                        <option value="equal" ${splitType === 'equal' ? 'selected' : ''}>均等分攤</option>
+                        <option value="custom" ${splitType === 'custom' ? 'selected' : ''}>自訂分配</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="members-split-wrapper" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(0,0,0,0.02); border-radius: 10px; padding: 8px;">
+                ${friendsInputsHtml}
+            </div>
+            <div class="split-remaining-wrapper" style="margin-top: 8px; text-align: right; display: ${splitType === 'custom' ? 'block' : 'none'};">
+                <button type="button" onclick="window.splitRemainingAmount('${itemId}')" style="background: rgba(59, 130, 246, 0.05); border: 1px dashed rgba(59, 130, 246, 0.4); padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; color: #3b82f6; cursor: pointer;">⚖️ 平分剩餘金額</button>
+            </div>
+        `;
+        
+        container.appendChild(card);
+        if (amount > 0) {
+            window.updateItemSplitAmounts(itemId);
+        } else {
+            window.calculateManualBillSplit();
+        }
+    };
+
+    window.toggleSplitType = (itemId, splitType) => {
+        const card = document.getElementById(itemId);
+        if (!card) return;
+        
+        const inputs = card.querySelectorAll('.member-split-amount');
+        const remainingWrapper = card.querySelector('.split-remaining-wrapper');
+        
+        inputs.forEach(input => {
+            if (splitType === 'equal') {
+                input.setAttribute('readonly', 'true');
+                input.style.background = '#f1f5f9';
+                input.style.color = '#64748b';
+            } else {
+                input.removeAttribute('readonly');
+                input.style.background = '#fff';
+                input.style.color = 'var(--text-color, #1e293b)';
+            }
+        });
+        
+        if (remainingWrapper) {
+            remainingWrapper.style.display = splitType === 'custom' ? 'block' : 'none';
+        }
+        
+        window.updateItemSplitAmounts(itemId);
+    };
+
+    window.splitRemainingAmount = (itemId) => {
+        const card = document.getElementById(itemId);
+        if (!card) return;
+        
+        const amountVal = parseFloat(card.querySelector('.split-item-amount').value) || 0;
+        const inputs = card.querySelectorAll('.member-split-amount');
+        
+        let sum = 0;
+        let emptyInputs = [];
+        
+        inputs.forEach(input => {
+            const val = parseFloat(input.value);
+            if (isNaN(val) || input.value.trim() === '' || val === 0) {
+                emptyInputs.push(input);
+            } else {
+                sum += val;
+            }
+        });
+        
+        const remaining = amountVal - sum;
+        if (remaining <= 0 || emptyInputs.length === 0) return;
+        
+        const count = emptyInputs.length;
+        const share = Math.round((remaining / count) * 100) / 100;
+        
+        emptyInputs.forEach((input, index) => {
+            if (index === count - 1) {
+                const sumBefore = share * (count - 1);
+                input.value = (remaining - sumBefore).toFixed(1);
+            } else {
+                input.value = share.toFixed(1);
+            }
+        });
+        
+        window.calculateManualBillSplit();
+    };
+
+    window.updateItemSplitAmounts = (itemId) => {
+        const card = document.getElementById(itemId);
+        if (!card) return;
+        
+        const amountVal = parseFloat(card.querySelector('.split-item-amount').value) || 0;
+        const splitType = card.querySelector('.split-item-type').value;
+        const inputs = card.querySelectorAll('.member-split-amount');
+        
+        if (splitType === 'equal') {
+            const count = inputs.length;
+            if (count > 0) {
+                const share = Math.round((amountVal / count) * 100) / 100;
+                inputs.forEach((input, index) => {
+                    if (index === count - 1) {
+                        const sumBefore = share * (count - 1);
+                        input.value = (amountVal - sumBefore).toFixed(1);
+                    } else {
+                        input.value = share.toFixed(1);
+                    }
+                });
+            }
+        }
+        
+        window.calculateManualBillSplit();
+    };
+
+    window.calculateManualBillSplit = () => {
+        const container = document.getElementById('manual_split_items_container');
+        const cards = container.querySelectorAll('.manual-split-item-card');
+        
+        let myTotalExpense = 0;
+        let friendsTotalReceivable = 0;
+        const friendsBreakdown = {};
+        
+        const friends = window.currentBillSplitFriends || [];
+        friends.forEach(f => { friendsBreakdown[f] = 0; });
+        
+        cards.forEach(card => {
+            const inputs = card.querySelectorAll('.member-split-amount');
+            inputs.forEach(input => {
+                const member = input.getAttribute('data-member');
+                const val = parseFloat(input.value) || 0;
+                if (member === '自己') {
+                    myTotalExpense += val;
+                } else {
+                    friendsTotalReceivable += val;
+                    friendsBreakdown[member] = (friendsBreakdown[member] || 0) + val;
+                }
+            });
+        });
+        
+        myTotalExpense = Math.round(myTotalExpense * 100) / 100;
+        friendsTotalReceivable = Math.round(friendsTotalReceivable * 100) / 100;
+        
+        document.getElementById('preview_my_expense').innerText = '$' + myTotalExpense;
+        document.getElementById('preview_total_receivable').innerText = '$' + friendsTotalReceivable;
+        
+        const breakdownContainer = document.getElementById('preview_friends_breakdown');
+        breakdownContainer.innerHTML = '';
+        
+        for (const [name, amt] of Object.entries(friendsBreakdown)) {
+            const roundedAmt = Math.round(amt * 100) / 100;
+            breakdownContainer.innerHTML += `
+                <div style="display: flex; justify-content: space-between;">
+                    <span>• ${name} 應還：</span>
+                    <span style="font-weight:700;">$${roundedAmt}</span>
+                </div>
+            `;
+        }
+        
+        window.lastCalculatedBillSplit = {
+            my_total_expense: myTotalExpense,
+            friends_total_receivable: friendsTotalReceivable,
+            friend_breakdown: friendsBreakdown
+        };
+    };
+
+    window.saveManualBillSplitAdjustment = async () => {
+        const description = document.getElementById('manual_split_description').value.trim() || '手動調整拆帳';
+        const category = document.getElementById('manual_split_category')?.value || '未分類';
+        const subCategory = document.getElementById('manual_split_sub_category')?.value || '拆帳分攤';
+        const calcData = window.lastCalculatedBillSplit;
+        if (!calcData) return;
+        
+        const friends = window.currentBillSplitFriends || [];
+        
+        // 整理 breakdown JSON
+        const breakdown = {};
+        if (friends.length === 0) {
+            breakdown['unnamed'] = { owed: calcData.friends_total_receivable, received: 0 };
+        } else {
+            friends.forEach(f => {
+                const owed = calcData.friend_breakdown[f] || 0;
+                breakdown[f] = { owed: owed, received: 0 };
+            });
+        }
+        
+        const payload = {
+            description: description,
+            total_amount: calcData.friends_total_receivable,
+            friends: friends,
+            breakdown: breakdown,
+            my_expense: calcData.my_total_expense,
+            category: category,
+            sub_category: subCategory
+        };
+        
+        try {
+            window.showToast('⏳ 正在寫入雲端硬碟記帳本...', 'info');
+            const res = await fetch('/api/bill_split/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const resData = await res.json();
+            
+            if (resData.status === 'success') {
+                window.showToast('✅ 手動拆帳成功寫入！', 'success');
+                closeModal('manualBillSplitModal');
+                window.loadBillSplits();
+                appendMessage(resData.message);
+            } else {
+                window.showToast(`❌ 寫入失敗: ${resData.message}`, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            window.showToast('❌ 伺服器連線失敗', 'error');
+        }
+    };
+
+    window.loadBillSplits = async () => {
+        const container = document.getElementById('bill_split_list_container');
+        if (!container) return;
+        
+        container.innerHTML = '<div style="text-align:center; padding:30px 0; color:#64748b;">⏳ 正在載入代墊清單...</div>';
+        
+        try {
+            const res = await fetch('/api/bill_splits');
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                const list = data.data;
+                if (!list || list.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align:center; padding: 40px 15px; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                            <div style="font-size: 2.5rem; margin-bottom: 10px;">💸</div>
+                            <p style="margin: 0 0 16px 0; font-size: 0.9rem;">目前沒有任何待收的代墊款項喔！</p>
+                            <button onclick="window.startNewManualBillSplit()" class="submit-btn btn-expense" style="background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%); color: white; border: none; border-radius: 12px; padding: 8px 16px; font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(26, 188, 156, 0.2); transition: all 0.2s ease; margin-top: 5px; outline: none; width: auto; height: 38px;">
+                                ＋ 手動新增代墊拆帳
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = '';
+                list.forEach(split => {
+                    let friendsRepayButtonsHtml = '';
+                    let friendsRepayStatusHtml = '';
+                    
+                    const breakdown = split.breakdown || {};
+                    const hasUnnamed = Object.keys(breakdown).length === 0 || breakdown.unnamed !== undefined;
+                    
+                    if (hasUnnamed) {
+                        friendsRepayButtonsHtml += `
+                            <button onclick="window.repayBillSplit('${split.id}', 'unnamed')" class="submit-btn" style="margin-top:0; height:30px; font-size:0.75rem; padding: 0 10px; background:#10b981; border-radius:8px; width:auto; flex-shrink:0;">
+                                ✅ 還清收回（轉收入）
+                            </button>
+                        `;
+                    } else {
+                        let owesCount = 0;
+                        for (const [name, details] of Object.entries(breakdown)) {
+                            if (name.startsWith('_')) continue;
+                            
+                            const owed = details.owed || 0;
+                            const received = details.received || 0;
+                            const isSettled = received >= owed;
+                            
+                            if (isSettled) {
+                                friendsRepayStatusHtml += `
+                                    <span style="background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; display: inline-flex; align-items: center; gap: 2px;">
+                                        ✓ ${name} 已還 $${owed}
+                                    </span>
+                                `;
+                            } else {
+                                owesCount++;
+                                friendsRepayStatusHtml += `
+                                    <span style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); color: #ef4444; padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700;">
+                                        ✗ ${name} 欠 $${owed}
+                                    </span>
+                                `;
+                                friendsRepayButtonsHtml += `
+                                    <button onclick="window.repayBillSplit('${split.id}', '${name}')" class="submit-btn" style="margin-top:0; height:28px; font-size:0.7rem; padding: 0 8px; background:#3b82f6; border-radius:8px; width:auto; white-space:nowrap;">
+                                        ✅ ${name} 還了
+                                    </button>
+                                `;
+                            }
+                        }
+                        
+                        if (owesCount > 1) {
+                            friendsRepayButtonsHtml += `
+                                <button onclick="window.repayBillSplit('${split.id}', 'all')" class="submit-btn" style="margin-top:0; height:28px; font-size:0.7rem; padding: 0 8px; background:#10b981; border-radius:8px; width:auto; white-space:nowrap; border: 1px solid #059669;">
+                                    ✅ 全部收回
+                                </button>
+                            `;
+                        }
+                    }
+                    
+                    const card = document.createElement('div');
+                    card.style.background = 'var(--bg-card, #f8fafc)';
+                    card.style.border = '1px solid #e2e8f0';
+                    card.style.borderRadius = '18px';
+                    card.style.padding = '14px';
+                    card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.01)';
+                    
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <div>
+                                <span style="font-size:0.75rem; color:#94a3b8; display:block;">${split.date}</span>
+                                <h4 style="margin: 2px 0 0 0; font-size: 0.9rem; font-weight: 800; color: var(--text-color, #1e293b);">${split.description}</h4>
+                            </div>
+                            <div style="text-align: right;">
+                                <span style="font-size: 0.7rem; font-weight:700; color: #94a3b8; background: #e2e8f0; padding: 2px 6px; border-radius: 6px;">${split.status}</span>
+                                <span style="font-size: 1rem; font-weight: 800; color: #2563eb; display: block; margin-top: 2px;">$${split.total_amount}</span>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
+                            ${friendsRepayStatusHtml}
+                        </div>
+                        
+                        <div style="display: flex; gap: 6px; justify-content: flex-end; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
+                            ${friendsRepayButtonsHtml}
+                        </div>
+                    `;
+                    
+                    container.appendChild(card);
+                });
+            } else {
+                container.innerHTML = `<div style="text-align:center; padding:30px 0; color:#ef4444;">❌ 載入失敗: ${data.message}</div>`;
+            }
+        } catch (e) {
+            console.error(e);
+            container.innerHTML = '<div style="text-align:center; padding:30px 0; color:#ef4444;">❌ 伺服器連線失敗</div>';
+        }
+    };
+
+    window.startNewManualBillSplit = () => {
+        window.pendingBillSplitMessage = '';
+        window.pendingBillSplitFile = null;
+        
+        const friendsContainer = document.getElementById('bill_split_friends_inputs');
+        if (friendsContainer) {
+            friendsContainer.innerHTML = `
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted, #64748b); width: 60px; flex-shrink: 0;">朋友 1：</span>
+                    <input type="text" class="form-input friend-name-input" placeholder="例如：小明" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 38px; outline: none; background: #fff; padding: 0 10px; margin-bottom: 0; box-sizing: border-box;">
+                    <button type="button" onclick="removeFriendInput(this)" style="background: transparent; border: none; color: #ef4444; font-size: 1.1rem; cursor: pointer; display: none;">✕</button>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted, #64748b); width: 60px; flex-shrink: 0;">朋友 2：</span>
+                    <input type="text" class="form-input friend-name-input" placeholder="例如：阿偉" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 38px; outline: none; background: #fff; padding: 0 10px; margin-bottom: 0; box-sizing: border-box;">
+                    <button type="button" onclick="removeFriendInput(this)" style="background: transparent; border: none; color: #ef4444; font-size: 1.1rem; cursor: pointer; display: none;">✕</button>
+                </div>
+            `;
+        }
+        
+        openModal('billSplitFriendsModal');
+    };
+
+    window.repayBillSplit = async (id, friendName) => {
+        const confirmed = await window.customConfirm(
+            '💸 還款核銷確認',
+            `確認已收到此朋友的還款，並要核銷該筆待收款嗎？這將會自動在記帳本中新增一筆「代墊款回收」的收入。`,
+            '💸',
+            '確認收到還款'
+        );
+        if (!confirmed) return;
+        
+        try {
+            window.showToast('⏳ 正在處理還款核銷...', 'info');
+            const res = await fetch('/api/bill_split/repay', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id, friend_name: friendName })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                window.showToast(data.message, 'success');
+                window.loadBillSplits();
+            } else {
+                window.showToast(`❌ 還款失敗: ${data.message}`, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            window.showToast('❌ 伺服器連線失敗', 'error');
+        }
+    };
+
+    window.renderChatBillSplits = (dataList) => {
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'chat-split-card message ai-message';
+        cardDiv.style.background = 'linear-gradient(135deg, rgba(26, 188, 156, 0.08) 0%, rgba(26, 188, 156, 0.03) 100%)';
+        cardDiv.style.border = '1px solid rgba(26, 188, 156, 0.2)';
+        cardDiv.style.borderRadius = '16px';
+        cardDiv.style.padding = '12px';
+        cardDiv.style.margin = '8px 0';
+        cardDiv.style.boxShadow = '0 8px 32px 0 rgba(31, 38, 135, 0.07)';
+        cardDiv.style.backdropFilter = 'blur(10px)';
+        cardDiv.style.webkitBackdropFilter = 'blur(10px)';
+        
+        let activeHtml = '';
+        let settledHtml = '';
+        
+        dataList.forEach(item => {
+            const isSettled = item.status === '已結清' || item.status === '已收回';
+            
+            let detailsList = [];
+            if (item.breakdown) {
+                for (const [name, info] of Object.entries(item.breakdown)) {
+                    const owed = info.owed || 0;
+                    const received = info.received || 0;
+                    const balance = owed - received;
+                    
+                    if (balance > 0) {
+                        detailsList.push(`
+                            <div class="debt-row" style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 0.8rem; color: var(--text-color);">
+                                <span>👥 ${name}：$${balance} [ ⏳ 待收 ]</span>
+                                <button class="repay-pill-btn" data-id="${item.id}" data-friend="${name}" style="background: rgba(244, 63, 94, 0.1); border: 1.5px solid rgba(244, 63, 94, 0.3); color: #f43f5e; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">✅ 一鍵收回</button>
+                            </div>
+                        `);
+                    } else {
+                        detailsList.push(`
+                            <div class="debt-row settled" style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 0.8rem; color: #94a3b8; text-decoration: line-through; opacity: 0.6;">
+                                <span>👥 ${name}：$${owed} [ 已收回 ]</span>
+                            </div>
+                        `);
+                    }
+                }
+            }
+            
+            const itemHtml = `
+                <div class="split-item-row" data-settled="${isSettled ? 'true' : 'false'}" style="margin-bottom: 12px; padding: 10px; border-radius: 14px; ${isSettled ? 'background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(244, 63, 94, 0.15); opacity: 0.65; text-decoration: line-through; display: none;' : 'background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(226, 232, 240, 0.8);'}">
+                    <div style="font-weight: 700; font-size: 0.9rem; display: flex; justify-content: space-between; color: var(--text-color);">
+                        <span>📌 ${item.description}</span>
+                        <span style="color: ${isSettled ? '#f43f5e' : '#1abc9c'};">$${item.total_amount}</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">📅 建立時間：${item.time || item.date}</div>
+                    <div style="margin-top: 6px; border-top: 1px dashed rgba(0,0,0,0.05); padding-top: 4px;">
+                        ${detailsList.join('')}
+                    </div>
+                </div>
+            `;
+            
+            if (isSettled) {
+                settledHtml += itemHtml;
+            } else {
+                activeHtml += itemHtml;
+            }
+        });
+        
+        cardDiv.innerHTML = `
+            <div style="font-weight: 800; font-size: 1.05rem; margin-bottom: 12px; color: #f43f5e; display: flex; align-items: center; gap: 6px;">
+                💸 代墊款收支明細管理
+            </div>
+            
+            <div class="active-splits-container">
+                ${activeHtml || '<div style="text-align: center; padding: 20px 0; color: #64748b; font-size: 0.85rem;">🎉 太棒了！目前沒有未收回的代墊款！</div>'}
+            </div>
+            
+            <div class="settled-splits-container" style="display: none; border-top: 1px dashed rgba(244, 63, 94, 0.2); margin-top: 10px; padding-top: 10px;">
+                ${settledHtml || '<div style="text-align: center; padding: 20px 0; color: #94a3b8; font-size: 0.85rem;">目前無已結清項目</div>'}
+            </div>
+            
+            <div style="margin-top: 12px; display: flex; justify-content: center;">
+                <button class="history-toggle-btn" style="background: rgba(244, 63, 94, 0.05); border: 1.5px solid rgba(244, 63, 94, 0.3); color: #f43f5e; padding: 8px 16px; border-radius: 14px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 4px; outline: none;">
+                    🔄 查看已回收代墊款
+                </button>
+            </div>
+        `;
+        
+        chatHistory.appendChild(cardDiv);
+        scrollToBottom();
+        
+        const toggleBtn = cardDiv.querySelector('.history-toggle-btn');
+        const settledContainer = cardDiv.querySelector('.settled-splits-container');
+        let showingSettled = false;
+        
+        toggleBtn.onclick = () => {
+            showingSettled = !showingSettled;
+            if (showingSettled) {
+                settledContainer.style.display = 'block';
+                cardDiv.querySelectorAll('.split-item-row[data-settled="true"]').forEach(el => el.style.display = 'block');
+                toggleBtn.innerText = '🔄 隱藏已回收代墊款';
+            } else {
+                settledContainer.style.display = 'none';
+                cardDiv.querySelectorAll('.split-item-row[data-settled="true"]').forEach(el => el.style.display = 'none');
+                toggleBtn.innerText = '🔄 查看已回收代墊款';
+            }
+            scrollToBottom();
+        };
+    };
+
+    // Global Click Delegation for repay-pill-btn in Chat Window context (Optimistic UI)
+    if (chatHistory) {
+        chatHistory.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.repay-pill-btn');
+            if (!btn) return;
+            
+            e.stopPropagation();
+            const uniqueId = btn.getAttribute('data-id');
+            const friendName = btn.getAttribute('data-friend');
+            const cardItem = btn.closest('.chat-split-card') || btn.closest('.debt-row') || btn.closest('.split-item-row') || btn;
+            
+            // Asynchronous Optimistic UI slide-fade-out transition in 300ms
+            cardItem.classList.add('slide-fade-out-anim');
+            
+            setTimeout(() => {
+                cardItem.style.display = 'none';
+            }, 300);
+            
+            try {
+                const res = await fetch('/api/bill_split/repay', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: uniqueId, friend_name: friendName })
+                });
+                const resData = await res.json();
+                if (resData.status === 'success') {
+                    window.showToast('✅ 還款狀態更新成功！', 'success');
+                } else {
+                    window.showToast(`❌ 更新失敗: ${resData.message}`, 'error');
+                    // Rollback on failure
+                    cardItem.classList.remove('slide-fade-out-anim');
+                    cardItem.style.display = '';
+                }
+            } catch (err) {
+                console.error(err);
+                window.showToast('❌ 網路連線失敗', 'error');
+                // Rollback
+                cardItem.classList.remove('slide-fade-out-anim');
+                cardItem.style.display = '';
+            }
+        });
+    }
+
+    // 背景靜默載入固定支出列表
+    setTimeout(() => window.loadFixedExpenses(true), 1500);
 });
