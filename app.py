@@ -2512,7 +2512,7 @@ def chat():
             bypass_data = {"type": "query_schedule", "days": 7}
         elif user_text == "本月合計":
             bypass_data = {"type": "query_expense_report"}
-        elif user_text in ["投資持股", "查詢持股", "存股明細"]:
+        elif user_text in ["投資持股", "查詢持股", "存股明細", "啟動股票導航", "股票導航"]:
             bypass_data = {"type": "query_stock_portfolio"}
         elif user_text == "開啟記帳表單":
             bypass_data = {"type": "open_spreadsheet"}
@@ -6447,6 +6447,163 @@ def record_health_end():
         
         return jsonify({"status": "success", "message": "已記錄結束，辛苦了！✅"})
     except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/health/edit_current', methods=['POST'])
+def edit_current_health_record():
+    """
+    編輯當前最新一次生理期的開始與結束時間，重算長度並同步重置 Google 日曆事件 (V4.2)
+    """
+    if not is_premium_user():
+        return jsonify({"status": "locked", "message": "請先升級 Premium 旗艦版會員"})
+        
+    health_id = get_health_sheet_id()
+    if not health_id:
+        return jsonify({"status": "error", "message": "尚未設定 HEALTH_SHEET_ID"})
+        
+    data = request.json or {}
+    original_start = data.get('original_start', '').strip() # 格式: YYYY/MM/DD
+    new_start = data.get('new_start', '').strip() # 格式: YYYY-MM-DD
+    new_end = data.get('new_end', '').strip() # 格式: YYYY-MM-DD，或者是 "進行中" 或空
+    
+    if not original_start or not new_start:
+        return jsonify({"status": "error", "message": "開始日期為必填欄位"})
+        
+    try:
+        # 解析日期
+        new_start_dt = datetime.strptime(new_start.replace('/', '-'), "%Y-%m-%d")
+        new_start_formatted = new_start_dt.strftime("%Y/%m/%d")
+        
+        new_end_formatted = "進行中"
+        new_end_dt = None
+        if new_end and new_end != "進行中" and new_end.strip() != "":
+            new_end_dt = datetime.strptime(new_end.replace('/', '-'), "%Y-%m-%d")
+            new_end_formatted = new_end_dt.strftime("%Y/%m/%d")
+            if new_start_dt > new_end_dt:
+                return jsonify({"status": "error", "message": "開始日期不能大於結束日期"})
+                
+        # 讀取試算表
+        rows = get_sheet_values('生理紀錄', spreadsheet_id=health_id)
+        if not rows or len(rows) < 2:
+            return jsonify({"status": "error", "message": "找不到生理紀錄"})
+            
+        # 尋找匹配 original_start 的行
+        target_row_idx = None
+        for idx, row in enumerate(rows):
+            if idx == 0: continue
+            if len(row) > 0 and row[0] == "SYSTEM": continue
+            start_str = row[2].strip() if len(row) > 2 else ""
+            if start_str == original_start:
+                target_row_idx = idx + 1 # 1-based index for sheets
+                break
+                
+        if not target_row_idx:
+            return jsonify({"status": "error", "message": f"找不到開始日期為 {original_start} 的紀錄"})
+            
+        # 計算長度與更新欄位
+        length_days = ""
+        if new_end_dt:
+            length_days = str((new_end_dt - new_start_dt).days + 1)
+            
+        year = str(new_start_dt.year)
+        month = str(new_start_dt.month)
+        
+        # 讀取該行的原有備註與週期 (Column F=Row[5], G=Row[6])
+        orig_row = rows[target_row_idx - 1]
+        cycle_days = orig_row[5] if len(orig_row) > 5 else ""
+        symptoms = orig_row[6] if len(orig_row) > 6 else ""
+        
+        # 準備更新的資料列
+        updated_row = [
+            year,
+            month,
+            new_start_formatted,
+            new_end_formatted,
+            length_days,
+            cycle_days,
+            symptoms
+        ]
+        
+        # 寫回試算表
+        service_sheets = get_sheets_service()
+        service_sheets.spreadsheets().values().update(
+            spreadsheetId=health_id, range=f"生理紀錄!A{target_row_idx}:G{target_row_idx}",
+            valueInputOption="USER_ENTERED", body={"values": [updated_row]}
+        ).execute()
+        
+        # 實體排序以防修改日期後亂序
+        try:
+            sh = service_sheets.spreadsheets().get(spreadsheetId=health_id).execute()
+            sheet_obj = next(s for s in sh['sheets'] if s['properties']['title'] == '生理紀錄')
+            sheet_id = sheet_obj['properties']['sheetId']
+            sort_req = {
+                "sortRange": {
+                    "range": {"sheetId": sheet_id, "startRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 7},
+                    "sortSpecs": [{"dimensionIndex": 2, "sortOrder": "DESCENDING"}]
+                }
+            }
+            service_sheets.spreadsheets().batchUpdate(spreadsheetId=health_id, body={"requests": [sort_req]}).execute()
+        except Exception as sort_err:
+            print(f"Auto-sorting error in edit_current: {sort_err}")
+            
+        # 更新日曆事件
+        try:
+            service_cal = get_calendar_service()
+            # 1. 刪除原本的生理期事件 (在 original_start 上下 14 天內尋找並刪除 🌸 相關事件)
+            orig_start_dt = datetime.strptime(original_start, "%Y/%m/%d")
+            time_min = (orig_start_dt - timedelta(days=5)).isoformat() + "Z"
+            time_max = (orig_start_dt + timedelta(days=20)).isoformat() + "Z"
+            
+            events_result = service_cal.events().list(
+                calendarId=CALENDAR_ID, timeMin=time_min, timeMax=time_max, q="🌸"
+            ).execute()
+            
+            for event in events_result.get('items', []):
+                summary = event.get('summary', '')
+                if "🌸 生理期" in summary:
+                    service_cal.events().delete(calendarId=CALENDAR_ID, eventId=event['id']).execute()
+            
+            # 2. 刪除未來所有的 🌸 (預測) 行程
+            now_time_min = datetime.now(TW_TZ).isoformat()
+            pred_events = service_cal.events().list(calendarId=CALENDAR_ID, timeMin=now_time_min, q="🌸 (預測)").execute()
+            for event in pred_events.get('items', []):
+                if "🌸 (預測)" in event.get('summary', ''):
+                    service_cal.events().delete(calendarId=CALENDAR_ID, eventId=event['id']).execute()
+                    
+            # 3. 取得平均週期與平均長度以利計算下次預測
+            status = get_current_cycle_status() or {"avg_length": 7, "avg_cycle": 31}
+            avg_length = status.get("avg_length", 7)
+            avg_cycle = status.get("avg_cycle", 31)
+            
+            # 4. 重新排入本次生理期
+            cal_length = int(length_days) if length_days else avg_length
+            for i in range(cal_length):
+                day_dt = new_start_dt + timedelta(days=i)
+                event_body = {
+                    'summary': f'🌸 生理期 (第{i+1}天)',
+                    'start': {'date': day_dt.strftime("%Y-%m-%d")},
+                    'end': {'date': (day_dt + timedelta(days=1)).strftime("%Y-%m-%d")}
+                }
+                service_cal.events().insert(calendarId=CALENDAR_ID, body=event_body).execute()
+                
+            # 5. 重新排入下次預測
+            next_start_dt = new_start_dt + timedelta(days=avg_cycle)
+            for i in range(avg_length):
+                day_dt = next_start_dt + timedelta(days=i)
+                event_body = {
+                    'summary': f'🌸 (預測) 生理期',
+                    'start': {'date': day_dt.strftime("%Y-%m-%d")},
+                    'end': {'date': (day_dt + timedelta(days=1)).strftime("%Y-%m-%d")}
+                }
+                service_cal.events().insert(calendarId=CALENDAR_ID, body=event_body).execute()
+                
+        except Exception as cal_err:
+            print(f"Calendar sync error in edit_current: {cal_err}")
+            
+        return jsonify({"status": "success", "message": "生理期時間已成功更新！🌸"})
+        
+    except Exception as e:
+        print(f"Edit current health record error: {e}")
         return jsonify({"status": "error", "message": str(e)})
 
 @app.route('/api/health/backfill', methods=['POST'])
