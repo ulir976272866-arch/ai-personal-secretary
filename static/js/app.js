@@ -4746,6 +4746,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     stats[1].innerHTML = `${data.avg_length} <span>天</span>`;
                 }
 
+                // 動態更新「記錄開始」與「記錄結束」按鈕的點擊與禁用狀態 (V4.1)
+                const startBtn = document.querySelector('.health-action-btn.start');
+                const endBtn = document.querySelector('.health-action-btn.end');
+                if (startBtn && endBtn) {
+                    if (data.is_ongoing) {
+                        // 生理期進行中 -> 禁用開始，啟用結束
+                        startBtn.disabled = true;
+                        startBtn.classList.add('disabled');
+                        
+                        endBtn.disabled = false;
+                        endBtn.classList.remove('disabled');
+                        endBtn.classList.add('active');
+                    } else {
+                        // 生理期未開始 -> 啟用開始，禁用結束
+                        startBtn.disabled = false;
+                        startBtn.classList.remove('disabled');
+                        
+                        endBtn.disabled = true;
+                        endBtn.classList.add('disabled');
+                        endBtn.classList.remove('active');
+                    }
+                }
+
                 // 更新歷史紀錄
                 const historyList = document.getElementById('health_history_list');
                 if (historyList) {
@@ -4792,6 +4815,89 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             console.error('載入健康資料失敗:', e);
             showToast('載入失敗，請檢查網路連接', 'error');
+        }
+    };
+
+    window.openEditPeriodModal = () => {
+        const startVal = document.getElementById('health_current_start').innerText.trim();
+        const endVal = document.getElementById('health_current_end').innerText.trim();
+        
+        if (startVal === '尚未開始' || startVal === '') {
+            showToast('💡 您尚未記錄本次生理期喔！請先點擊「記錄開始」。', 'info');
+            return;
+        }
+        
+        // 格式化 YYYY/MM/DD 為 YYYY-MM-DD
+        const formatToDateInput = (str) => {
+            if (!str || str.includes('尚未') || str.includes('進行中')) return '';
+            return str.replace(/\//g, '-');
+        };
+        
+        document.getElementById('edit_original_start').value = startVal;
+        document.getElementById('edit_start_date').value = formatToDateInput(startVal);
+        
+        const isOngoing = (endVal === '尚未記錄' || endVal === '進行中' || endVal === '');
+        const checkbox = document.getElementById('edit_is_ongoing');
+        const endDateInput = document.getElementById('edit_end_date');
+        
+        if (isOngoing) {
+            checkbox.checked = true;
+            endDateInput.value = '';
+            endDateInput.disabled = true;
+            endDateInput.style.opacity = '0.5';
+        } else {
+            checkbox.checked = false;
+            endDateInput.value = formatToDateInput(endVal);
+            endDateInput.disabled = false;
+            endDateInput.style.opacity = '1';
+        }
+        
+        window.openModal('editPeriodModal');
+    };
+    
+    window.toggleEditEndDate = (checked) => {
+        const endDateInput = document.getElementById('edit_end_date');
+        if (checked) {
+            endDateInput.value = '';
+            endDateInput.disabled = true;
+            endDateInput.style.opacity = '0.5';
+        } else {
+            endDateInput.disabled = false;
+            endDateInput.style.opacity = '1';
+        }
+    };
+    
+    window.saveEditedPeriod = async () => {
+        const original_start = document.getElementById('edit_original_start').value;
+        const new_start = document.getElementById('edit_start_date').value;
+        const isOngoing = document.getElementById('edit_is_ongoing').checked;
+        const new_end = isOngoing ? '進行中' : document.getElementById('edit_end_date').value;
+        
+        if (!new_start) {
+            showToast('請填寫開始日期！', 'warning');
+            return;
+        }
+        if (!isOngoing && !new_end) {
+            showToast('請填寫結束日期，或勾選經期進行中！', 'warning');
+            return;
+        }
+        
+        try {
+            const res = await fetch('/api/health/edit_current', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ original_start, new_start, new_end })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast(data.message, 'success');
+                window.closeModal('editPeriodModal');
+                window.loadHealthInfo(); // 重新整理頁面數據與大卡片狀態
+            } else {
+                showToast(data.message, 'error');
+            }
+        } catch (e) {
+            showToast('更新失敗，請檢查網路連接', 'error');
         }
     };
 
@@ -5799,7 +5905,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const val = tx.name.trim();
             const isPureDigits = /^\d+$/.test(val);
             const isUsTicker = /^[A-Za-z]{1,5}$/.test(val) && val === val.toUpperCase();
-            const isPrefixedTicker = /^[A-Za-z]+:\d+$/.test(val);
+            const isTwTicker = /^\d/.test(val) && val.length >= 4 && val.length <= 6;
+            const isPrefixedTicker = /^[A-Za-z]+:[A-Za-z0-9]+$/.test(val);
             
             let matched = null;
             
@@ -5832,7 +5939,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('stock_tx_ticker').value = matched.ticker;
                 document.getElementById('stock_tx_name').value = matched.name;
             } else {
-                if (isPureDigits || isUsTicker || isPrefixedTicker) {
+                if (isPureDigits || isUsTicker || isTwTicker || isPrefixedTicker) {
                     document.getElementById('stock_tx_ticker').value = val;
                     document.getElementById('stock_tx_name').value = '';
                 } else {

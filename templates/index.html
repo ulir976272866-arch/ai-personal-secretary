@@ -1392,7 +1392,7 @@
                         <div class="icon">🌸</div>
                         記錄開始
                     </button>
-                    <button class="health-action-btn end">
+                    <button class="health-action-btn end" disabled>
                         <div class="icon">✅</div>
                         記錄結束
                     </button>
@@ -1404,7 +1404,12 @@
 
                 <!-- 📅 本次生理期區間卡片 -->
                 <div id="health_current_interval_card" style="background: #fffdfd; border: 1.5px solid #ffe4e6; border-radius: 16px; padding: 14px 15px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.01); text-align: left;">
-                    <div style="font-weight: 800; color: #be123c; font-size: 0.88rem; margin-bottom: 10px; display: flex; align-items: center; gap: 5px;">📅 本次生理期時間</div>
+                    <div style="font-weight: 800; color: #be123c; font-size: 0.88rem; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="display: flex; align-items: center; gap: 5px;">📅 本次生理期時間</span>
+                        <button onclick="window.openEditPeriodModal()" style="background: #ffe4e6; color: #be123c; border: none; border-radius: 8px; padding: 3px 8px; font-size: 0.72rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 3px; transition: all 0.2s;" onmouseover="this.style.background='#fecdd3'" onmouseout="this.style.background='#ffe4e6'">
+                            <span>✏️</span> 編輯
+                        </button>
+                    </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <div style="background: #fff5f5; border-radius: 10px; padding: 10px; border: 1px solid #ffe4e6;">
                             <div style="font-size: 0.72rem; color: #fda4af; font-weight: 700; margin-bottom: 4px;">🌸 記錄開始日</div>
@@ -1445,6 +1450,37 @@
                 <button onclick="openCloudHealthSheet('{{ health_sheet_url }}')" class="sheet-link-btn" style="color: #e11d48; background: #fff; border-color: #fecdd3;">
                     🌸 開啟經期時間表
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✏️ 編輯生理期時間彈窗 (V4.2 Add) -->
+    <div id="editPeriodModal" class="modal-backdrop" style="z-index: 2000; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px);">
+        <div class="modal-content" style="max-width: 320px; padding: 25px; border-radius: 28px; background: white; text-align: left; animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: #e11d48; margin-bottom: 20px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <span>✏️</span> 編輯經期時間
+            </h3>
+            
+            <input type="hidden" id="edit_original_start">
+            
+            <div class="form-group" style="width: 100%; margin-bottom: 12px;">
+                <label style="font-size: 0.8rem; color: #64748b; margin-bottom: 6px; display: block; font-weight: 700;">🌸 紀錄開始日：</label>
+                <input type="date" id="edit_start_date" class="form-input" style="width: 100%; padding: 10px; border: 1.5px solid #fecdd3; border-radius: 14px; background: #fff1f2; color: #9f1239; outline: none; box-sizing: border-box; height: 42px; font-weight: 700;">
+            </div>
+            
+            <div class="form-group" style="width: 100%; margin-bottom: 10px;">
+                <label style="font-size: 0.8rem; color: #64748b; margin-bottom: 6px; display: block; font-weight: 700;">✅ 紀錄結束日：</label>
+                <input type="date" id="edit_end_date" class="form-input" style="width: 100%; padding: 10px; border: 1.5px solid #fecdd3; border-radius: 14px; background: #fff1f2; color: #9f1239; outline: none; box-sizing: border-box; height: 42px; font-weight: 700;">
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px;">
+                <input type="checkbox" id="edit_is_ongoing" onchange="window.toggleEditEndDate(this.checked)" style="width: 16px; height: 16px; accent-color: #e11d48; cursor: pointer;">
+                <label for="edit_is_ongoing" style="font-size: 0.8rem; color: #475569; font-weight: 700; user-select: none; cursor: pointer;">經期仍在進行中（尚未結束）</label>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closeModal('editPeriodModal')" style="flex: 1; padding: 12px; border-radius: 16px; border: none; background: #f1f5f9; color: #475569; font-weight: 700; font-size: 0.9rem; cursor: pointer;">取消</button>
+                <button onclick="window.saveEditedPeriod()" style="flex: 1.2; padding: 12px; border-radius: 16px; border: none; background: linear-gradient(135deg, #e11d48 0%, #be123c 100%); color: white; font-weight: 700; font-size: 0.9rem; cursor: pointer; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.35);">確認修改 💾</button>
             </div>
         </div>
     </div>
