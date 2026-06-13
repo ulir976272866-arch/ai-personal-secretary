@@ -39,6 +39,18 @@ window.closeLoginNdaModal = () => {
 document.addEventListener('DOMContentLoaded', () => {
     window.editingEventId = null;
 
+    // 點擊功能抽屜內的按鈕時，自動延遲關閉抽屜，提供順暢視覺反饋
+    const submenuDrawerEl = document.getElementById('submenuDrawer');
+    if (submenuDrawerEl) {
+        submenuDrawerEl.addEventListener('click', (e) => {
+            if (e.target.closest('.sub-btn')) {
+                setTimeout(() => {
+                    window.closeSubmenuDrawer();
+                }, 300);
+            }
+        });
+    }
+
     // --- 🌸 生理健康免責聲明跨裝置自動解鎖同步 ---
     if (!localStorage.getItem('menstrual_disclaimer_agreed')) {
         fetch('/api/health/check_disclaimer')
@@ -66,15 +78,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-    window.defaultExpenseCategories = ["食", "衣", "住", "行", "育", "樂", "醫", "保險費", "貸款", "儲蓄/投資", "公益"];
-    window.incomeCategories = ["薪資", "獎金", "投資獲利", "副業收入", "變更/退款"];
+    window.defaultExpenseCategories = ["食", "衣", "住", "行", "育", "樂", "醫", "保險費", "貸款", "儲蓄/投資", "公益", "其他雜支"];
+    window.incomeCategories = ["薪資", "獎金", "投資獲利", "副業收入", "變更/退款", "儲蓄/投資", "貸款"];
 
     window.INCOME_SUB_CATEGORIES = {
         "薪資": ["正職薪水", "兼職時薪", "小費進帳"],
         "獎金": ["年終獎金", "績效/三節", "專案分紅"],
         "投資獲利": ["股票股利/價差", "基金配息", "定存利息", "加密貨幣"],
         "副業收入": ["諮詢服務", "個人項目", "團購/分潤", "諮詢隨喜/小費"],
-        "變更/退款": ["購物退款", "代墊款收回", "其他雜項"]
+        "變更/退款": ["購物退款", "代墊款收回", "其他雜項"],
+        "儲蓄/投資": ["緊急備用金", "定存", "活儲", "投資型保單", "股票", "基金", "外匯", "其他衍生性商品"],
+        "貸款": ["信貸", "車貸", "房貸", "商品貸"]
     };
 
     window.FINANCE_SUB_CATEGORIES = {
@@ -86,9 +100,10 @@ document.addEventListener('DOMContentLoaded', () => {
         "樂": ["電影／演唱會", "KTV", "旅遊", "遊戲", "訂閱娛樂"],
         "醫": ["掛號／看診", "藥品", "健保", "保健品"],
         "保險費": ["壽險", "醫療險", "車險", "產險", "其他保費"],
-        "貸款": [],
-        "儲蓄/投資": [],
-        "公益": []
+        "貸款": ["信貸", "車貸", "房貸", "商品貸"],
+        "儲蓄/投資": ["緊急備用金", "定存", "活儲", "投資型保單", "股票", "基金", "外匯", "其他衍生性商品"],
+        "公益": [],
+        "其他雜支": []
     };
 
     // --- 分類選單核心邏輯 (V23.0 完美修復版) ---
@@ -102,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const customCats = window.loadExpenseCategories().filter(c => !deletedCats.includes(c.name) && !window.defaultExpenseCategories.includes(c.name));
         
         const incomeMap = { "薪資": "💼", "獎金": "🧧", "投資獲利": "💹", "副業收入": "🔮", "變更/退款": "↩️" };
-        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖" };
+        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖", "其他雜支": "🏷️" };
 
         let finalCategories = [];
         if (mode === 'income') {
@@ -225,6 +240,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (hiddenSelect) hiddenSelect.value = name || '';
     };
 
+    window.updateLinkedAssetAccountDropdown = () => {
+        const select = document.getElementById('linked_asset_account_id');
+        if (!select) return;
+        
+        const currentVal = select.value;
+        select.innerHTML = '<option value="">✕ 暫不連動</option>';
+        if (window.assetAccountsList && window.assetAccountsList.length > 0) {
+            window.assetAccountsList.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = `${item.name} (${item.type})`;
+                select.appendChild(opt);
+            });
+        }
+        select.value = currentVal || '';
+    };
+
     window.onManualExpenseCategoryChange = (categoryName) => {
         const mode = document.getElementById('expense_type')?.value || 'expense';
         const subGroup = document.getElementById('manual_expense_sub_cat_group');
@@ -250,6 +282,19 @@ document.addEventListener('DOMContentLoaded', () => {
             subGroup.style.display = 'none';
             subDropdown.innerHTML = '';
             window.selectExpenseSubCategoryDisplay('');
+        }
+
+        // 連動資產帳戶展開/收合 (V3.8 Step 2)
+        const assetGroup = document.getElementById('linked_asset_account_group');
+        if (assetGroup) {
+            if (categoryName === '儲蓄/投資' || categoryName === '貸款') {
+                window.updateLinkedAssetAccountDropdown();
+                assetGroup.style.display = 'block';
+            } else {
+                assetGroup.style.display = 'none';
+                const assetSelect = document.getElementById('linked_asset_account_id');
+                if (assetSelect) assetSelect.value = '';
+            }
         }
     };
 
@@ -298,8 +343,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const dropdown = document.getElementById('expense_cat_dropdown');
         if (!dropdown) return;
 
-        const incomeMap = { "薪資": "💼", "獎金": "🧧", "投資獲利": "💹", "副業收入": "🔮", "變更/退款": "↩️" };
-        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖" };
+        const incomeMap = { "薪資": "💼", "獎金": "🧧", "投資獲利": "💹", "副業收入": "🔮", "變更/退款": "↩️", "儲蓄/投資": "💰", "貸款": "🏦" };
+        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖", "其他雜支": "🏷️" };
 
         let finalCategories = [];
         if (mode === 'income') {
@@ -424,6 +469,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const todoDropdown = document.getElementById('todo_cat_dropdown');
         if (todoSelector && todoDropdown && !todoSelector.contains(e.target) && !todoDropdown.contains(e.target)) {
             todoDropdown.classList.remove('show');
+        }
+
+        // ✅ 點擊外部關閉固定支出下拉選單
+        const feCatSel = document.getElementById('selected_fixed_expense_cat')?.parentElement;
+        if (feCatSel && !feCatSel.contains(e.target)) {
+            document.getElementById('fixed_expense_cat_dropdown')?.classList.remove('show');
+        }
+        const feSubCatSel = document.getElementById('selected_fixed_expense_sub_cat')?.parentElement;
+        if (feSubCatSel && !feSubCatSel.contains(e.target)) {
+            document.getElementById('fixed_expense_sub_cat_dropdown')?.classList.remove('show');
+        }
+        const feDaySel = document.getElementById('selected_fixed_expense_day')?.parentElement;
+        if (feDaySel && !feDaySel.contains(e.target)) {
+            document.getElementById('fixed_expense_day_dropdown')?.classList.remove('show');
         }
     });
 
@@ -1305,6 +1364,77 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- 樹狀導航切換 ---
+    window.openSubmenuDrawer = (tab, btnEl) => {
+        const drawer = document.getElementById('submenuDrawer');
+        const backdrop = document.getElementById('submenuDrawerBackdrop');
+        const titleEl = document.getElementById('submenu_drawer_title');
+        if (!drawer || !backdrop) return;
+
+        // 設定標題
+        const titles = {
+            'finance': '💰 記帳管理功能',
+            'schedule': '📅 行程工具選單',
+            'memo': '📝 備忘記事功能',
+            'health': '🌸 女性健康關懷',
+            'stock': '📈 存股財務看板'
+        };
+        if (titleEl) {
+            titleEl.innerText = titles[tab] || '🛠️ 功能選單';
+        }
+
+        // 啟動對應子選單的 active 類別
+        document.querySelectorAll('#submenuDrawer .sub-menu').forEach(menu => menu.classList.remove('active'));
+        const targetMenu = document.getElementById(`sub_${tab}`);
+        if (targetMenu) {
+            targetMenu.classList.add('active');
+        }
+
+        // 顯示抽屜與遮罩
+        backdrop.classList.add('show');
+        drawer.classList.add('show');
+
+        // 懸浮氣泡定位運算 (根據被點擊的按鈕或 fallback 進行高精度定位)
+        let btn = btnEl || document.getElementById(`tab_btn_${tab}`);
+        if (btn) {
+            const btnRect = btn.getBoundingClientRect();
+            const popoverWidth = drawer.offsetWidth || 290;
+            const popoverHeight = drawer.offsetHeight || 164;
+
+            // 計算 Top：按鈕下方 12px 的距離
+            let topVal = btnRect.bottom + 12;
+
+            // 計算 Left：按鈕水平置中對齊
+            let leftVal = btnRect.left + (btnRect.width / 2) - (popoverWidth / 2);
+
+            // 邊界防溢出處理 (保留至少 10px 安全間距)
+            const margin = 10;
+            if (leftVal < margin) {
+                leftVal = margin;
+            } else if (leftVal + popoverWidth > window.innerWidth - margin) {
+                leftVal = window.innerWidth - popoverWidth - margin;
+            }
+
+            drawer.style.top = topVal + 'px';
+            drawer.style.left = leftVal + 'px';
+
+            // 調整指向小箭頭的水平位置，精確指向按鈕正中心
+            const arrowEl = drawer.querySelector('.popover-arrow');
+            if (arrowEl) {
+                const arrowLeft = btnRect.left + (btnRect.width / 2) - leftVal;
+                arrowEl.style.left = arrowLeft + 'px';
+            }
+        }
+    };
+
+    window.closeSubmenuDrawer = () => {
+        const drawer = document.getElementById('submenuDrawer');
+        const backdrop = document.getElementById('submenuDrawerBackdrop');
+        if (drawer) drawer.classList.remove('show');
+        if (backdrop) backdrop.classList.remove('show');
+        // 清除主頁籤 Active 樣式以還原界面
+        document.querySelectorAll('.parent-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+    };
+
     window.switchTab = (tab, e) => {
         // 特權防線攔截
         if (!window.checkFeatureAccess(tab)) {
@@ -1314,19 +1444,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 更新母頁籤樣式
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.parent-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
         if (e) {
             e.currentTarget.classList.add('active');
-        } else if (window.event) {
-            window.event.currentTarget.classList.add('active');
+        } else {
+            const btn = document.getElementById(`tab_btn_${tab}`);
+            if (btn) btn.classList.add('active');
         }
 
-        // 更新子選單顯示
-        document.querySelectorAll('.sub-menu').forEach(menu => menu.classList.remove('active'));
-        const targetMenu = document.getElementById(`sub_${tab}`);
-        if (targetMenu) {
-            targetMenu.classList.add('active');
-        }
+        // 顯示功能選單浮窗 (傳入點擊元素以利氣泡浮窗懸浮定位)
+        window.openSubmenuDrawer(tab, e ? e.currentTarget : null);
     };
 
     // --- 彈窗控制 ---
@@ -1342,6 +1469,58 @@ document.addEventListener('DOMContentLoaded', () => {
         if (id !== 'upgradePaywallModal' && !window.checkFeatureAccess(id)) {
             window.openModal('upgradePaywallModal');
             return;
+        }
+
+        if (id === 'expenseModal') {
+            // Reset type buttons
+            const typeInput = document.getElementById('expense_type');
+            if (typeInput) typeInput.value = 'expense';
+            const btnExpense = document.getElementById('type_expense');
+            const btnIncome = document.getElementById('type_income');
+            if (btnExpense) {
+                btnExpense.classList.add('active');
+                btnExpense.style.background = 'white';
+                btnExpense.style.color = '#ef4444';
+                btnExpense.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
+            }
+            if (btnIncome) {
+                btnIncome.classList.remove('active');
+                btnIncome.style.background = 'transparent';
+                btnIncome.style.color = '#64748b';
+                btnIncome.style.boxShadow = 'none';
+            }
+            const itemLabel = document.getElementById('item_label');
+            const itemInput = document.getElementById('expense_item');
+            const submitBtn = document.getElementById('submitExpense');
+            if (itemLabel) itemLabel.innerText = '支出項目';
+            if (itemInput) itemInput.placeholder = '消費了什麼？';
+            if (submitBtn) {
+                submitBtn.innerText = '確認支出記帳 💸';
+                submitBtn.style.background = 'var(--secondary-color)';
+            }
+            
+            // Re-initialize category and sub-categories
+            if (typeof window.updateExpenseCategoryDropdown === 'function') {
+                window.updateExpenseCategoryDropdown('expense');
+            }
+            
+            // 載入資產帳戶並更新下拉選單 (V3.8 Step 2)
+            if (typeof window.loadAssetAccounts === 'function') {
+                window.loadAssetAccounts(true).then(() => {
+                    if (typeof window.updateLinkedAssetAccountDropdown === 'function') {
+                        window.updateLinkedAssetAccountDropdown();
+                    }
+                });
+            }
+            
+            if (typeof window.switchExpenseTab === 'function') {
+                window.switchExpenseTab('manual');
+            }
+            
+            const expenseItemInput = document.getElementById('expense_item');
+            if (expenseItemInput) expenseItemInput.value = '';
+            if (typeof window.clearCalc === 'function') window.clearCalc();
+            if (typeof window.clearReceiptFile === 'function') window.clearReceiptFile();
         }
 
         if (id === 'scheduleModal' && !window.editingEventId) {
@@ -1444,10 +1623,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.closeModal = (id) => {
         if (id) {
-            document.getElementById(id).classList.remove('show');
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.remove('show');
+                el.style.display = '';
+            }
             if (id === 'scheduleModal') window.editingEventId = null;
         } else {
-            document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('show'));
+            document.querySelectorAll('.modal-backdrop').forEach(m => {
+                m.classList.remove('show');
+                m.style.display = '';
+            });
             window.editingEventId = null;
         }
         
@@ -2761,6 +2947,57 @@ document.addEventListener('DOMContentLoaded', () => {
         scrollToBottom();
         return msgDiv;
     }
+
+    let currentChatLoadingBubble = null;
+    function showChatLoading(text = "AI 正在思考與解析中...") {
+        if (userInput) userInput.disabled = true;
+        if (voiceBtn) {
+            voiceBtn.disabled = true;
+            voiceBtn.style.opacity = '0.5';
+            voiceBtn.style.pointerEvents = 'none';
+        }
+        const sendBtn = document.getElementById('sendBtn');
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.style.opacity = '0.5';
+            sendBtn.style.pointerEvents = 'none';
+        }
+
+        if (currentChatLoadingBubble) {
+            currentChatLoadingBubble.remove();
+        }
+
+        currentChatLoadingBubble = appendMessage(
+            `<div style="display: flex; align-items: center; gap: 8px; color: var(--text-muted, #64748b);">
+                <span class="loading-spinner" style="border-top-color: #38bdf8; margin: 0; width: 14px; height: 14px; border-width: 2px;"></span>
+                <span>${text}</span>
+             </div>`, 
+            false
+        );
+    }
+
+    function hideChatLoading() {
+        if (userInput) userInput.disabled = false;
+        if (voiceBtn) {
+            voiceBtn.disabled = false;
+            voiceBtn.style.opacity = '1';
+            voiceBtn.style.pointerEvents = 'auto';
+        }
+        const sendBtn = document.getElementById('sendBtn');
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.style.opacity = '1';
+            sendBtn.style.pointerEvents = 'auto';
+        }
+
+        if (currentChatLoadingBubble) {
+            currentChatLoadingBubble.remove();
+            currentChatLoadingBubble = null;
+        }
+        
+        if (userInput) userInput.focus();
+    }
+
     clearBtn.onclick = async () => {
         if (await window.customConfirm('確定清空對話？', '清空後將無法復原目前的對話內容喔！', '🧹')) {
             chatHistory.innerHTML = '';
@@ -2900,34 +3137,75 @@ document.addEventListener('DOMContentLoaded', () => {
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.lang = 'zh-TW';
-        recognition.continuous = false;
-        recognition.interimResults = false;
+        recognition.continuous = true;
+        recognition.interimResults = true;
 
-        let isListening = false;
+        window.speechRecognitionInstance = recognition;
+        window.isSpeechListening = false;
+        window.speechRecognitionShouldSendOnEnd = false;
+        window.speechSilenceTimer = null;
 
         recognition.onstart = () => {
-            isListening = true;
+            window.isSpeechListening = true;
+            window.speechRecognitionShouldSendOnEnd = true;
             voiceBtn.classList.add('listening');
             voiceBtn.innerHTML = '🛑'; // 變成停止圖示
-            userInput.placeholder = "聆聽中... (點擊紅點取消)";
+            voiceBtn.title = "點擊紅色按鈕取消語音輸入";
+            userInput.placeholder = "聆聽中... (停頓 5 秒自動送出 / 點擊紅點取消)";
+            showToast('🎤 已開啟語音聆聽 (停頓 5 秒自動送出，點擊紅點可取消)', 'info');
+
+            if (window.speechSilenceTimer) clearTimeout(window.speechSilenceTimer);
+            // 預設 15 秒完全沒有聲音輸入的安全逾時
+            window.speechSilenceTimer = setTimeout(() => {
+                if (window.isSpeechListening) {
+                    recognition.stop();
+                }
+            }, 15000);
         };
 
         recognition.onend = () => {
-            isListening = false;
+            window.isSpeechListening = false;
             voiceBtn.classList.remove('listening');
             voiceBtn.innerHTML = '🎤'; // 恢復為麥克風
+            voiceBtn.title = "點擊開始語音輸入";
             userInput.placeholder = "輸入行程或指令...";
+            if (window.speechSilenceTimer) clearTimeout(window.speechSilenceTimer);
+
+            if (window.speechRecognitionShouldSendOnEnd && userInput.value.trim()) {
+                window.handleSend();
+            }
         };
 
         recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            userInput.value = transcript;
-            window.handleSend();
+            if (window.speechSilenceTimer) clearTimeout(window.speechSilenceTimer);
+
+            let currentFinal = '';
+            let currentInterim = '';
+            for (let i = 0; i < event.results.length; ++i) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    currentFinal += transcript;
+                } else {
+                    currentInterim += transcript;
+                }
+            }
+
+            userInput.value = currentFinal + currentInterim;
+
+            // 停頓 5 秒沒有新輸入，自動結束並送出
+            window.speechSilenceTimer = setTimeout(() => {
+                if (window.isSpeechListening) {
+                    recognition.stop();
+                }
+            }, 5000);
         };
 
         voiceBtn.onclick = () => {
-            if (isListening) {
+            if (window.isSpeechListening) {
+                window.speechRecognitionShouldSendOnEnd = false; // 取消自動送出
                 recognition.abort(); // 立即取消錄音
+                userInput.value = '';
+                showToast('❌ 已取消語音輸入並清空內容', 'info');
             } else {
                 recognition.start();
             }
@@ -2941,18 +3219,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 核心查詢功能 ---
     window.queryFinanceSummary = async () => {
         appendMessage(`查詢本月記帳合計...`, true);
+        showChatLoading("正在查詢並統計本月帳目中... 📊");
         try {
             const res = await fetch('/api/query_finance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
             const data = await res.json();
+            hideChatLoading();
             if (data.status === 'success') {
                 appendMessage(data.message);
             } else {
                 appendMessage("❌ 查詢失敗：" + data.message);
             }
         } catch (error) {
+            hideChatLoading();
             appendMessage("❌ 伺服器連線失敗");
         }
     };
@@ -2961,6 +3242,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.lastQueryDays = days;
         const rangeLabel = days === 1 ? '今日' : (days === 7 ? '本週' : '近30日');
         appendMessage(`查詢${rangeLabel}行程...`, true);
+        showChatLoading(`正在讀取${rangeLabel}日曆行程... 📅`);
 
         try {
             const res = await fetch('/api/query_schedule', {
@@ -2969,12 +3251,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ days })
             });
             const data = await res.json();
+            hideChatLoading();
             if (data.status === 'success') {
                 renderScheduleCard(data.data, data.date_str);
             } else {
                 appendMessage("❌ 查詢失敗：" + data.message);
             }
         } catch (error) {
+            hideChatLoading();
             appendMessage("❌ 伺服器連線失敗");
         }
     };
@@ -2991,6 +3275,19 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.handleSend = async function (text = null, file = null) {
+        // 若語音正在聆聽中且即將送出，先停止語音監聽避免重疊
+        if (window.speechRecognitionInstance && window.isSpeechListening) {
+            window.speechRecognitionShouldSendOnEnd = false; // 防止重複送出
+            window.speechRecognitionInstance.abort();
+            window.isSpeechListening = false;
+            if (voiceBtn) {
+                voiceBtn.classList.remove('listening');
+                voiceBtn.innerHTML = '🎤';
+            }
+            userInput.placeholder = "輸入行程或指令...";
+            if (window.speechSilenceTimer) clearTimeout(window.speechSilenceTimer);
+        }
+
         // 點數防線攔截：非無限版且剩餘點數 <= 0，攔截對話請求並開啟計費牆
         if (window.USER_SUBSCRIPTION_TYPE !== 'YEARLY_AI' && window.USER_SUBSCRIPTION_TYPE !== 'PREMIUM_MONTHLY' && window.USER_AI_POINTS <= 0) {
             const confirmed = await window.customConfirm(
@@ -3063,11 +3360,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- 定位搜尋口袋名單邏輯 (V12.5 Diagnostic Update) ---
         if (message.includes('附近') && (message.includes('想去') || message.includes('口袋名單') || message.includes('推薦'))) {
             appendMessage("正在為您掃描附近的口袋名單... 🛰️");
+            showChatLoading("正在獲取您的 GPS 定位並查詢口袋名單...");
             try {
                 const coords = await window.getCurrentLocation();
                 window.userCoords = coords;
                 const res = await fetch('/api/pocket/list');
                 const data = await res.json();
+                hideChatLoading();
 
                 if (data.status === 'success') {
                     const allItems = data.data;
@@ -3106,12 +3405,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             } catch (e) {
+                hideChatLoading();
                 console.error("Location Error:", e);
                 appendMessage("暫時無法取得定位，請確保已開啟權限並使用 HTTPS 連線。");
             }
             return;
         }
 
+        showChatLoading("AI 正在思考與解析中...");
         try {
             let response;
             if (file) {
@@ -3130,6 +3431,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             const data = await response.json();
+            hideChatLoading();
 
             if (data.status === 'success') {
                 if (data.type === 'query_schedule') {
@@ -3170,6 +3472,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } catch (error) {
+            hideChatLoading();
             appendMessage("❌ 伺服器連線失敗");
         }
     };
@@ -3549,62 +3852,70 @@ document.addEventListener('DOMContentLoaded', () => {
         const submitBtn = document.getElementById('submitExpense');
         if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.innerText = '正在記帳中... ⏳';
+            submitBtn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; margin: 0; border-width: 2px;"></span> 正在記帳中...';
         }
 
         let uploadedFileName = '';
         let uploadedYear = '';
 
-        // 2. 執行收據雲端上傳
-        if (receiptInput && receiptInput.files && receiptInput.files[0]) {
-            showToast('📸 正在將收據上傳至雲端硬碟...', 'info');
-            const file = receiptInput.files[0];
-            const compressedBlob = await window.compressImage(file);
-            const formData = new FormData();
-            formData.append('file', compressedBlob, 'receipt.jpg');
-            
-            try {
-                const taxRes = await fetch('/api/tax/upload_receipt', {
-                    method: 'POST',
-                    body: formData
-                });
-                const taxData = await taxRes.json();
-                if (taxData.status === 'success') {
-                    uploadedFileName = taxData.filename;
-                    uploadedYear = taxData.year;
-                    showToast('✅ 公益收據雲端歸檔成功！', 'success');
-                } else {
-                    showToast(`❌ 收據備份失敗: ${taxData.message}`, 'error');
+        try {
+            // 2. 執行收據雲端上傳
+            if (receiptInput && receiptInput.files && receiptInput.files[0]) {
+                showToast('📸 正在將收據上傳至雲端硬碟...', 'info');
+                const file = receiptInput.files[0];
+                const compressedBlob = await window.compressImage(file);
+                const formData = new FormData();
+                formData.append('file', compressedBlob, 'receipt.jpg');
+                
+                try {
+                    const taxRes = await fetch('/api/tax/upload_receipt', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const taxData = await taxRes.json();
+                    if (taxData.status === 'success') {
+                        uploadedFileName = taxData.filename;
+                        uploadedYear = taxData.year;
+                        showToast('✅ 公益收據雲端歸檔成功！', 'success');
+                    } else {
+                        showToast(`❌ 收據備份失敗: ${taxData.message}`, 'error');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast('❌ 收據備份連線失敗', 'error');
                 }
-            } catch (err) {
-                console.error(err);
-                showToast('❌ 收據備份連線失敗', 'error');
             }
-        }
 
-        closeModal('expenseModal');
-        const subHiddenInput = document.getElementById('expense_sub_category_hidden');
-        const subGroup = document.getElementById('manual_expense_sub_cat_group');
-        const sub_category = (subGroup && subGroup.style.display !== 'none' && subHiddenInput) ? subHiddenInput.value : '';
-        const displayCategory = sub_category ? `${category} > ${sub_category}` : category;
-        appendMessage(`${emoji} 記帳：${item} $${amount} [${displayCategory}]`, true);
-        
-        const res = await fetch('/api/manual_action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'expense', expense_type: expenseType, item, amount: parseInt(amount), category, sub_category })
-        });
-        const data = await res.json();
-        appendMessage(data.message);
+            closeModal('expenseModal');
+            const subHiddenInput = document.getElementById('expense_sub_category_hidden');
+            const subGroup = document.getElementById('manual_expense_sub_cat_group');
+            const sub_category = (subGroup && subGroup.style.display !== 'none' && subHiddenInput) ? subHiddenInput.value : '';
+            const displayCategory = sub_category ? `${category} > ${sub_category}` : category;
+            appendMessage(`${emoji} 記帳：${item} $${amount} [${displayCategory}]`, true);
+            
+            const assetSelect = document.getElementById('linked_asset_account_id');
+            const asset_account_id = assetSelect ? assetSelect.value : '';
 
-        if (uploadedFileName) {
-            appendMessage(`📸 系統已成功為您將該筆收據/發票照片以新檔名 <b>${uploadedFileName}</b> 年度歸檔至雲端空間的「報稅公益收據管理/${uploadedYear}」目錄！`);
-        }
+            const res = await fetch('/api/manual_action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'expense', expense_type: expenseType, item, amount: parseInt(amount), category, sub_category, asset_account_id })
+            });
+            const data = await res.json();
+            appendMessage(data.message);
 
-        // 解鎖按鈕
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerText = expenseType === 'income' ? '確認收入記帳 💰' : '確認支出記帳 💸';
+            if (uploadedFileName) {
+                appendMessage(`📸 系統已成功為您將該筆收據/發票照片以新檔名 <b>${uploadedFileName}</b> 年度歸檔至雲端空間的「報稅公益收據管理/${uploadedYear}」目錄！`);
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('記帳失敗，請重試', 'error');
+        } finally {
+            // 解鎖按鈕
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerText = expenseType === 'income' ? '確認收入記帳 💰' : '確認支出記帳 💸';
+            }
         }
 
         // 3. 投資/投資獲利正向同步引導 (一鍵直接跳轉分頁並預填 Modal)
@@ -3638,6 +3949,12 @@ document.addEventListener('DOMContentLoaded', () => {
             manualSubSelect.value = '';
             const subGroup = document.getElementById('manual_expense_sub_cat_group');
             if (subGroup) subGroup.style.display = 'none';
+        }
+        const assetSelect = document.getElementById('linked_asset_account_id');
+        if (assetSelect) {
+            assetSelect.value = '';
+            const assetGroup = document.getElementById('linked_asset_account_group');
+            if (assetGroup) assetGroup.style.display = 'none';
         }
     };
 
@@ -4590,14 +4907,36 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const res = await fetch('/api/pocket/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, location, area, note, category })
-        });
-        if ((await res.json()).status === 'success') {
-            window.resetPocketForm();
-            window.loadPocket(true);
+        const submitBtn = document.getElementById('submitPocket');
+        const originalHTML = submitBtn.innerHTML;
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.style.pointerEvents = 'none';
+            submitBtn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; margin: 0; border-width: 2px;"></span>';
+        }
+
+        try {
+            const res = await fetch('/api/pocket/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, location, area, note, category })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                window.resetPocketForm();
+                window.loadPocket(true);
+            } else {
+                showToast('新增失敗：' + data.message, 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('新增失敗，請重試。', 'error');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.style.pointerEvents = '';
+                submitBtn.innerHTML = originalHTML;
+            }
         }
     };
 
@@ -5241,7 +5580,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const btn = trainSubmitBtn;
             const originalText = btn.innerHTML;
-            btn.innerHTML = '建立中...';
+            btn.disabled = true;
+            btn.style.pointerEvents = 'none';
+            btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; margin: 0; border-width: 2px;"></span> 建立中...';
             btn.style.opacity = '0.7';
 
             try {
@@ -5262,6 +5603,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) {
                 showToast('寫入失敗，請稍後再試', 'error');
             } finally {
+                btn.disabled = false;
+                btn.style.pointerEvents = '';
                 btn.innerHTML = originalText;
                 btn.style.opacity = '1';
             }
@@ -5442,8 +5785,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         container.innerHTML = matches.map(m => `
-            <div onclick="window.selectStockSuggestion('${m.ticker}', '${m.name}')" style="padding: 10px; cursor: pointer; border-radius: 6px; font-size: 0.85rem; font-weight: bold; color: #1e293b; transition: background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-                <span style="color:#0f172a;">${m.ticker}</span> - <span style="color:#64748b;">${m.name}</span>
+            <div onmousedown="window.selectStockSuggestion('${m.ticker}', '${m.name}')" ontouchstart="window.selectStockSuggestion('${m.ticker}', '${m.name}')" class="stock-autocomplete-item" style="padding: 10px; cursor: pointer; border-radius: 6px; font-size: 0.85rem; font-weight: bold; transition: background 0.2s;">
+                <span class="ticker-text">${m.ticker}</span> - <span class="name-text">${m.name}</span>
             </div>
         `).join('');
         container.style.display = 'block';
@@ -5481,8 +5824,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         container.innerHTML = matches.map(m => `
-            <div onclick="window.selectStockSuggestion('${m.ticker}', '${m.name}')" style="padding: 10px; cursor: pointer; border-radius: 6px; font-size: 0.85rem; font-weight: bold; color: #1e293b; transition: background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-                <span style="color:#0f172a;">${m.ticker}</span> - <span style="color:#64748b;">${m.name}</span>
+            <div onmousedown="window.selectStockSuggestion('${m.ticker}', '${m.name}')" ontouchstart="window.selectStockSuggestion('${m.ticker}', '${m.name}')" class="stock-autocomplete-item" style="padding: 10px; cursor: pointer; border-radius: 6px; font-size: 0.85rem; font-weight: bold; transition: background 0.2s;">
+                <span class="ticker-text">${m.ticker}</span> - <span class="name-text">${m.name}</span>
             </div>
         `).join('');
         container.style.display = 'block';
@@ -5510,19 +5853,19 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', hideStockAutocompletes);
     document.addEventListener('touchstart', hideStockAutocompletes, { passive: true });
 
-    // 焦點離開 (Focusout 委派) 時延時關閉 (延遲 200ms 確保 select 點擊事件能被正確接收，且完美解決 DOM 載入順序問題)
+    // 焦點離開 (Focusout 委派) 時延時關閉 (延長為 350ms 配合行動裝置 click 延遲，防止觸摸後下拉選單提早消失導致無法觸發選中)
     document.addEventListener('focusout', (e) => {
         if (e.target && e.target.id === 'stock_tx_ticker') {
             setTimeout(() => {
                 const container = document.getElementById('stock_ticker_autocomplete');
                 if (container) container.style.display = 'none';
-            }, 200);
+            }, 350);
         }
         if (e.target && e.target.id === 'stock_tx_name') {
             setTimeout(() => {
                 const container = document.getElementById('stock_name_autocomplete');
                 if (container) container.style.display = 'none';
-            }, 200);
+            }, 350);
         }
     });
 
@@ -5582,32 +5925,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 const totalCost = subtotal + feeVal;
 
                 const confirmMsg = `
-                    <div style="text-align: left; line-height: 1.6; font-size: 0.85rem; color: #334155;">
+                    <div class="sync-complete-container">
                         <p style="margin-top: 0; font-weight: 800; color: #16a34a; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
                             <span>🎉 投資交易與記帳已同步完成！</span>
                         </p>
-                        <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 12px; margin-bottom: 12px;">
+                        <div class="sync-complete-card">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                <span style="color:#64748b;">📈 證券代碼：</span><span style="font-weight: bold; color: #0f172a;">${ticker}</span>
+                                <span class="sync-complete-label">📈 證券代碼：</span><span class="sync-complete-value">${ticker}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                <span style="color:#64748b;">🏷️ 股票名稱：</span><span style="font-weight: bold; color: #0f172a;">${name}</span>
+                                <span class="sync-complete-label">🏷️ 股票名稱：</span><span class="sync-complete-value">${name}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                <span style="color:#64748b;">💵 成交單價：</span><span style="font-weight: bold; color: #0f172a;">$ ${priceVal.toLocaleString()}</span>
+                                <span class="sync-complete-label">💵 成交單價：</span><span class="sync-complete-value">$ ${priceVal.toLocaleString()}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                <span style="color:#64748b;">📊 交易股數：</span><span style="font-weight: bold; color: #0f172a;">${sharesVal} 股</span>
+                                <span class="sync-complete-label">📊 交易股數：</span><span class="sync-complete-value">${sharesVal} 股</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                <span style="color:#64748b;">💸 交易手續費：</span><span style="font-weight: bold; color: #0f172a;">$ ${feeVal.toLocaleString()}</span>
+                                <span class="sync-complete-label">💸 交易手續費：</span><span class="sync-complete-value">$ ${feeVal.toLocaleString()}</span>
                             </div>
-                            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 8px 0;">
-                            <div style="display: flex; justify-content: space-between; font-weight: bold; color: #1e3a8a;">
+                            <hr style="border: 0; border-top: 1px solid var(--input-border, #e2e8f0); margin: 8px 0;">
+                            <div class="sync-complete-total">
                                 <span>💰 同步記帳金額：</span><span>$ ${totalCost.toLocaleString()}</span>
                             </div>
                         </div>
-                        <p style="margin: 0; font-size: 0.78rem; color: #475569; font-weight: 500;">
+                        <p class="sync-complete-footer">
                             ℹ️ 該筆投資支出已<b>同步寫入「記帳」試算表</b>，您可隨時前往 Google Drive / Sheets 雲端硬碟目錄查看完整會計明細。
                         </p>
                     </div>
@@ -5628,6 +5971,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     window.switchTab('finance');
                 }
+
+                // 關閉子功能選單氣泡浮窗以還原乾淨的主對話框 (V15.1 UX Fix)
+                window.closeSubmenuDrawer();
 
                 // 4. 在對話框中以精美格式列出支出與買入股票資訊
                 const reportMsg = `📈 <b>證券持股與記帳同步成功報告</b> 💼\n` +
@@ -6736,6 +7082,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div style="text-align: right;">
                                 <div style="font-weight: 800; font-size: 0.95rem; color: #0d9488;">$${item.amount.toLocaleString()}</div>
                                 <div style="font-size: 0.65rem; color: var(--text-muted);">每月 ${item.execute_day} 日</div>
+                                ${item.start_date || item.end_date ? `
+                                <div style="font-size: 0.6rem; color: #94a3b8; margin-top: 2px; text-align: right;">
+                                    📅 ${item.start_date ? item.start_date : '即日'} ~ ${item.end_date ? item.end_date : '長久'}
+                                </div>
+                                ` : ''}
                             </div>
                             <div style="display: flex; gap: 4px;">
                                 <button onclick="window.showFixedExpenseForm(${JSON.stringify(item).replace(/"/g, '&quot;')})" style="background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 4px;">✏️</button>
@@ -6756,45 +7107,118 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    window.toggleFixedExpenseCategoryDropdown = () => {
+        document.querySelectorAll('.todo-dropdown-content').forEach(el => {
+            if (el.id !== 'fixed_expense_cat_dropdown') el.classList.remove('show');
+        });
+        document.getElementById('fixed_expense_cat_dropdown')?.classList.toggle('show');
+    };
+
+    window.toggleFixedExpenseSubCategoryDropdown = () => {
+        document.querySelectorAll('.todo-dropdown-content').forEach(el => {
+            if (el.id !== 'fixed_expense_sub_cat_dropdown') el.classList.remove('show');
+        });
+        document.getElementById('fixed_expense_sub_cat_dropdown')?.classList.toggle('show');
+    };
+
+    window.toggleFixedExpenseDayDropdown = () => {
+        document.querySelectorAll('.todo-dropdown-content').forEach(el => {
+            if (el.id !== 'fixed_expense_day_dropdown') el.classList.remove('show');
+        });
+        document.getElementById('fixed_expense_day_dropdown')?.classList.toggle('show');
+    };
+
+    window.selectFixedExpenseCategory = (name, icon) => {
+        const input = document.getElementById('fixed_expense_category');
+        const display = document.getElementById('current_fixed_expense_cat_display');
+        const dropdown = document.getElementById('fixed_expense_cat_dropdown');
+        
+        if (input) input.value = name;
+        if (display) display.innerHTML = `${icon} ${name}`;
+        if (dropdown) dropdown.classList.remove('show');
+        
+        window.onFixedExpenseCategoryChange(name);
+    };
+
+    window.selectFixedExpenseSubCategory = (name) => {
+        const input = document.getElementById('fixed_expense_sub_category');
+        const display = document.getElementById('current_fixed_expense_sub_cat_display');
+        const dropdown = document.getElementById('fixed_expense_sub_cat_dropdown');
+        
+        if (input) input.value = name;
+        if (display) {
+            display.innerHTML = name;
+            display.style.color = '';
+        }
+        if (dropdown) dropdown.classList.remove('show');
+    };
+
+    window.selectFixedExpenseDay = (day) => {
+        const input = document.getElementById('fixed_expense_day');
+        const display = document.getElementById('current_fixed_expense_day_display');
+        const dropdown = document.getElementById('fixed_expense_day_dropdown');
+        
+        if (input) input.value = day;
+        if (display) display.innerHTML = `每月 ${day} 日`;
+        if (dropdown) dropdown.classList.remove('show');
+    };
+
     window.showFixedExpenseForm = (item = null) => {
         document.getElementById('fixed_expenses_list_view').style.display = 'none';
         document.getElementById('fixed_expenses_form_view').style.display = 'block';
         
-        const daySelect = document.getElementById('fixed_expense_day');
-        daySelect.innerHTML = '';
-        for (let i = 1; i <= 28; i++) {
-            daySelect.innerHTML += `<option value="${i}">每月 ${i} 日自動補記</option>`;
+        window.initFixedExpenseCategoryDropdown();
+        
+        // Initialize auto-execution day dropdown
+        const dayDropdown = document.getElementById('fixed_expense_day_dropdown');
+        if (dayDropdown) {
+            dayDropdown.innerHTML = '';
+            for (let i = 1; i <= 28; i++) {
+                dayDropdown.innerHTML += `
+                    <div class="todo-dropdown-item" onclick="window.selectFixedExpenseDay(${i})">
+                        <span>每月 ${i} 日</span>
+                    </div>
+                `;
+            }
         }
         
-        const subSelect = document.getElementById('fixed_expense_sub_category');
+        const startDateInput = document.getElementById('fixed_expense_start_date');
+        const endDateInput = document.getElementById('fixed_expense_end_date');
         
         if (item) {
             window.editingFixedExpenseId = item.id;
             document.getElementById('fixed_expense_id').value = item.id;
             document.getElementById('fixed_expense_name').value = item.name;
-            document.getElementById('fixed_expense_category').value = item.category;
             
-            // Populates subcategories and sets disabled / opacity correctly
-            window.onFixedExpenseCategoryChange(item.category);
-            if (subSelect) {
-                subSelect.value = item.sub_category || '';
+            const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖", "其他雜支": "🏷️" };
+            const icon = expenseMap[item.category] || "🏷️";
+            window.selectFixedExpenseCategory(item.category, icon);
+            
+            if (item.sub_category) {
+                window.selectFixedExpenseSubCategory(item.sub_category);
             }
+            
             document.getElementById('fixed_expense_amount').value = item.amount;
-            document.getElementById('fixed_expense_day').value = item.execute_day;
+            window.selectFixedExpenseDay(item.execute_day);
+            
+            if (startDateInput) startDateInput.value = item.start_date ? item.start_date.replace(/\//g, '-') : '';
+            if (endDateInput) endDateInput.value = item.end_date ? item.end_date.replace(/\//g, '-') : '';
         } else {
             window.editingFixedExpenseId = null;
             document.getElementById('fixed_expense_id').value = '';
             document.getElementById('fixed_expense_name').value = '';
-            document.getElementById('fixed_expense_category').value = '';
             
-            if (subSelect) {
-                subSelect.disabled = true;
-                subSelect.style.opacity = '0.6';
-                subSelect.innerHTML = '<option value="">選擇子分類</option>';
-                subSelect.value = '';
-            }
+            const display = document.getElementById('current_fixed_expense_cat_display');
+            const catInput = document.getElementById('fixed_expense_category');
+            if (display) display.innerHTML = '選擇母分類';
+            if (catInput) catInput.value = '';
+            
+            window.onFixedExpenseCategoryChange('');
             document.getElementById('fixed_expense_amount').value = '';
-            document.getElementById('fixed_expense_day').value = '1';
+            window.selectFixedExpenseDay('1');
+            
+            if (startDateInput) startDateInput.value = '';
+            if (endDateInput) endDateInput.value = '';
         }
     };
 
@@ -6804,32 +7228,52 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.initFixedExpenseCategoryDropdown = () => {
-        const catSelect = document.getElementById('fixed_expense_category');
-        if (!catSelect) return;
+        const catDropdown = document.getElementById('fixed_expense_cat_dropdown');
+        if (!catDropdown) return;
         
-        catSelect.innerHTML = '<option value="">選擇母分類</option>';
-        window.defaultExpenseCategories.forEach(cat => {
-            catSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
-        });
+        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖", "其他雜支": "🏷️" };
+        const deletedCats = JSON.parse(localStorage.getItem('deletedExpenseCats') || '[]');
+        const customCats = window.loadExpenseCategories().filter(c => !deletedCats.includes(c.name) && !window.defaultExpenseCategories.includes(c.name));
+        
+        const baseCats = window.defaultExpenseCategories.map(cat => ({ name: cat, icon: expenseMap[cat] || "💸" }));
+        const extraCats = customCats.map(cat => ({ name: cat.name, icon: cat.icon || "📝" }));
+        const finalCategories = [...baseCats, ...extraCats];
+
+        catDropdown.innerHTML = finalCategories.map(item => `
+            <div class="todo-dropdown-item" onclick="window.selectFixedExpenseCategory('${item.name}', '${item.icon}')">
+                <span>${item.icon}</span>
+                <span>${item.name}</span>
+            </div>
+        `).join('');
     };
 
     window.onFixedExpenseCategoryChange = (categoryName) => {
-        const subSelect = document.getElementById('fixed_expense_sub_category');
-        if (!subSelect) return;
+        const subDropdown = document.getElementById('fixed_expense_sub_cat_dropdown');
+        const subSelector = document.getElementById('fixed_expense_sub_cat_selector');
+        const display = document.getElementById('current_fixed_expense_sub_cat_display');
+        const hiddenInput = document.getElementById('fixed_expense_sub_category');
+        
+        if (!subDropdown || !subSelector) return;
+        
+        hiddenInput.value = '';
+        display.innerHTML = '選擇子分類';
+        display.style.color = '#94a3b8';
         
         const subCats = window.FINANCE_SUB_CATEGORIES[categoryName];
         if (subCats && subCats.length > 0) {
-            subSelect.disabled = false;
-            subSelect.style.opacity = '1';
-            subSelect.innerHTML = '<option value="">選擇子分類</option>';
-            subCats.forEach(sc => {
-                subSelect.innerHTML += `<option value="${sc}">${sc}</option>`;
-            });
+            subSelector.style.opacity = '1';
+            subSelector.style.pointerEvents = 'auto';
+            
+            subDropdown.innerHTML = subCats.map(sc => `
+                <div class="todo-dropdown-item" onclick="window.selectFixedExpenseSubCategory('${sc}')">
+                    <span>${sc}</span>
+                </div>
+            `).join('');
         } else {
-            subSelect.disabled = true;
-            subSelect.style.opacity = '0.6';
-            subSelect.innerHTML = '<option value="">無子分類</option>';
-            subSelect.value = '';
+            subSelector.style.opacity = '0.6';
+            subSelector.style.pointerEvents = 'none';
+            display.innerHTML = '無子分類';
+            subDropdown.innerHTML = '';
         }
     };
 
@@ -6837,15 +7281,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = document.getElementById('fixed_expense_id').value;
         const name = document.getElementById('fixed_expense_name').value.trim();
         const category = document.getElementById('fixed_expense_category').value;
-        const subSelect = document.getElementById('fixed_expense_sub_category');
-        const sub_category = (subSelect && !subSelect.disabled) ? subSelect.value : '';
+        const sub_category = document.getElementById('fixed_expense_sub_category').value;
         const amount = document.getElementById('fixed_expense_amount').value;
         const execute_day = document.getElementById('fixed_expense_day').value;
+        
+        const startDateVal = document.getElementById('fixed_expense_start_date').value;
+        const endDateVal = document.getElementById('fixed_expense_end_date').value;
         
         if (!name || !category || !amount || !execute_day) {
             window.showToast('請將資料填寫完整！');
             return;
         }
+        
+        const start_date = startDateVal ? startDateVal.replace(/-/g, '/') : '';
+        const end_date = endDateVal ? endDateVal.replace(/-/g, '/') : '';
         
         const endpoint = id ? '/api/fixed_expenses/update' : '/api/fixed_expenses';
         const payload = {
@@ -6854,7 +7303,9 @@ document.addEventListener('DOMContentLoaded', () => {
             category,
             sub_category,
             amount: parseInt(amount),
-            execute_day: parseInt(execute_day)
+            execute_day: parseInt(execute_day),
+            start_date,
+            end_date
         };
         
         try {
@@ -7835,6 +8286,738 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 背景靜默載入固定支出列表
-    setTimeout(() => window.loadFixedExpenses(true), 1500);
+    // =================================================================
+    // 📊 統計報表 - 全頁面板邏輯 (V3.7 Step 5)
+    // =================================================================
+    window.openFinanceReportPanel = async () => {
+        const panel = document.getElementById('financeReportPanel');
+        if (!panel) return;
+        panel.classList.add('show');
+
+        const yearSelect = document.getElementById('report_year_select');
+        const monthSelect = document.getElementById('report_month_select');
+        const goalMonthSelect = document.getElementById('goal_month_select');
+
+        // 綁定下拉選單改變事件，自動觸發查詢
+        if (yearSelect) {
+            yearSelect.onchange = () => {
+                window.updateFinanceMonthDropdown(yearSelect.value);
+                window.fetchFinanceReport();
+            };
+        }
+        if (monthSelect) {
+            monthSelect.onchange = () => {
+                window.fetchFinanceReport();
+            };
+        }
+
+        const now = new Date();
+        const currentYearStr = now.getFullYear().toString();
+        const currentMonthStr = (now.getMonth() + 1).toString().padStart(2, '0');
+
+        // 如果下拉選單尚未初始化，則進行非同步載入
+        if (yearSelect && (yearSelect.options.length === 0 || yearSelect.value === "")) {
+            yearSelect.innerHTML = '<option value="">載入中...</option>';
+            monthSelect.innerHTML = '<option value="">...</option>';
+            
+            try {
+                const res = await fetch('/api/finance_report/available_dates');
+                const data = await res.json();
+                
+                if (data.status === 'success' && data.dates) {
+                    window.availableFinanceDates = data.dates; // 暫存於全域
+                    
+                    // 確保當前年份與當月一定在可選清單中，防止預設時選不到當月
+                    if (!window.availableFinanceDates[currentYearStr]) {
+                        window.availableFinanceDates[currentYearStr] = [];
+                    }
+                    if (!window.availableFinanceDates[currentYearStr].includes(currentMonthStr)) {
+                        window.availableFinanceDates[currentYearStr].push(currentMonthStr);
+                        window.availableFinanceDates[currentYearStr].sort((a, b) => parseInt(a) - parseInt(b));
+                    }
+
+                    yearSelect.innerHTML = '';
+                    const sortedYears = Object.keys(window.availableFinanceDates).sort((a, b) => b - a); // 遞減排序
+                    
+                    let selectYear = sortedYears[0];
+                    if (sortedYears.includes(currentYearStr)) {
+                        selectYear = currentYearStr;
+                    }
+                    
+                    for (const y of sortedYears) {
+                        const opt = document.createElement('option');
+                        opt.value = y;
+                        opt.textContent = y + '年';
+                        if (y === selectYear) opt.selected = true;
+                        yearSelect.appendChild(opt);
+                    }
+                    
+                    // 載入當前年份的月份，並選取當月
+                    window.updateFinanceMonthDropdown(selectYear, currentMonthStr);
+                    
+                    // 設定目標選單 (保持 1-12 月以便未來目標挑選)
+                    if (goalMonthSelect && goalMonthSelect.options.length === 0) {
+                        goalMonthSelect.innerHTML = '';
+                        for (let m = 1; m <= 12; m++) {
+                            const opt = document.createElement('option');
+                            opt.value = m.toString().padStart(2, '0');
+                            opt.textContent = m + '月';
+                            if (m.toString().padStart(2, '0') === currentMonthStr) opt.selected = true;
+                            goalMonthSelect.appendChild(opt);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('載入可用記帳年月失敗，改用備用選單:', err);
+                const curYear = now.getFullYear();
+                const curMonth = now.getMonth() + 1;
+                
+                yearSelect.innerHTML = '';
+                for (let y = curYear - 1; y <= curYear + 2; y++) {
+                    const opt = document.createElement('option');
+                    opt.value = y;
+                    opt.textContent = y + '年';
+                    if (y === curYear) opt.selected = true;
+                    yearSelect.appendChild(opt);
+                }
+                
+                monthSelect.innerHTML = '';
+                for (let m = 1; m <= 12; m++) {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m + '月';
+                    if (m === curMonth) opt.selected = true;
+                    monthSelect.appendChild(opt);
+                }
+            }
+        } else {
+            // 已初始化過，重新開啟面板時強制將年份與月份設為「當月」
+            if (yearSelect && monthSelect) {
+                let hasYear = false;
+                for (let i = 0; i < yearSelect.options.length; i++) {
+                    if (yearSelect.options[i].value === currentYearStr) {
+                        yearSelect.value = currentYearStr;
+                        hasYear = true;
+                        break;
+                    }
+                }
+                if (!hasYear && yearSelect.options.length > 0) {
+                    yearSelect.selectedIndex = 0;
+                }
+                
+                // 重置月份下拉並設為當前月
+                window.updateFinanceMonthDropdown(yearSelect.value, currentMonthStr);
+            }
+        }
+
+        // 預設加載當前選取月份的資料
+        window.fetchFinanceReport();
+    };
+
+    window.updateFinanceMonthDropdown = (selectedYear, targetMonthStr = null) => {
+        const monthSelect = document.getElementById('report_month_select');
+        if (!monthSelect || !window.availableFinanceDates || !window.availableFinanceDates[selectedYear]) return;
+        
+        const availableMonths = window.availableFinanceDates[selectedYear];
+        monthSelect.innerHTML = '';
+        
+        let selectMonth = availableMonths[availableMonths.length - 1]; // 預設最新月份
+        if (targetMonthStr && availableMonths.includes(targetMonthStr)) {
+            selectMonth = targetMonthStr;
+        } else {
+            const now = new Date();
+            const currentMonthStr = (now.getMonth() + 1).toString().padStart(2, '0');
+            if (availableMonths.includes(currentMonthStr)) {
+                selectMonth = currentMonthStr;
+            }
+        }
+        
+        for (const m of availableMonths) {
+            const opt = document.createElement('option');
+            opt.value = parseInt(m);
+            opt.textContent = parseInt(m) + '月';
+            if (m === selectMonth) opt.selected = true;
+            monthSelect.appendChild(opt);
+        }
+    };
+
+    window.closeFinanceReportPanel = () => {
+        const panel = document.getElementById('financeReportPanel');
+        if (panel) panel.classList.remove('show');
+    };
+
+    window.fetchFinanceReport = async () => {
+        const yearSelect = document.getElementById('report_year_select');
+        const monthSelect = document.getElementById('report_month_select');
+        if (!yearSelect || !monthSelect) return;
+
+        const year = yearSelect.value;
+        const month = monthSelect.value;
+
+        // 取得相關 DOM 元素
+        const queryBtn = document.getElementById('report_query_btn');
+        const totalExpenseEl = document.getElementById('report_total_expense');
+        const totalIncomeEl = document.getElementById('report_total_income');
+        const totalBalanceEl = document.getElementById('report_total_balance');
+        const pieChartCanvas = document.getElementById('financeReportPieChart');
+        const chartPlaceholder = document.getElementById('report_chart_loading_placeholder');
+        const categoryListEl = document.getElementById('report_category_list');
+
+        // 1. 設定按鈕為載入狀態
+        if (queryBtn) {
+            queryBtn.disabled = true;
+            queryBtn.innerHTML = '<span class="btn-spinner"></span> 查詢中...';
+        }
+
+        // 2. 設定卡片數值為骨架屏閃爍狀態
+        if (totalExpenseEl) {
+            totalExpenseEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:60px; height:18px; margin-top:4px;"></span>';
+        }
+        if (totalIncomeEl) {
+            totalIncomeEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:60px; height:18px; margin-top:4px;"></span>';
+        }
+        if (totalBalanceEl) {
+            totalBalanceEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:60px; height:18px; margin-top:4px;"></span>';
+        }
+
+        // 3. 圓餅圖切換為骨架屏
+        if (pieChartCanvas) pieChartCanvas.style.display = 'none';
+        if (chartPlaceholder) chartPlaceholder.style.display = 'block';
+
+        // 4. 尊榮旗艦版股票區 (如果當前是顯示狀態，也顯示骨架)
+        const stockExpenseEl = document.getElementById('report_stock_expense');
+        const stockUnrealizedEl = document.getElementById('report_stock_unrealized_roi');
+        const stockRealizedEl = document.getElementById('report_stock_realized_roi');
+        if (stockExpenseEl) stockExpenseEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:50px; height:14px;"></span>';
+        if (stockUnrealizedEl) stockUnrealizedEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:50px; height:14px;"></span>';
+        if (stockRealizedEl) stockRealizedEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:50px; height:14px;"></span>';
+
+        // 5. 分類列表顯示三行骨架屏
+        if (categoryListEl) {
+            categoryListEl.innerHTML = `
+                <div class="report-cat-row" style="pointer-events: none; border-color: var(--border-color); opacity: 0.7;">
+                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                        <span class="skeleton-shimmer" style="width: 80px; height: 14px;"></span>
+                        <span class="skeleton-shimmer" style="width: 60px; height: 14px;"></span>
+                    </div>
+                    <div class="report-cat-progress-wrapper" style="margin-top: 8px;">
+                        <div class="skeleton-shimmer" style="width: 100%; height: 100%;"></div>
+                    </div>
+                </div>
+                <div class="report-cat-row" style="pointer-events: none; border-color: var(--border-color); opacity: 0.7;">
+                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                        <span class="skeleton-shimmer" style="width: 100px; height: 14px;"></span>
+                        <span class="skeleton-shimmer" style="width: 50px; height: 14px;"></span>
+                    </div>
+                    <div class="report-cat-progress-wrapper" style="margin-top: 8px;">
+                        <div class="skeleton-shimmer" style="width: 100%; height: 100%;"></div>
+                    </div>
+                </div>
+                <div class="report-cat-row" style="pointer-events: none; border-color: var(--border-color); opacity: 0.7;">
+                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                        <span class="skeleton-shimmer" style="width: 70px; height: 14px;"></span>
+                        <span class="skeleton-shimmer" style="width: 70px; height: 14px;"></span>
+                    </div>
+                    <div class="report-cat-progress-wrapper" style="margin-top: 8px;">
+                        <div class="skeleton-shimmer" style="width: 100%; height: 100%;"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        try {
+            const res = await fetch(`/api/finance_report?year=${year}&month=${month}`);
+            const data = await res.json();
+
+            if (data.status === 'no_data') {
+                document.getElementById('report_total_expense').innerText = '$0';
+                document.getElementById('report_total_income').innerText = '$0';
+                document.getElementById('report_total_balance').innerText = '$0';
+
+                document.getElementById('report_category_list').innerHTML = `
+                    <div style="text-align:center; padding: 30px 20px; color: var(--text-muted); font-size: 0.82rem;">
+                        ⚠️ 該月份 (${year}-${month.toString().padStart(2, '0')}) 尚無記帳資料
+                    </div>
+                `;
+
+                if (window.financeReportChart) {
+                    window.financeReportChart.destroy();
+                    window.financeReportChart = null;
+                }
+                
+                // 隱藏股票概覽
+                document.getElementById('report_premium_stock_section').style.display = 'none';
+                document.getElementById('report_locked_stock_section').style.display = 'block';
+                return;
+            }
+
+            if (data.status === 'format_error') {
+                document.getElementById('report_total_expense').innerText = '錯誤';
+                document.getElementById('report_total_income').innerText = '錯誤';
+                document.getElementById('report_total_balance').innerText = '錯誤';
+                document.getElementById('report_category_list').innerHTML = `
+                    <div style="text-align:center; padding: 20px; color: #ef4444; font-size: 0.8rem; font-weight: 700;">
+                        ❌ ${data.message}
+                    </div>
+                `;
+                if (window.financeReportChart) {
+                    window.financeReportChart.destroy();
+                    window.financeReportChart = null;
+                }
+                return;
+            }
+
+            if (data.status === 'success') {
+                // 渲染收支結餘
+                document.getElementById('report_total_expense').innerText = '$' + Math.round(data.total_expense).toLocaleString();
+                document.getElementById('report_total_income').innerText = '$' + Math.round(data.total_income).toLocaleString();
+                
+                const balanceVal = Math.round(data.balance);
+                const balanceEl = document.getElementById('report_total_balance');
+                balanceEl.innerText = (balanceVal >= 0 ? '$' : '-$') + Math.abs(balanceVal).toLocaleString();
+                balanceEl.style.color = balanceVal >= 0 ? '#10b981' : '#ef4444';
+
+                // 繪製圓餅圖 (只繪製有支出金額的母分類)
+                const categories = data.categories || {};
+                const sortedCats = Object.entries(categories).sort((a, b) => b[1] - a[1]);
+
+                let chartLabels = [];
+                let chartData = [];
+                let otherSum = 0;
+
+                for (let i = 0; i < sortedCats.length; i++) {
+                    if (i < 5) {
+                        chartLabels.push(sortedCats[i][0]);
+                        chartData.push(Math.round(sortedCats[i][1]));
+                    } else {
+                        otherSum += sortedCats[i][1];
+                    }
+                }
+                if (otherSum > 0) {
+                    chartLabels.push("其他");
+                    chartData.push(Math.round(otherSum));
+                }
+
+                if (window.financeReportChart) {
+                    window.financeReportChart.destroy();
+                }
+
+                if (chartData.length > 0) {
+                    const ctx = document.getElementById('financeReportPieChart').getContext('2d');
+                    const textColor = window.getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim() || '#1e293b';
+                    const borderColor = window.getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim() || '#e2e8f0';
+                    window.financeReportChart = new Chart(ctx, {
+                        type: 'pie',
+                        plugins: [ChartDataLabels],
+                        data: {
+                            labels: chartLabels,
+                            datasets: [{
+                                data: chartData,
+                                backgroundColor: ['#a3b899', '#e2b4bd', '#97a2a8', '#c8b6ff', '#ffdab9', '#ffd3b6', '#d6e2e9', '#dfd7c3'],
+                                borderWidth: 1,
+                                borderColor: borderColor
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        boxWidth: 10,
+                                        font: { size: 9 },
+                                        color: textColor
+                                    }
+                                },
+                                datalabels: {
+                                    color: '#1e293b',
+                                    font: {
+                                        weight: '800',
+                                        size: 10
+                                    },
+                                    formatter: (value, ctx) => {
+                                        const sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                        if (sum === 0) return '';
+                                        const percentage = Math.round((value / sum) * 100);
+                                        return percentage + '%';
+                                    },
+                                    display: (ctx) => {
+                                        const value = ctx.dataset.data[ctx.dataIndex];
+                                        const sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                        if (sum === 0) return false;
+                                        return (value / sum) >= 0.05;
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    const ctx = document.getElementById('financeReportPieChart').getContext('2d');
+                    ctx.clearRect(0, 0, 220, 220);
+                }
+
+                // 渲染分類明細
+                let catListHtml = '';
+                const totalExpense = data.total_expense || 1;
+
+                for (const [catName, catAmt] of sortedCats) {
+                    const pct = Math.round((catAmt / totalExpense) * 100);
+                    
+                    const subcats = data.subcategories[catName] || {};
+                    const sortedSubcats = Object.entries(subcats).sort((a, b) => b[1] - a[1]);
+                    let subcatHtml = '';
+                    
+                    for (const [subName, subAmt] of sortedSubcats) {
+                        subcatHtml += `
+                            <div class="report-subcat-item">
+                                <span>└─ ${subName}</span>
+                                <span class="sub-val">$${Math.round(subAmt).toLocaleString()}</span>
+                            </div>
+                        `;
+                    }
+
+                    catListHtml += `
+                        <div class="report-cat-row" onclick="window.toggleReportSubcat(this)">
+                            <div class="report-cat-header">
+                                <div class="report-cat-title-group">
+                                    <span class="expand-arrow">▶</span>
+                                    <span>${catName}</span>
+                                </div>
+                                <div class="report-cat-amount-group">
+                                    <span>$${Math.round(catAmt).toLocaleString()}</span>
+                                    <small style="color: var(--text-muted); font-size: 0.72rem;">${pct}%</small>
+                                </div>
+                            </div>
+                            <div class="report-cat-progress-wrapper">
+                                <div class="report-cat-progress" style="width: ${pct}%"></div>
+                            </div>
+                            <div class="report-subcat-list" style="display: none;">
+                                ${subcatHtml || '<div style="padding:4px 8px; color:var(--text-muted); font-size:0.75rem;">無子分類細項</div>'}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('report_category_list').innerHTML = catListHtml || '<div style="text-align:center; padding: 20px; color:var(--text-muted); font-size:0.8rem;">無支出資料</div>';
+
+                const premSection = document.getElementById('report_premium_stock_section');
+                const lockSection = document.getElementById('report_locked_stock_section');
+                if (data.is_premium) {
+                    if (premSection) premSection.style.display = 'block';
+                    if (lockSection) lockSection.style.display = 'none';
+
+                    document.getElementById('report_stock_expense').innerText = '$' + Math.round(data.stock_expense).toLocaleString();
+                    
+                    const unrealizedVal = Math.round(data.stock_unrealized_roi);
+                    const unrealizedEl = document.getElementById('report_stock_unrealized_roi');
+                    unrealizedEl.innerText = (unrealizedVal >= 0 ? '+' : '-') + '$' + Math.abs(unrealizedVal).toLocaleString();
+                    unrealizedEl.style.color = unrealizedVal >= 0 ? '#10b981' : '#ef4444';
+
+                    const realizedVal = Math.round(data.stock_realized_roi);
+                    const realizedEl = document.getElementById('report_stock_realized_roi');
+                    realizedEl.innerText = (realizedVal >= 0 ? '+' : '-') + '$' + Math.abs(realizedVal).toLocaleString();
+                    realizedEl.style.color = realizedVal >= 0 ? '#10b981' : '#ef4444';
+                } else {
+                    if (premSection) premSection.style.display = 'none';
+                    if (lockSection) lockSection.style.display = 'block';
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            document.getElementById('report_category_list').innerHTML = `
+                <div style="text-align:center; padding: 20px; color: #ef4444; font-size: 0.8rem;">
+                    ❌ 載入失敗，伺服器或連線異常
+                </div>
+            `;
+        } finally {
+            if (queryBtn) {
+                queryBtn.disabled = false;
+                queryBtn.innerHTML = '查詢';
+            }
+            if (pieChartCanvas) pieChartCanvas.style.display = 'block';
+            if (chartPlaceholder) chartPlaceholder.style.display = 'none';
+        }
+    };
+
+    window.toggleReportSubcat = (rowEl) => {
+        const subList = rowEl.querySelector('.report-subcat-list');
+        const arrow = rowEl.querySelector('.expand-arrow');
+        if (!subList) return;
+
+        if (subList.style.display === 'none') {
+            subList.style.display = 'flex';
+            subList.style.flexDirection = 'column';
+            rowEl.classList.add('expanded');
+            if (arrow) arrow.innerText = '▼';
+        } else {
+            subList.style.display = 'none';
+            rowEl.classList.remove('expanded');
+            if (arrow) arrow.innerText = '▶';
+        }
+    };
+
+    // =================================================================
+    // 💳 個人資產帳戶與淨值總覽儀表板 (V3.8 Asset Accounts CRUD)
+    // =================================================================
+    
+    window.assetAccountsList = [];
+    window.editingAssetAccountId = null;
+
+    window.openAssetAccountsModal = () => {
+        window.openModal('assetAccountsModal');
+        window.hideAssetAccountForm();
+        window.loadAssetAccounts();
+    };
+
+    window.showAssetAccountForm = (item = null) => {
+        document.getElementById('asset_accounts_list_view').style.display = 'none';
+        document.getElementById('asset_accounts_form_view').style.display = 'block';
+        
+        if (item) {
+            window.editingAssetAccountId = item.id;
+            document.getElementById('asset_account_id').value = item.id;
+            document.getElementById('asset_account_name').value = item.name;
+            document.getElementById('asset_account_type').value = item.type;
+            document.getElementById('asset_account_balance').value = item.balance;
+            document.getElementById('asset_account_remark').value = item.remark;
+        } else {
+            window.editingAssetAccountId = null;
+            document.getElementById('asset_account_id').value = '';
+            document.getElementById('asset_account_name').value = '';
+            document.getElementById('asset_account_type').value = '活儲';
+            document.getElementById('asset_account_balance').value = '0';
+            document.getElementById('asset_account_remark').value = '';
+        }
+    };
+
+    window.hideAssetAccountForm = () => {
+        document.getElementById('asset_accounts_list_view').style.display = 'block';
+        document.getElementById('asset_accounts_form_view').style.display = 'none';
+        window.editingAssetAccountId = null;
+    };
+
+    window.loadAssetAccounts = async (silent = false) => {
+        const container = document.getElementById('asset_accounts_list_container');
+        if (!silent && container) {
+            container.innerHTML = `<div style="text-align: center; padding: 20px; color: #94a3b8;">⏳ 正在讀取資產帳戶...</div>`;
+        }
+        
+        try {
+            const res = await fetch('/api/asset_accounts');
+            const data = await res.json();
+            if (data.status === 'success') {
+                window.assetAccountsList = data.accounts || [];
+                const stockValue = data.stock_value || 0;
+                
+                // 動態更新連動帳戶選單 (V3.8 Step 2)
+                if (typeof window.updateLinkedAssetAccountDropdown === 'function') {
+                    window.updateLinkedAssetAccountDropdown();
+                }
+                
+                if (silent) return;
+                
+                let liquidTotal = 0;
+                container.innerHTML = '';
+                
+                if (window.assetAccountsList.length === 0) {
+                    container.innerHTML = `<div style="text-align: center; padding: 30px; color: #94a3b8; font-size: 0.85rem;">💳 尚未建立 any 資產帳戶唷！</div>`;
+                } else {
+                    window.assetAccountsList.forEach(item => {
+                        liquidTotal += item.balance;
+                        
+                        const emojiMap = {
+                            '活儲': '🏦', 
+                            '定存': '🔒', 
+                            '緊急備用金': '🛡️', 
+                            '現金': '💵', 
+                            '證券': '📈', 
+                            '貸款': '📉', 
+                            '其他': '💼'
+                        };
+                        const emoji = emojiMap[item.type] || '💰';
+                        
+                        const card = document.createElement('div');
+                        card.className = 'asset-account-card';
+                        
+                        const remarkText = item.remark ? `<div class="account-remark">${item.remark}</div>` : '';
+                        const timeText = item.updated_time ? `<div class="account-time">🕒 ${item.updated_time}</div>` : '';
+                        
+                        card.innerHTML = `
+                            <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                                <div style="font-size: 1.25rem; background: rgba(148, 163, 184, 0.1); padding: 8px; border-radius: 12px; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; box-sizing: border-box;">${emoji}</div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div class="account-name">${item.name}</div>
+                                    <div class="account-type">${item.type}</div>
+                                    ${remarkText}
+                                    ${timeText}
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 12px; margin-left: 8px;">
+                                <div style="text-align: right;">
+                                    <div class="account-balance" style="color: ${item.balance >= 0 ? '#10b981' : '#f43f5e'};">$${item.balance.toLocaleString()}</div>
+                                </div>
+                                <div style="display: flex; gap: 4px;">
+                                    <button class="action-edit-btn" title="對帳/編輯">✏️</button>
+                                    <button class="action-delete-btn" title="刪除">🗑️</button>
+                                </div>
+                            </div>
+                        `;
+                        
+                        card.querySelector('.action-edit-btn').addEventListener('click', () => {
+                            window.showAssetAccountForm(item);
+                        });
+                        card.querySelector('.action-delete-btn').addEventListener('click', () => {
+                            window.deleteAssetAccount(item.id);
+                        });
+                        
+                        container.appendChild(card);
+                    });
+                }
+                
+                const netWorth = liquidTotal + stockValue;
+                document.getElementById('net_worth_amount').innerText = `$${netWorth.toLocaleString()}`;
+                document.getElementById('liquid_assets_amount').innerText = `$${liquidTotal.toLocaleString()}`;
+                document.getElementById('stock_assets_amount').innerText = `$${stockValue.toLocaleString()}`;
+                
+            } else {
+                if (!silent) container.innerHTML = `<div style="text-align: center; padding: 20px; color: #ef4444;">❌ 載入失敗：${data.message}</div>`;
+            }
+        } catch (err) {
+            console.error(err);
+            if (!silent) container.innerHTML = `<div style="text-align: center; padding: 20px; color: #ef4444;">❌ 連線失敗，請重試</div>`;
+        }
+    };
+
+    window.saveAssetAccount = async () => {
+        const id = document.getElementById('asset_account_id').value;
+        const name = document.getElementById('asset_account_name').value.trim();
+        const type = document.getElementById('asset_account_type').value;
+        const balanceVal = document.getElementById('asset_account_balance').value.trim();
+        const remark = document.getElementById('asset_account_remark').value.trim();
+        
+        if (!name) {
+            window.showToast('請輸入帳戶名稱', 'warning');
+            return;
+        }
+        if (balanceVal === '') {
+            window.showToast('請輸入當前餘額', 'warning');
+            return;
+        }
+        
+        const balance = parseInt(balanceVal);
+        if (isNaN(balance)) {
+            window.showToast('餘額必須為整數數字', 'warning');
+            return;
+        }
+        
+        const payload = { id, name, type, balance, remark };
+        const url = id ? '/api/asset_accounts/update' : '/api/asset_accounts';
+        
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                window.showToast(data.message || '儲存成功！', 'success');
+                window.hideAssetAccountForm();
+                window.loadAssetAccounts();
+            } else {
+                window.showToast(data.message || '儲存失敗', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            window.showToast('連線失敗，請重試', 'error');
+        }
+    };
+
+    window.deleteAssetAccount = async (id) => {
+        if (!id) return;
+        
+        const account = window.assetAccountsList.find(a => a.id === id);
+        const accountName = account ? account.name : '此帳戶';
+        
+        const confirmed = confirm(`確定要刪除「${accountName}」嗎？\n此動作將一併刪除此帳戶於試算表中的所有記錄。`);
+        if (!confirmed) return;
+        
+        try {
+            const res = await fetch('/api/asset_accounts/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                window.showToast('帳戶已成功刪除', 'success');
+                window.loadAssetAccounts();
+            } else {
+                window.showToast(data.message || '刪除失敗', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            window.showToast('連線失敗，請重試', 'error');
+        }
+    };
+
+    // 對話記帳歧義卡片點擊連動 (V3.8 Step 2)
+    window.linkTransactionToAsset = async (rowNum, assetAccountId, amountChange, btnEl) => {
+        if (btnEl) {
+            const parent = btnEl.parentElement;
+            if (parent) {
+                const buttons = parent.querySelectorAll('button');
+                buttons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                });
+            }
+        }
+        
+        try {
+            const res = await fetch('/api/link_transaction_asset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    row_num: rowNum,
+                    asset_account_id: assetAccountId,
+                    amount_change: amountChange
+                })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                window.showToast(data.message || '連動成功！', 'success');
+                if (typeof window.loadAssetAccounts === 'function') {
+                    window.loadAssetAccounts(true);
+                }
+            } else {
+                window.showToast(data.message || '連動失敗', 'error');
+                if (btnEl && btnEl.parentElement) {
+                    const buttons = btnEl.parentElement.querySelectorAll('button');
+                    buttons.forEach(btn => {
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                    });
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            window.showToast('連線失敗，請重試', 'error');
+            if (btnEl && btnEl.parentElement) {
+                const buttons = btnEl.parentElement.querySelectorAll('button');
+                buttons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                });
+            }
+        }
+    };
+
+    // 背景靜默載入固定支出與資產帳戶列表
+    setTimeout(() => {
+        window.loadFixedExpenses(true);
+        window.loadAssetAccounts(true);
+    }, 1500);
 });
+

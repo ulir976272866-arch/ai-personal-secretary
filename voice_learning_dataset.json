@@ -1,0 +1,89 @@
+[
+  {
+    "input": "晚餐壽司170然後飲料50",
+    "description": "單句語音中包含多筆消費項目與金額",
+    "expected_output": [
+      {
+        "type": "expense",
+        "item": "晚餐壽司",
+        "amount": 170,
+        "category": "食",
+        "sub_category": "晚餐",
+        "expense_type": "expense",
+        "learned_keyword": "壽司"
+      },
+      {
+        "type": "expense",
+        "item": "飲料",
+        "amount": 50,
+        "category": "食",
+        "sub_category": "飲料／咖啡",
+        "expense_type": "expense",
+        "learned_keyword": "飲料"
+      }
+    ]
+  },
+  {
+    "input": "買了高鐵票1500元跟早午餐220",
+    "description": "跨不同母分類的多筆消費語音",
+    "expected_output": [
+      {
+        "type": "expense",
+        "item": "高鐵票",
+        "amount": 1500,
+        "category": "行",
+        "sub_category": "高鐵／火車",
+        "expense_type": "expense",
+        "learned_keyword": "高鐵"
+      },
+      {
+        "type": "expense",
+        "item": "早午餐",
+        "amount": 220,
+        "category": "食",
+        "sub_category": "午餐",
+        "expense_type": "expense",
+        "learned_keyword": "早午餐"
+      }
+    ]
+  },
+  {
+    "input": "今天去全家買咖啡 45 元、吃中飯便當 100 元",
+    "description": "多筆消費包含全家與便當，分類與子分類解析",
+    "expected_output": [
+      {
+        "type": "expense",
+        "item": "全家咖啡",
+        "amount": 45,
+        "category": "食",
+        "sub_category": "飲料／咖啡",
+        "expense_type": "expense",
+        "learned_keyword": "全家"
+      },
+      {
+        "type": "expense",
+        "item": "中飯便當",
+        "amount": 100,
+        "category": "食",
+        "sub_category": "午餐",
+        "expense_type": "expense",
+        "learned_keyword": "便當"
+      }
+    ]
+  },
+  {
+    "input": "收到諮詢隨喜小費 500 元",
+    "description": "收入記帳與子分類匹配",
+    "expected_output": [
+      {
+        "type": "expense",
+        "item": "諮詢隨喜小費",
+        "amount": 500,
+        "category": "副業收入",
+        "sub_category": "諮詢隨喜/小費",
+        "expense_type": "income",
+        "learned_keyword": "諮詢隨喜"
+      }
+    ]
+  }
+]

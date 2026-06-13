@@ -12,13 +12,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="UniTask">
     
-    <link rel="stylesheet" href="/static/css/style.css?v=6.3">
+    <link rel="stylesheet" href="/static/css/style.css?v=10.0">
     <link rel="apple-touch-icon" href="/static/icons/icon.png">
     <link rel="icon" type="image/png" href="/static/icons/icon.png">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Chart.js (v4.4.3 pinned, bundled build - no sourceMappingURL to avoid 404 DevTools warnings) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 
     <script>
         // ☀️🌙 初始化深色模式 (立即執行以防止畫面閃爍 FOUC)
@@ -471,24 +472,24 @@
                         {% endif %}
                     </div>
                     {% endif %}
+                </div>
+            </div>
 
-                    <!-- 深色模式切換開關（AI 點數膠囊下方） -->
-                    <div id="themeToggleBtn" class="theme-switch-wrapper theme-switch-below-pill" title="切換深淺色模式">
-                        <span class="theme-switch-label">深色模式</span>
-                        <div class="theme-switch-track">
-                            <div class="theme-switch-thumb">
-                                <span class="thumb-icon-sun">☀️</span>
-                                <span class="thumb-icon-moon">🌙</span>
-                            </div>
+            <!-- 標題 + 深色模式切換 並列行（全寬，標題靠左，開關靠右） -->
+            <div class="header-title-theme-row">
+                <div class="header-titles-inline">
+                    <h1 class="main-title">AI 專屬秘書</h1>
+                    <p class="sub-title">您的個人智慧管家</p>
+                </div>
+                <!-- 僅保留 icon，不顯示文字 -->
+                <div id="themeToggleBtn" class="theme-switch-wrapper theme-switch-below-pill" title="切換深淺色模式">
+                    <div class="theme-switch-track">
+                        <div class="theme-switch-thumb">
+                            <span class="thumb-icon-sun">☀️</span>
+                            <span class="thumb-icon-moon">🌙</span>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- 第二排：主副標題 -->
-            <div class="header-titles-row">
-                <h1 class="main-title">AI 專屬秘書</h1>
-                <p class="sub-title">您的個人智慧管家</p>
             </div>
         </div>
 
@@ -496,50 +497,11 @@
     <div class="action-card">
         <!-- 第一層：母分頁 -->
         <div class="parent-tabs">
-            <button class="tab-btn active" id="tab_btn_finance" onclick="switchTab('finance', event)">💰 記帳</button>
+            <button class="tab-btn" id="tab_btn_finance" onclick="switchTab('finance', event)">💰 記帳</button>
             <button class="tab-btn" id="tab_btn_schedule" onclick="switchTab('schedule', event)"><span class="dynamic-date-wrapper"><span class="date-top"></span><span class="date-num current-day-val"></span></span> 行程 {% if session.get('subscription_type') == 'NONE' %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
             <button class="tab-btn" id="tab_btn_memo" onclick="switchTab('memo', event)">📝 備忘 {% if session.get('subscription_type') == 'NONE' %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
             <button class="tab-btn tab-health" id="tab_btn_health" onclick="switchTab('health', event)">🌸 女性 {% if session.get('subscription_type') == 'NONE' %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
             <button class="tab-btn" id="tab_btn_stock" onclick="switchTab('stock', event)">📈 存股 {% if not session.get('subscription_type') or session.get('subscription_type') in ['NONE', 'MONTHLY_AI'] %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
-        </div>
-        
-        <!-- 第二層：子功能選單 -->
-        <div class="sub-menu-area">
-            <!-- 記帳子選單 (預設 Active) -->
-            <div id="sub_finance" class="sub-menu active">
-                <button class="sub-btn" onclick="openModal('expenseModal')">💰 我要記帳</button>
-                <button class="sub-btn" onclick="openFixedExpensesModal()">⏰ 固定支出</button>
-                <button class="sub-btn" onclick="queryFinanceSummary()">📊 本月合計</button>
-                <button class="sub-btn" onclick="window.open('{{ finance_sheet_url }}', '_blank')">☁️ 雲端帳簿</button>
-            </div>
-            <!-- 存股子選單 -->
-            <div id="sub_stock" class="sub-menu">
-                <button class="sub-btn" onclick="openAddStockTxModal()">➕ 新增持股</button>
-                <button class="sub-btn" onclick="queryStockPortfolioSummary()">💼 持股查詢</button>
-                <button class="sub-btn" onclick="openStockDashboard()">📊 存股看板</button>
-                <button class="sub-btn" onclick="openCloudStockSheet('{{ stock_sheet_url }}')">☁️ 雲端庫存</button>
-            </div>
-            <!-- 行程子選單 -->
-            <div id="sub_schedule" class="sub-menu">
-                <button class="sub-btn" onclick="openModal('scheduleModal')">➕ 新增行程</button>
-                <button class="sub-btn" onclick="querySchedule(1)"><span class="dynamic-date-wrapper"><span class="date-top"></span><span class="date-num current-day-val"></span></span> 今日行程</button>
-                <button class="sub-btn" onclick="querySchedule(7)">🗓️ 本週行程</button>
-                <button class="sub-btn" onclick="querySchedule(30)">📊 近30日</button>
-            </div>
-            <!-- 備忘子選單 -->
-            <div id="sub_memo" class="sub-menu">
-                <button class="sub-btn" id="sub_btn_diary" onclick="openModal('memoModal')">📔 生活紀錄</button>
-                <button class="sub-btn" id="sub_btn_todo" onclick="openModal('todoModal')">✅ 待辦事項</button>
-                <button class="sub-btn" id="sub_btn_pocket" onclick="openModal('pocketModal')">📍 口袋名單</button>
-                <button class="sub-btn" id="sub_btn_wishlist" onclick="openModal('wishlistModal')">🎁 願望清單</button>
-            </div>
-            <!-- 健康子選單 -->
-            <div id="sub_health" class="sub-menu">
-                <button class="sub-btn" onclick="openModal('healthModal')">🌸 經期看板</button>
-                <button class="sub-btn" onclick="openModal('trackingModal')">🌡️ 生理追蹤</button>
-                <button class="sub-btn" onclick="openModal('menstrualBackfillModal')">📝 生理歷程</button>
-                <button class="sub-btn" onclick="window.open('{{ symptom_sheet_url }}', '_blank')">🩺 生理症狀表</button>
-            </div>
         </div>
     </div>
 
@@ -580,7 +542,7 @@
     </div>
 
     <!-- 手動新增行程 Modal -->
-    <div id="scheduleModal" class="modal-backdrop">
+    <div id="scheduleModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">📅 新增行程</h2>
@@ -653,7 +615,7 @@
     </div>
 
     <!-- 待辦清單 Modal -->
-    <div id="todoModal" class="modal-backdrop">
+    <div id="todoModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">✅ 待辦清單</h2>
@@ -669,7 +631,7 @@
                         <input type="hidden" id="todo_category" value="">
                         <div id="todo_cat_dropdown" class="todo-dropdown-content"></div>
                     </div>
-                    <input type="text" id="todo_title" placeholder="輸入新任務..." autocomplete="off" style="flex: 1; min-width: 0; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff;">
+                    <input type="text" id="todo_title" placeholder="輸入新任務..." autocomplete="off" style="flex: 1; min-width: 0; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none;">
                     <button id="submitTodoBtn" onclick="saveTodo()" style="background: #3b82f6; color: white; border: none; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.3; pointer-events: none; transition: all 0.2s;">✓</button>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 15px; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch;">
@@ -695,7 +657,7 @@
     </div>
 
     <!-- 口袋名單 Modal -->
-    <div id="pocketModal" class="modal-backdrop">
+    <div id="pocketModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">📍 口袋名單</h2>
@@ -712,7 +674,21 @@
                     </button>
                 </div>
                 <div id="pocket_form_card_container" style="padding: 15px; background: #f8fafc; border-radius: 16px; margin-bottom: 15px; border: 1px solid #f1f5f9; display: block;">
+                    <!-- 第一行：搜尋店名或景點 (主要輸入區) + 送出按鈕 -->
                     <div style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center; width: 100%;">
+                        <div class="pocket-autocomplete-wrapper" style="flex: 1; min-width: 0; position: relative;">
+                            <input type="text" id="pocket_name" placeholder="搜尋店名或景點" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px;">
+                        </div>
+                        <button id="submitPocket" style="background: #14b8a6; color: white; border: none; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.3; pointer-events: none; transition: all 0.2s;">✓</button>
+                    </div>
+                    
+                    <!-- 第二行：地址 (完整寬度) -->
+                    <input type="text" id="pocket_location" placeholder="地址 (可手動修改或自動填入)" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; margin-bottom: 10px; height: 42px;">
+                    <div id="detected_area_display" style="font-size: 0.75rem; color: #0d9488; margin-bottom: 10px; padding-left: 5px; font-weight: 600; display: none;">📍 偵測區域：<span id="detected_area_val"></span></div>
+                    <input type="hidden" id="pocket_area" value="">
+                    
+                    <!-- 第三行：分類選擇 + 備忘 (合併同一行) -->
+                    <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
                         <div id="custom_cat_dropdown" class="custom-select" style="width: 110px; position: relative; flex-shrink: 0;">
                             <div id="selected_cat" onclick="toggleCatDropdown()" style="padding: 10px 8px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.8rem; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 42px; white-space: nowrap; overflow: hidden;">
                                 <span style="overflow: hidden; text-overflow: ellipsis;">請選擇</span>
@@ -720,26 +696,21 @@
                             </div>
                             <div id="cat_options" class="todo-dropdown-content"></div>
                         </div>
-                        <div class="pocket-autocomplete-wrapper" style="flex: 1; min-width: 0; position: relative;">
-                            <input type="text" id="pocket_name" placeholder="搜尋店名或景點" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px;">
-                        </div>
-                        <button id="submitPocket" style="background: #14b8a6; color: white; border: none; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.3; pointer-events: none; transition: all 0.2s;">✓</button>
+                        <input type="text" id="pocket_note" placeholder="備忘/備忘 (選填)" style="flex: 1; min-width: 0; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px;">
                     </div>
-                    <input type="text" id="pocket_location" placeholder="地址 (可手動修改或自動填入)" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; margin-bottom: 8px; background: #fff; height: 42px;">
-                    <div id="detected_area_display" style="font-size: 0.75rem; color: #0d9488; margin-bottom: 10px; padding-left: 5px; font-weight: 600; display: none;">📍 偵測區域：<span id="detected_area_val"></span></div>
-                    <input type="hidden" id="pocket_area" value="">
-                    <input type="text" id="pocket_note" placeholder="備註 (選填)" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px;">
                 </div>
 
                 <!-- 口袋景點專屬：類別與地區篩選列 -->
-                <div id="pocket_filter_bar_container" style="display: flex; gap: 8px; margin-bottom: 15px; align-items: center;">
-                    <input type="text" id="pocket_keyword_search" placeholder="🔍 搜尋店名/景點..." oninput="window.handlePocketKeywordSearch(this.value)" style="flex: 1.2; padding: 10px; border-radius: 12px; border: 1.5px solid #f1f5f9; background: #f8fafc; font-size: 0.85rem; font-weight: 600; color: #475569; outline: none; box-sizing: border-box; transition: all 0.2s;">
-                    <select id="pocket_filter_cat" onchange="window.setPocketFilter(this.value)" style="flex: 1; border-radius: 12px; border: 1.5px solid #f1f5f9; font-size: 0.85rem; font-weight: 600; color: #475569;">
-                        <option value="全部">🌟 全部類別</option>
-                    </select>
-                    <select id="pocket_filter_area" onchange="window.setAreaFilter(this.value)" style="flex: 1; border-radius: 12px; border: 1.5px solid #f1f5f9; font-size: 0.85rem; font-weight: 600; color: #475569;">
-                        <option value="全部">📍 全部地區</option>
-                    </select>
+                <div id="pocket_filter_bar_container" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; width: 100%; box-sizing: border-box;">
+                    <div style="display: flex; gap: 8px; width: 100%;">
+                        <select id="pocket_filter_cat" onchange="window.setPocketFilter(this.value)" style="flex: 1; min-width: 0; height: 38px; padding: 0 10px; border-radius: 12px; border: 1.5px solid #f1f5f9; background: #fff; color: #475569; font-size: 0.85rem; font-weight: 600; outline: none; box-sizing: border-box; cursor: pointer;">
+                            <option value="全部">🌟 全部類別</option>
+                        </select>
+                        <select id="pocket_filter_area" onchange="window.setAreaFilter(this.value)" style="flex: 1; min-width: 0; height: 38px; padding: 0 10px; border-radius: 12px; border: 1.5px solid #f1f5f9; background: #fff; color: #475569; font-size: 0.85rem; font-weight: 600; outline: none; box-sizing: border-box; cursor: pointer;">
+                            <option value="全部">📍 全部地區</option>
+                        </select>
+                    </div>
+                    <input type="text" id="pocket_keyword_search" placeholder="🔍 搜尋店名/景點..." oninput="window.handlePocketKeywordSearch(this.value)" style="width: 100%; height: 38px; padding: 10px 14px; border-radius: 12px; border: 1.5px solid #f1f5f9; background: #f8fafc; font-size: 0.85rem; font-weight: 600; color: #475569; outline: none; box-sizing: border-box; transition: all 0.2s;">
                 </div>
 
                 <!-- 🔍 常用地址模糊查詢搜尋框 (V1.0 Classic Layout) -->
@@ -757,7 +728,7 @@
     </div>
 
     <!-- 生活日記 Modal -->
-    <div id="memoModal" class="modal-backdrop">
+    <div id="memoModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">📝 生活日記</h2>
@@ -803,7 +774,7 @@
     </div>
 
     <!-- 願望清單 Modal -->
-    <div id="wishlistModal" class="modal-backdrop">
+    <div id="wishlistModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">🎁 願望清單</h2>
@@ -845,7 +816,7 @@
         </div>
     </div>
     <!-- 手動記帳與代墊款彈窗 -->
-    <div id="expenseModal" class="modal-backdrop">
+    <div id="expenseModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content" style="max-width: 480px;">
             <div class="modal-header" style="flex-direction: column; align-items: stretch; gap: 10px; border-bottom: none; padding-bottom: 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -904,8 +875,16 @@
                         </div>
                         
                         <!-- ③ 項目輸入框 -->
-                        <input type="text" id="expense_item" class="form-input" placeholder="消費了什麼？" style="flex: 1; min-width: 0; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff; margin-bottom: 0; box-sizing: border-box;">
+                        <input type="text" id="expense_item" class="form-input" placeholder="消費了什麼？" style="flex: 1; min-width: 0; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; margin-bottom: 0; box-sizing: border-box;">
                     </div>
+                </div>
+
+                <!-- 連動資產帳戶選擇 (V3.8 Step 1) -->
+                <div id="linked_asset_account_group" class="form-group" style="margin-bottom: 12px; display: none;">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #475569; margin-bottom: 6px;">連動資產帳戶</label>
+                    <select id="linked_asset_account_id" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; box-sizing: border-box; padding: 10px 12px; background: #fff; cursor: pointer;">
+                        <option value="">✕ 暫不連動</option>
+                    </select>
                 </div>
 
                 <div class="form-group" style="margin-bottom: 12px;">
@@ -996,7 +975,7 @@
     </div>
 
     <!-- 每月固定支出彈窗 (V3.7 Premium Fixed Expenses Modal) -->
-    <div id="fixedExpensesModal" class="modal-backdrop">
+    <div id="fixedExpensesModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">⏰ 每月固定支出設定</h2>
@@ -1006,16 +985,16 @@
             <div class="modal-body">
                 <!-- 1. 列表檢視畫面 -->
                 <div id="fixed_expenses_list_view">
-                    <div id="fixed_expenses_list_container" class="fixed-expenses-list" style="max-height: 45vh; overflow-y: auto; margin-bottom: 15px; padding-right: 2px;">
-                        <!-- 動態渲染卡片 -->
-                    </div>
-                    
-                    <div class="fixed-expense-total" style="background: rgba(13, 148, 136, 0.05); border: 1px solid rgba(13, 148, 136, 0.2); border-radius: 18px; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="fixed-expense-total" style="background: rgba(13, 148, 136, 0.05); border: 1px solid rgba(13, 148, 136, 0.2); border-radius: 18px; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted);">每月固定支出合計</span>
                         <span id="fixed_expense_total_amount" style="font-weight: 800; font-size: 1.1rem; color: #0d9488;">$0 / 月</span>
                     </div>
                     
-                    <button class="submit-btn" onclick="showFixedExpenseForm()" style="margin-top: 0; background: var(--primary-color); height: 42px;">＋ 新增固定支出</button>
+                    <button class="submit-btn" onclick="showFixedExpenseForm()" style="margin-top: 0; margin-bottom: 18px; background: var(--primary-color); height: 42px;">＋ 新增固定支出</button>
+
+                    <div id="fixed_expenses_list_container" class="fixed-expenses-list" style="max-height: 45vh; overflow-y: auto; padding-right: 2px;">
+                        <!-- 動態渲染卡片 -->
+                    </div>
                 </div>
                 
                 <!-- 2. 新增/編輯表單畫面 -->
@@ -1024,39 +1003,153 @@
                     
                     <div class="form-group" style="margin-bottom: 12px;">
                         <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">項目名稱</label>
-                        <input type="text" id="fixed_expense_name" class="form-input" placeholder="例如：房租、手機網路費" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
+                        <input type="text" id="fixed_expense_name" class="form-input" placeholder="例如：房租、手機網路費" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
                     </div>
                     
                     <div class="form-group" style="margin-bottom: 12px;">
                         <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">分類設定</label>
                         <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
                             <!-- 母分類 -->
-                            <select id="fixed_expense_category" class="form-input" onchange="window.onFixedExpenseCategoryChange(this.value)" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 8px; margin-bottom: 0;">
-                                <option value="">選擇母分類</option>
-                            </select>
+                            <div class="custom-select" style="flex: 1; position: relative;">
+                                <div id="selected_fixed_expense_cat" onclick="window.toggleFixedExpenseCategoryDropdown()" style="padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 42px; height: 42px; box-sizing: border-box; transition: border-color 0.2s;">
+                                    <span id="current_fixed_expense_cat_display">選擇母分類</span>
+                                    <small style="color: #94a3b8; font-size: 0.6rem;">▼</small>
+                                </div>
+                                <input type="hidden" id="fixed_expense_category" value="">
+                                <div id="fixed_expense_cat_dropdown" class="todo-dropdown-content" style="left: 0; width: max-content; min-width: 160px; white-space: nowrap;"></div>
+                            </div>
                             
                             <!-- 子分類 -->
-                            <select id="fixed_expense_sub_category" class="form-input" disabled style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 8px; margin-bottom: 0; opacity: 0.6;">
-                                <option value="">選擇子分類</option>
-                            </select>
+                            <div class="custom-select" id="fixed_expense_sub_cat_selector" style="flex: 1; position: relative; opacity: 0.6; pointer-events: none;">
+                                <div id="selected_fixed_expense_sub_cat" onclick="window.toggleFixedExpenseSubCategoryDropdown()" style="padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 42px; height: 42px; box-sizing: border-box; transition: border-color 0.2s;">
+                                    <span id="current_fixed_expense_sub_cat_display">選擇子分類</span>
+                                    <small style="color: #94a3b8; font-size: 0.6rem;">▼</small>
+                                </div>
+                                <input type="hidden" id="fixed_expense_sub_category" value="">
+                                <div id="fixed_expense_sub_cat_dropdown" class="todo-dropdown-content" style="left: 0; width: max-content; min-width: 160px; white-space: nowrap;"></div>
+                            </div>
                         </div>
                     </div>
                     
                     <div class="form-group" style="margin-bottom: 12px;">
                         <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">金額設定</label>
-                        <input type="text" id="fixed_expense_amount" class="form-input" placeholder="輸入固定支出金額" oninput="this.value = this.value.replace(/[^0-9]/g, '')" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
+                        <input type="text" id="fixed_expense_amount" class="form-input" placeholder="輸入固定支出金額" oninput="this.value = this.value.replace(/[^0-9]/g, '')" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">每月自動執行日</label>
+                        <div class="custom-select" style="width: 100%; position: relative;">
+                            <div id="selected_fixed_expense_day" onclick="window.toggleFixedExpenseDayDropdown()" style="padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 42px; height: 42px; box-sizing: border-box; transition: border-color 0.2s;">
+                                <span id="current_fixed_expense_day_display">每月 1 日</span>
+                                <small style="color: #94a3b8; font-size: 0.6rem;">▼</small>
+                            </div>
+                            <input type="hidden" id="fixed_expense_day" value="1">
+                            <div id="fixed_expense_day_dropdown" class="todo-dropdown-content" style="left: 0; width: 100%; min-width: 180px; box-sizing: border-box; white-space: nowrap;"></div>
+                        </div>
                     </div>
                     
                     <div class="form-group" style="margin-bottom: 18px;">
-                        <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">每月自動執行日</label>
-                        <select id="fixed_expense_day" class="form-input" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
-                            <!-- 1到28日 -->
-                        </select>
+                        <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">執行期間 (非必填)</label>
+                        <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
+                            <div style="flex: 1;">
+                                <small style="display: block; color: #64748b; margin-bottom: 4px; font-size: 0.75rem;">開始日期 (起日)</small>
+                                <input type="date" id="fixed_expense_start_date" class="form-input" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 42px; outline: none; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
+                            </div>
+                            <div style="flex: 1;">
+                                <small style="display: block; color: #64748b; margin-bottom: 4px; font-size: 0.75rem;">結束日期 (訖日)</small>
+                                <input type="date" id="fixed_expense_end_date" class="form-input" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 42px; outline: none; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
+                            </div>
+                        </div>
                     </div>
                     
                     <div style="display: flex; gap: 8px;">
                         <button class="submit-btn" onclick="saveFixedExpense()" style="flex: 1; margin-top: 0; background: var(--primary-color); height: 42px;">✅ 確認儲存</button>
                         <button class="submit-btn" onclick="hideFixedExpenseForm()" style="width: 90px; margin-top: 0; background: #94a3b8; color: white; height: 42px;">✕ 取消</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button onclick="window.open('{{ finance_sheet_url }}', '_blank')" class="sheet-link-btn">
+                    ☁️ 打開雲端試算表
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💳 個人資產帳戶與淨值總覽儀表板 (V3.8 Asset Accounts Modal) -->
+    <div id="assetAccountsModal" class="modal-backdrop full-screen-panel">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">💳 個人資產帳戶</h2>
+                <button class="close-modal" onclick="closeModal('assetAccountsModal')">✕</button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- 1. 列表與儀表板檢視畫面 -->
+                <div id="asset_accounts_list_view">
+                    <!-- Net Worth Dashboard -->
+                    <div class="net-worth-dashboard" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.04) 100%); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 20px; padding: 18px; margin-bottom: 18px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);">
+                        <div style="text-align: center; margin-bottom: 12px;">
+                            <span style="font-weight: 700; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">個人總資產 (Net Worth)</span>
+                            <div id="net_worth_amount" style="font-weight: 900; font-size: 1.8rem; color: #10b981; margin-top: 4px; font-family: 'Outfit', sans-serif;">$0</div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; border-top: 1px dashed rgba(148, 163, 184, 0.3); padding-top: 10px;">
+                            <div style="text-align: left; flex: 1; border-right: 1px solid rgba(148, 163, 184, 0.2); padding-right: 10px;">
+                                <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">💵 流動資產</span>
+                                <span id="liquid_assets_amount" style="font-weight: 700; font-size: 1.05rem; color: var(--text-main);">$0</span>
+                            </div>
+                            <div style="text-align: right; flex: 1; padding-left: 10px;">
+                                <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">📈 證券市值</span>
+                                <span id="stock_assets_amount" style="font-weight: 700; font-size: 1.05rem; color: var(--text-main);">$0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="submit-btn" onclick="showAssetAccountForm()" style="margin-top: 0; margin-bottom: 18px; background: var(--primary-color); height: 42px;">＋ 新增資產帳戶</button>
+
+                    <div id="asset_accounts_list_container" class="asset-expenses-list" style="max-height: 48vh; overflow-y: auto; padding-right: 2px;">
+                        <!-- 動態渲染帳戶卡片 -->
+                    </div>
+                </div>
+                
+                <!-- 2. 新增/編輯表單畫面 -->
+                <div id="asset_accounts_form_view" style="display: none;">
+                    <input type="hidden" id="asset_account_id">
+                    
+                    <div class="form-group" style="margin-bottom: 14px;">
+                          <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">帳戶名稱</label>
+                          <input type="text" id="asset_account_name" class="form-input" placeholder="例如：國泰活儲、現金口袋" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 14px;">
+                          <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">帳戶類型</label>
+                          <div class="custom-select" style="width: 100%; position: relative;">
+                              <select id="asset_account_type" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; box-sizing: border-box; padding: 10px 12px; background: #fff; cursor: pointer;">
+                                  <option value="活儲">活儲</option>
+                                  <option value="定存">定存</option>
+                                  <option value="緊急備用金">緊急備用金</option>
+                                  <option value="現金">現金</option>
+                                  <option value="證券">證券</option>
+                                  <option value="貸款">貸款</option>
+                                  <option value="其他">其他</option>
+                              </select>
+                          </div>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 14px;">
+                          <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">當前餘額 (對帳金額)</label>
+                          <input type="text" id="asset_account_balance" class="form-input" placeholder="輸入當前實際餘額" oninput="this.value = this.value.replace(/[^0-9-]/g, '')" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 20px;">
+                          <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">備註說明</label>
+                          <input type="text" id="asset_account_remark" class="form-input" placeholder="例如：日常用、定存到期日" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px;">
+                        <button class="submit-btn" onclick="saveAssetAccount()" style="flex: 1; margin-top: 0; background: var(--primary-color); height: 42px;">✅ 確認對帳儲存</button>
+                        <button class="submit-btn" onclick="hideAssetAccountForm()" style="width: 90px; margin-top: 0; background: #94a3b8; color: white; height: 42px;">✕ 取消</button>
                     </div>
                 </div>
             </div>
@@ -1083,12 +1176,12 @@
                 <div id="bill_split_friends_inputs" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted, #64748b); width: 60px; flex-shrink: 0;">朋友 1：</span>
-                        <input type="text" class="form-input friend-name-input" placeholder="例如：小明" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 38px; outline: none; background: #fff; padding: 0 10px; margin-bottom: 0; box-sizing: border-box;">
+                        <input type="text" class="form-input friend-name-input" placeholder="例如：小明" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 38px; outline: none; padding: 0 10px; margin-bottom: 0; box-sizing: border-box;">
                         <button type="button" onclick="removeFriendInput(this)" style="background: transparent; border: none; color: #ef4444; font-size: 1.1rem; cursor: pointer; display: none;">✕</button>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted, #64748b); width: 60px; flex-shrink: 0;">朋友 2：</span>
-                        <input type="text" class="form-input friend-name-input" placeholder="例如：阿偉" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 38px; outline: none; background: #fff; padding: 0 10px; margin-bottom: 0; box-sizing: border-box;">
+                        <input type="text" class="form-input friend-name-input" placeholder="例如：阿偉" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; height: 38px; outline: none; padding: 0 10px; margin-bottom: 0; box-sizing: border-box;">
                         <button type="button" onclick="removeFriendInput(this)" style="background: transparent; border: none; color: #ef4444; font-size: 1.1rem; cursor: pointer; display: none;">✕</button>
                     </div>
                 </div>
@@ -1112,15 +1205,15 @@
             <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 20px 24px;">
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">帳目名稱 / 事件描述</label>
-                    <input type="text" id="manual_split_description" class="form-input" placeholder="例如：朋友聚餐、出遊交通" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
+                    <input type="text" id="manual_split_description" class="form-input" placeholder="例如：朋友聚餐、出遊交通" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;">
                 </div>
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">消費分類與子分類 (實體記帳類別)</label>
                     <div style="display: flex; gap: 10px; width: 100%;">
                         <!-- 母分類 -->
-                        <select id="manual_split_category" class="form-input" onchange="window.onManualSplitCategoryChange(this.value)" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;"></select>
+                        <select id="manual_split_category" class="form-input" onchange="window.onManualSplitCategoryChange(this.value)" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;"></select>
                         <!-- 子分類 -->
-                        <select id="manual_split_sub_category" class="form-input" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; background: #fff; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;"></select>
+                        <select id="manual_split_sub_category" class="form-input" style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; height: 42px; outline: none; box-sizing: border-box; padding: 10px 12px; margin-bottom: 0;"></select>
                     </div>
                 </div>
                 
@@ -1363,11 +1456,11 @@
         <p style="margin-top: 10px; font-size: 0.8rem; color: rgba(255,255,255,0.6);">正在搜尋 NT$ 金額</p>
     </div>
     <!-- 健康看板 Modal -->
-    <div id="healthModal" class="modal-backdrop">
+    <div id="healthModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title" style="color: #e11d48;">🌸 生理期助理</h2>
-                <button class="close-modal" onclick="closeModal('healthModal')">✕</button>
+            <div class="modal-header" style="justify-content: flex-start; gap: 12px;">
+                <button class="back-btn" onclick="closeModal('healthModal')">← 返回</button>
+                <h2 class="modal-title" style="display: flex; align-items: center; gap: 8px; font-size: 1.15rem; font-weight: 800; color: #e11d48; margin: 0;">🌸 生理期助理</h2>
             </div>
             <div class="modal-body" style="padding-top: 10px;">
                 <!-- 💡 生理期冷啟動提示 (歷史紀錄不足時顯示) -->
@@ -1486,7 +1579,7 @@
     </div>
 
     <!-- 生理追蹤 Modal -->
-    <div id="trackingModal" class="modal-backdrop">
+    <div id="trackingModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
             <div class="modal-header" style="border-bottom-color: #ffe4e6;">
                 <h2 class="modal-title" style="color: #e11d48; display: flex; align-items: center; gap: 6px;">🌡️ 生理追蹤</h2>
@@ -1605,7 +1698,7 @@
     </div>
 
     <!-- 生理歷程與狀態管理 Modal (V17.0 歷史補登與清單) -->
-    <div id="menstrualBackfillModal" class="modal-backdrop" style="z-index: 9999;">
+    <div id="menstrualBackfillModal" class="modal-backdrop full-screen-panel" style="z-index: 9999;">
         <div class="modal-content" style="max-width: 460px; max-height: 85vh; overflow-y: auto; border-radius: 28px; padding: 25px; border: 1px solid rgba(109, 40, 217, 0.15); box-shadow: 0 15px 40px rgba(109, 40, 217, 0.12);">
             <div class="modal-header" style="border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 18px;">
                 <h2 class="modal-title" style="color: #6d28d9; font-size: 1.25rem; display: flex; align-items: center; gap: 8px; font-weight: 800;">📝 生理歷程與狀態</h2>
@@ -1769,11 +1862,11 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=6.9"></script>
+    <script src="/static/js/app.js?v=11.0"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&libraries=places&callback=initMap" async defer></script>
 
     <!-- 📊 存股看板 Modal (V3.2 - Interactive Premium Dashboard) -->
-    <div id="stockDashboardModal" class="modal-backdrop">
+    <div id="stockDashboardModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
             <!-- 加購與權限遮罩牆 (適用於 FREE/BASIC 用戶，高感光毛玻璃遮罩) -->
             {% if not session.get('subscription_type') or session.get('subscription_type') in ['NONE', 'MONTHLY_AI'] %}
@@ -1788,9 +1881,9 @@
             </div>
             {% endif %}
 
-            <div class="modal-header">
-                <h2 class="modal-title" style="display: flex; align-items: center; gap: 8px;">📊 存股投資即時看板</h2>
-                <button class="close-modal" onclick="closeModal('stockDashboardModal')">✕</button>
+            <div class="modal-header" style="justify-content: flex-start; gap: 12px;">
+                <button class="back-btn" onclick="closeModal('stockDashboardModal')">← 返回</button>
+                <h2 class="modal-title" style="display: flex; align-items: center; gap: 8px; font-size: 1.15rem; font-weight: 800; color: var(--text-color); margin: 0;">📊 存股投資即時看板</h2>
             </div>
 
             <div class="modal-body" style="padding-top: 10px;">
@@ -1862,7 +1955,7 @@
     </div>
 
     <!-- 📈 股票看板 Modal (V15.0 - Premium) -->
-    <div id="stockModal" class="modal-backdrop">
+    <div id="stockModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
             <!-- 加購與權限遮罩牆 (適用於 FREE/BASIC 用戶，高感光毛玻璃遮罩) -->
             {% if not session.get('subscription_type') or session.get('subscription_type') in ['NONE', 'MONTHLY_AI'] %}
@@ -1987,6 +2080,88 @@
             
             <div class="modal-footer" style="padding-top: 15px; border-top: 1px solid #f1f5f9; text-align: center; margin-top: 20px;">
                 <p style="font-size: 0.72rem; color: #94a3b8; margin: 0;">100% 隱私去中心化 • 行情直接託管於 Google Finance 算力引擎</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📊 統計報表 - 全頁滑入面板 (V3.7 Step 5) -->
+    <div id="financeReportPanel" class="finance-report-panel">
+        <div class="report-header">
+            <button class="back-btn" onclick="closeFinanceReportPanel()">← 返回</button>
+            <h2 style="font-size: 1.15rem; font-weight: 800; color: var(--text-color); margin: 0;">📊 財務統計報表</h2>
+        </div>
+        <div class="report-body" style="padding: 20px; overflow-y: auto; flex: 1;">
+            <div class="query-section">
+                <span class="query-label">查詢月份：</span>
+                <select id="report_year_select" class="query-select"></select>
+                <select id="report_month_select" class="query-select"></select>
+                <button id="report_query_btn" class="sub-btn query-btn-report" onclick="fetchFinanceReport()">查詢</button>
+            </div>
+
+            <!-- 收支結餘卡片 -->
+            <div class="summary-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                <div class="sum-card" style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 16px; padding: 12px 8px; text-align: center; display: flex; flex-direction: column; gap: 4px;">
+                    <span style="font-size: 1.2rem;">💸</span>
+                    <span style="font-size: 0.72rem; color: #ef4444; font-weight: 700;">總支出</span>
+                    <span id="report_total_expense" style="font-size: 0.95rem; font-weight: 800; color: #ef4444; word-break: break-all;">$0</span>
+                </div>
+                <div class="sum-card" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 16px; padding: 12px 8px; text-align: center; display: flex; flex-direction: column; gap: 4px;">
+                    <span style="font-size: 1.2rem;">💰</span>
+                    <span style="font-size: 0.72rem; color: #10b981; font-weight: 700;">總收入</span>
+                    <span id="report_total_income" style="font-size: 0.95rem; font-weight: 800; color: #10b981; word-break: break-all;">$0</span>
+                </div>
+                <div class="sum-card" style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 16px; padding: 12px 8px; text-align: center; display: flex; flex-direction: column; gap: 4px;">
+                    <span style="font-size: 1.2rem;">🏦</span>
+                    <span style="font-size: 0.72rem; color: #3b82f6; font-weight: 700;">結餘</span>
+                    <span id="report_total_balance" style="font-size: 0.95rem; font-weight: 800; color: #3b82f6; word-break: break-all;">$0</span>
+                </div>
+            </div>
+
+
+            <!-- 圓餅圖 -->
+            <div class="chart-container-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 18px; margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; min-height: 250px; justify-content: center;">
+                <h3 style="font-size: 0.88rem; font-weight: 800; color: var(--text-color); margin-top: 0; margin-bottom: 12px; align-self: flex-start;">🥧 支出分類分佈</h3>
+                <div style="width: 100%; max-width: 220px; position: relative; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;">
+                    <canvas id="financeReportPieChart" style="max-height: 220px; max-width: 220px;"></canvas>
+                    <div id="report_chart_loading_placeholder" class="skeleton-shimmer" style="display: none; width: 140px; height: 140px; border-radius: 50%;"></div>
+                </div>
+            </div>
+
+            <!-- 分類明細 -->
+            <div class="detail-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 18px; margin-bottom: 20px;">
+                <h3 style="font-size: 0.88rem; font-weight: 800; color: var(--text-color); margin-top: 0; margin-bottom: 14px;">📋 分類明細</h3>
+                <div id="report_category_list" style="display: flex; flex-direction: column; gap: 12px;">
+                    <!-- 動態生成分類列 -->
+                </div>
+            </div>
+
+            <!-- 💎 旗艦版存股概覽 -->
+            <div id="report_premium_stock_section" style="background: linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%); border: 1px solid rgba(124, 58, 237, 0.25); border-radius: 20px; padding: 18px; margin-bottom: 15px; display: none;">
+                <div style="display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.82rem; font-weight: 800; color: #7c3aed; margin-bottom: 14px;">
+                    <span>══════ 💎 旗艦版：存股財務概覽 ══════</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center;">
+                    <div style="display: flex; flex-direction: column; gap: 4px; border-right: 1px solid rgba(124, 58, 237, 0.15);">
+                        <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">本月存股支出</span>
+                        <span id="report_stock_expense" style="font-size: 0.88rem; font-weight: 800; color: var(--text-color);">$0</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px; border-right: 1px solid rgba(124, 58, 237, 0.15);">
+                        <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">未實現盈虧</span>
+                        <span id="report_stock_unrealized_roi" style="font-size: 0.88rem; font-weight: 800; color: #10b981;">+$0</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">已實現盈虧</span>
+                        <span id="report_stock_realized_roi" style="font-size: 0.88rem; font-weight: 800; color: #3b82f6;">+$0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 鎖定狀態提示 (非旗艦版用戶顯示) -->
+            <div id="report_locked_stock_section" style="background: rgba(148, 163, 184, 0.08); border: 1px dashed var(--border-color); border-radius: 20px; padding: 18px; text-align: center; margin-bottom: 15px;">
+                <div style="display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; font-weight: 700; color: var(--text-muted);">
+                    <span>🔒 旗艦版存股財務概覽已鎖定</span>
+                </div>
+                <p style="font-size: 0.7rem; color: var(--text-muted); margin: 6px 0 0 0;">升級為尊榮旗艦版以自動整合股票部位損益！</p>
             </div>
         </div>
     </div>
@@ -2165,6 +2340,57 @@
             50% { transform: translateY(-8px); }
         }
     </style>
+
+    <!-- 📱 全專案子功能氣泡浮窗 (Popover Submenu Bubble) -->
+    <div id="submenuDrawerBackdrop" class="drawer-backdrop" onclick="closeSubmenuDrawer()"></div>
+    <div id="submenuDrawer" class="submenu-popover">
+        <div class="popover-arrow"></div>
+        <div class="drawer-header">
+            <h3 id="submenu_drawer_title" class="drawer-title">🛠️ 功能選單</h3>
+            <button class="drawer-close-btn" onclick="closeSubmenuDrawer()">✕</button>
+        </div>
+        <div class="drawer-body">
+            <!-- 第二層：子功能選單 -->
+            <div class="sub-menu-area">
+                <!-- 記帳子選單 -->
+                <div id="sub_finance" class="sub-menu">
+                    <button class="sub-btn" onclick="openModal('expenseModal')">💰 我要記帳</button>
+                    <button class="sub-btn" onclick="openFixedExpensesModal()">⏰ 固定支出</button>
+                    <button class="sub-btn" onclick="openAssetAccountsModal()">💳 資產帳戶</button>
+                    <button class="sub-btn" onclick="openFinanceReportPanel()">📊 統計報表</button>
+                    <button class="sub-btn" onclick="window.open('{{ finance_sheet_url }}', '_blank')">☁️ 雲端帳簿</button>
+                </div>
+                <!-- 存股子選單 -->
+                <div id="sub_stock" class="sub-menu">
+                    <button class="sub-btn" onclick="openAddStockTxModal()">➕ 新增持股</button>
+                    <button class="sub-btn" onclick="queryStockPortfolioSummary()">💼 持股查詢</button>
+                    <button class="sub-btn" onclick="openStockDashboard()">📊 存股看板</button>
+                    <button class="sub-btn" onclick="openCloudStockSheet('{{ stock_sheet_url }}')">☁️ 雲端庫存</button>
+                </div>
+                <!-- 行程子選單 -->
+                <div id="sub_schedule" class="sub-menu">
+                    <button class="sub-btn" onclick="openModal('scheduleModal')">➕ 新增行程</button>
+                    <button class="sub-btn" onclick="querySchedule(1)"><span class="dynamic-date-wrapper"><span class="date-top"></span><span class="date-num current-day-val"></span></span> 今日行程</button>
+                    <button class="sub-btn" onclick="querySchedule(7)">🗓️ 本週行程</button>
+                    <button class="sub-btn" onclick="querySchedule(30)">📊 近30日</button>
+                </div>
+                <!-- 備忘子選單 -->
+                <div id="sub_memo" class="sub-menu">
+                    <button class="sub-btn" id="sub_btn_diary" onclick="openModal('memoModal')">📔 生活紀錄</button>
+                    <button class="sub-btn" id="sub_btn_todo" onclick="openModal('todoModal')">✅ 待辦事項</button>
+                    <button class="sub-btn" id="sub_btn_pocket" onclick="openModal('pocketModal')">📍 口袋名單</button>
+                    <button class="sub-btn" id="sub_btn_wishlist" onclick="openModal('wishlistModal')">🎁 願望清單</button>
+                </div>
+                <!-- 健康子選單 -->
+                <div id="sub_health" class="sub-menu">
+                    <button class="sub-btn" onclick="openModal('healthModal')">🌸 經期看板</button>
+                    <button class="sub-btn" onclick="openModal('trackingModal')">🌡️ 生理追蹤</button>
+                    <button class="sub-btn" onclick="openModal('menstrualBackfillModal')">📝 生理歷程</button>
+                    <button class="sub-btn" onclick="window.open('{{ symptom_sheet_url }}', '_blank')">🩺 生理症狀表</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- 迎新導引與時區核心互動腳本 (Onboarding & Timezone Script) -->
     <script>
@@ -2442,6 +2668,15 @@
                     const newTheme = currentTheme === 'light' ? 'dark' : 'light';
                     document.documentElement.setAttribute('data-theme', newTheme);
                     localStorage.setItem('theme', newTheme);
+                    
+                    // 動態更新 Chart.js 圓餅圖文字與邊框顏色 (避免 canvas 快取舊的主題顏色)
+                    if (window.financeReportChart) {
+                        const textColor = newTheme === 'dark' ? '#f8fafc' : '#1e293b';
+                        const borderColor = newTheme === 'dark' ? 'rgba(148, 163, 184, 0.2)' : '#e2e8f0';
+                        window.financeReportChart.options.plugins.legend.labels.color = textColor;
+                        window.financeReportChart.data.datasets[0].borderColor = borderColor;
+                        window.financeReportChart.update();
+                    }
                 });
             }
 

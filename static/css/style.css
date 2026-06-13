@@ -12,11 +12,14 @@
     --modal-bg: white;
     --input-bg: #fff;
     --input-border: #e2e8f0;
+    --bg-card: #ffffff;
+    --border-color: #e2e8f0;
     
     /* 文字顏色 */
     --text-main: #0f172a;
     --text-dark: #1e293b;
     --text-muted: #64748b;
+    --text-color: #1e293b;
     --danger-red: #ef4444;
 }
 
@@ -30,10 +33,13 @@
     --modal-bg: rgba(30, 41, 59, 0.98);
     --input-bg: rgba(15, 23, 42, 0.8);
     --input-border: rgba(148, 163, 184, 0.2);
+    --bg-card: rgba(30, 41, 59, 0.7);
+    --border-color: rgba(148, 163, 184, 0.2);
     
     --text-main: #f1f5f9;
     --text-dark: #f8fafc;
     --text-muted: #94a3b8;
+    --text-color: #f8fafc;
     --danger-red: #f87171;
 }
 
@@ -893,12 +899,12 @@ select.form-input {
     background: var(--input-bg);
     padding: 4px;
     border-radius: 12px;
-    margin-bottom: 12px;
+    margin-bottom: 0px;
 }
 
 .tab-btn {
     flex: 1;
-    padding: 8px 4px;
+    padding: 7px 4px;
     border: none;
     background: transparent;
     border-radius: 10px;
@@ -965,7 +971,7 @@ select.form-input {
 }
 
 .action-card {
-    padding: 15px;
+    padding: 8px 12px;
 }
 
 /* --- 動態日曆小圖示 (V13.0) --- */
@@ -1469,12 +1475,82 @@ select.form-input {
 
 /* --- V4.0 生理期助理 & AI 訓練室專屬樣式 --- */
 
-/* 健康分頁按鈕 */
+/* --- 各母功能按鈕 Active 顏色渲染 --- */
+
+/* 1. 💰 記帳 (金色/黃色調) */
+#tab_btn_finance.active {
+    background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%) !important;
+    color: #ca8a04 !important;
+    border-color: #fde047 !important;
+    box-shadow: 0 4px 10px rgba(202, 138, 4, 0.1) !important;
+}
+
+/* 2. 📅 行程 (藍色調) */
+#tab_btn_schedule.active {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+    color: #1d4ed8 !important;
+    border-color: #bfdbfe !important;
+    box-shadow: 0 4px 10px rgba(29, 78, 216, 0.1) !important;
+}
+
+/* 3. 📝 備忘 (紫色調) */
+#tab_btn_memo.active {
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%) !important;
+    color: #6d28d9 !important;
+    border-color: #ddd6fe !important;
+    box-shadow: 0 4px 10px rgba(109, 40, 217, 0.1) !important;
+}
+
+/* 4. 🌸 女性 (粉色調) */
 .tab-health.active {
     background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%) !important;
     color: #e11d48 !important;
     border-color: #fecdd3 !important;
     box-shadow: 0 4px 10px rgba(225, 29, 72, 0.1) !important;
+}
+
+/* 5. 📈 存股 (青色/綠色調) */
+#tab_btn_stock.active {
+    background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%) !important;
+    color: #0f766e !important;
+    border-color: #99f6e4 !important;
+    box-shadow: 0 4px 10px rgba(15, 118, 110, 0.1) !important;
+}
+
+/* --- 深色模式下的 Active 顏色渲染 --- */
+[data-theme="dark"] #tab_btn_finance.active {
+    background: linear-gradient(135deg, rgba(254, 240, 138, 0.15) 0%, rgba(254, 240, 138, 0.25) 100%) !important;
+    color: #fde047 !important;
+    border-color: rgba(254, 240, 138, 0.35) !important;
+    box-shadow: 0 4px 12px rgba(253, 224, 71, 0.15) !important;
+}
+
+[data-theme="dark"] #tab_btn_schedule.active {
+    background: linear-gradient(135deg, rgba(219, 234, 254, 0.15) 0%, rgba(219, 234, 254, 0.25) 100%) !important;
+    color: #93c5fd !important;
+    border-color: rgba(219, 234, 254, 0.35) !important;
+    box-shadow: 0 4px 12px rgba(147, 197, 253, 0.15) !important;
+}
+
+[data-theme="dark"] #tab_btn_memo.active {
+    background: linear-gradient(135deg, rgba(237, 233, 254, 0.15) 0%, rgba(237, 233, 254, 0.25) 100%) !important;
+    color: #c084fc !important;
+    border-color: rgba(237, 233, 254, 0.35) !important;
+    box-shadow: 0 4px 12px rgba(192, 132, 252, 0.15) !important;
+}
+
+[data-theme="dark"] .tab-health.active {
+    background: linear-gradient(135deg, rgba(255, 228, 230, 0.15) 0%, rgba(255, 228, 230, 0.25) 100%) !important;
+    color: #fda4af !important;
+    border-color: rgba(255, 228, 230, 0.35) !important;
+    box-shadow: 0 4px 12px rgba(253, 164, 175, 0.15) !important;
+}
+
+[data-theme="dark"] #tab_btn_stock.active {
+    background: linear-gradient(135deg, rgba(204, 251, 241, 0.15) 0%, rgba(204, 251, 241, 0.25) 100%) !important;
+    color: #5eead4 !important;
+    border-color: rgba(204, 251, 241, 0.35) !important;
+    box-shadow: 0 4px 12px rgba(94, 234, 212, 0.15) !important;
 }
 
 /* 狀態大圖卡 */
@@ -2113,29 +2189,51 @@ select.form-input {
     transform: translateY(-1px);
 }
 
-/* 下方主副標題緊湊化 */
-.header-titles-row {
+/* 標題與深色模式開關並列行（全寬，.header 的直接子層） */
+.header-title-theme-row {
     margin-top: 6px;
     border-top: 1px dashed rgba(255, 255, 255, 0.35);
     padding-top: 6px;
     display: flex;
-    align-items: baseline;
+    align-items: center;
+    justify-content: space-between;
     gap: 8px;
     width: 100%;
+    box-sizing: border-box;
 }
 
-.header-titles-row .main-title {
+.header-titles-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+    align-items: flex-start; /* 標題靠左 */
+}
+
+.header-titles-inline .main-title {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 800;
     color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
 }
 
-.header-titles-row .sub-title {
+.header-titles-inline .sub-title {
     margin: 0;
-    font-size: 0.7rem;
+    font-size: 0.67rem;
     color: #64748b;
     font-weight: 500;
+    white-space: nowrap;
+    text-align: left;
+}
+
+/* 舊版兼容：保留 .header-titles-row 以防還有其他地方引用 */
+.header-titles-row {
+    display: none;
 }
 
 /* =================================================================
@@ -2777,23 +2875,21 @@ select.form-input {
     transition: background 0.3s ease;
 }
 
-/* 位於 AI 點數膠囊下方的樣式 */
+/* 標題列旁深色模式切換開關（僅 icon） */
 .theme-switch-below-pill {
-    margin-top: 4px;
     padding: 3px 6px;
     background: rgba(0, 0, 0, 0.06);
     border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 20px;
-    gap: 5px;
-    justify-content: flex-end;
-    width: 100%;
+    gap: 0;
+    flex-shrink: 0;
     box-sizing: border-box;
 }
 
 .theme-switch-label {
     font-size: 0.65rem;
     font-weight: 800;
-    color: #334155;
+    color: #f59e0b; /* 琅珀黃色 */
     letter-spacing: 0.02em;
     white-space: nowrap;
 }
@@ -2804,7 +2900,7 @@ select.form-input {
 }
 
 [data-theme="dark"] .theme-switch-label {
-    color: rgba(255, 255, 255, 0.5);
+    color: #fbbf24; /* 深色模式下琥珀黃色更亮 */
 }
 
 .switch-label-icon {
@@ -3488,5 +3584,1524 @@ select.form-input {
 [data-theme="dark"] .split-item-row {
     background: rgba(30, 41, 59, 0.4) !important;
     border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+
+/* =================================================================
+   📊 統計報表全頁面板樣式與適配 (V3.7 Step 5 Premium Panel Style)
+   ================================================================= */
+.finance-report-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 100%;
+    max-width: 480px;
+    height: 100%;
+    background: var(--modal-bg);
+    box-shadow: -5px 0 25px rgba(0, 0, 0, 0.15);
+    z-index: 1050;
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.finance-report-panel.show {
+    transform: translateX(0);
+}
+
+.report-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 10px;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.back-btn:hover {
+    background: rgba(45, 212, 191, 0.1);
+}
+
+/* 數據卡片點擊微動畫 */
+.sum-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.sum-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* 進度條動畫與光暈 */
+.goal-progress-container {
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 分類明細列表 */
+.report-cat-row {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.report-cat-row:hover {
+    border-color: var(--primary-color);
+    background: rgba(45, 212, 191, 0.02);
+}
+
+.report-cat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.report-cat-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+
+.report-cat-amount-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+
+.report-cat-progress-wrapper {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-input);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 6px;
+}
+
+.report-cat-progress {
+    height: 100%;
+    background: var(--primary-color);
+    border-radius: 3px;
+}
+
+.report-subcat-list {
+    margin-top: 8px;
+    border-top: 1px dashed var(--border-color);
+    padding-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.report-subcat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(148, 163, 184, 0.05);
+}
+
+.report-subcat-item .sub-val {
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+/* 展開折疊指示箭頭 */
+.expand-arrow {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+}
+
+.report-cat-row.expanded .expand-arrow {
+    transform: rotate(180deg);
+}
+
+/* 設定按鈕樣式 */
+.settings-btn-inline:hover {
+    background: rgba(148, 163, 184, 0.15) !important;
+    color: var(--text-color) !important;
+}
+
+/* 深色模式變數覆蓋與相容 */
+[data-theme="dark"] .finance-report-panel {
+    border-left: 1px solid var(--input-border);
+}
+
+/* =================================================================
+   記帳計算機分頁完全固定一頁式、防止跑位與防滾動樣式
+   ================================================================= */
+#manual_expense_tab_content {
+    overflow-y: hidden !important;
+    padding: 10px 20px 15px !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+#manual_expense_tab_content .calc-grid {
+    touch-action: none; /* 停用計算機網格內的手勢滾動，防止按鍵跑位與視窗漂移 */
+}
+
+/* 針對小螢幕手機的優化，微調間距與大小確保完全不滾動 */
+@media screen and (max-height: 680px) {
+    #expenseModal .modal-content {
+        max-height: 98vh !important;
+        border-radius: 20px !important;
+    }
+    #expenseModal .modal-header {
+        padding: 12px 20px 4px !important;
+    }
+    #expenseModal .modal-body {
+        padding: 0 16px 6px !important;
+    }
+    #expenseModal .modal-footer {
+        padding: 8px 20px !important;
+    }
+    #manual_expense_tab_content {
+        padding: 4px 0 6px !important;
+    }
+    #manual_expense_tab_content .expense-type-toggle {
+        margin-bottom: 6px !important;
+        padding: 2px !important;
+    }
+    #manual_expense_tab_content .expense-type-toggle .type-btn {
+        padding: 4px 6px !important;
+        font-size: 0.8rem !important;
+    }
+    #manual_expense_tab_content .form-group {
+        margin-bottom: 5px !important;
+    }
+    #manual_expense_tab_content label {
+        font-size: 0.76rem !important;
+        margin-bottom: 3px !important;
+    }
+    #manual_expense_tab_content .custom-select div[id*="selected_expense"],
+    #manual_expense_tab_content .form-input,
+    #manual_expense_tab_content select {
+        height: 34px !important;
+        min-height: 34px !important;
+        padding: 6px 10px !important;
+        font-size: 0.82rem !important;
+    }
+    #manual_expense_tab_content #expense_amount {
+        height: 34px !important;
+        padding: 4px 10px !important;
+        font-size: 1.15rem !important;
+    }
+    #manual_expense_tab_content .calc-history {
+        font-size: 0.72rem !important;
+        height: 0.9rem !important;
+        margin-bottom: 0px !important;
+    }
+    #manual_expense_tab_content .calc-grid {
+        gap: 5px !important;
+        margin-top: 4px !important;
+    }
+    #manual_expense_tab_content .calc-btn {
+        padding: 5px 0 !important;
+        font-size: 0.92rem !important;
+        border-radius: 8px !important;
+    }
+    #manual_expense_tab_content .submit-btn {
+        padding: 8px !important;
+        font-size: 0.85rem !important;
+        margin-top: 5px !important;
+        height: 36px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    #expenseModal #modal_sheet_link_btn {
+        padding: 6px 15px !important;
+        font-size: 0.75rem !important;
+        height: 30px !important;
+        margin-top: 0px !important;
+    }
+}
+
+/* =================================================================
+   🌟 載入與骨架屏 (Loading & Skeleton Shimmer UI/UX)
+   ================================================================= */
+.skeleton-shimmer {
+    background: linear-gradient(
+        90deg,
+        var(--bg-input, #f1f5f9) 25%,
+        var(--border-color, #e2e8f0) 37%,
+        var(--bg-input, #f1f5f9) 63%
+    );
+    background-size: 400% 100%;
+    animation: skeleton-loading 1.4s ease infinite;
+    border-radius: 8px;
+    color: transparent !important;
+    user-select: none;
+    pointer-events: none;
+}
+
+[data-theme="dark"] .skeleton-shimmer {
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.05) 25%,
+        rgba(255, 255, 255, 0.12) 37%,
+        rgba(255, 255, 255, 0.05) 63%
+    );
+    background-size: 400% 100%;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.btn-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(148, 163, 184, 0.3);
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    display: inline-block;
+    animation: btn-spin 0.8s linear infinite;
+}
+
+@keyframes btn-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.sub-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: var(--bg-input) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-muted) !important;
+}
+
+/* =================================================================
+   📱 H5 行動端 UI 自適應優化 (H5 Responsive UI Adaptation)
+   ================================================================= */
+.query-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    background: var(--bg-card);
+    padding: 12px 16px;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+}
+
+.query-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.query-select {
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    font-size: 0.85rem;
+    background: var(--bg-input);
+    color: var(--text-color);
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.query-select:focus {
+    border-color: var(--primary-color);
+}
+
+.query-btn-report {
+    padding: 6px 16px;
+    margin: 0;
+    font-size: 0.85rem;
+    border-radius: 10px;
+    height: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+@media screen and (max-width: 400px) {
+    /* 查詢區域行動端自適應：分層與彈性拉伸 */
+    .query-section {
+        flex-wrap: wrap;
+        gap: 8px 6px;
+        padding: 10px 12px;
+    }
+    
+    .query-label {
+        width: 100%;
+        white-space: nowrap;
+        margin-bottom: 2px;
+        font-size: 0.82rem;
+    }
+    
+    .query-select {
+        flex: 1.5;
+        min-width: 0;
+        padding: 6px 4px;
+        font-size: 0.8rem;
+    }
+    
+    .query-btn-report {
+        flex: 1.2;
+        min-width: 0;
+        padding: 6px 8px;
+        font-size: 0.8rem;
+    }
+}
+
+@media screen and (max-width: 375px) {
+    /* 數據卡片與字型自適應調整，防止大金額折行 */
+    .summary-grid {
+        gap: 6px !important;
+        margin-bottom: 16px !important;
+    }
+    
+    .sum-card {
+        padding: 10px 4px !important;
+    }
+    
+    .sum-card span:nth-child(2) {
+        font-size: 0.68rem !important;
+    }
+    
+    .sum-card span[id^="report_total_"] {
+        font-size: 0.82rem !important;
+    }
+    
+    /* 圓餅圖在超窄螢幕下的微調 */
+    .chart-container-card {
+        padding: 14px !important;
+    }
+    
+    .chart-container-card > div {
+        max-width: 190px !important;
+    }
+    
+    #financeReportPieChart {
+        max-height: 190px !important;
+        max-width: 190px !important;
+    }
+    
+    #report_chart_loading_placeholder {
+        width: 120px !important;
+        height: 120px !important;
+    }
+}
+
+/* =================================================================
+   📱 氣泡浮窗功能導航樣式 (Popover Submenu Bubble Styles - Option 1)
+   ================================================================= */
+.drawer-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.15); /* 氣泡浮窗採用更輕量微弱的遮罩，突顯懸浮感 */
+    z-index: 1040;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+.drawer-backdrop.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.submenu-popover {
+    position: fixed;
+    width: 290px;
+    background: var(--modal-bg);
+    border-radius: 20px;
+    z-index: 1045;
+    transform: scale(0.9) translateY(-8px);
+    opacity: 0;
+    visibility: hidden;
+    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease, visibility 0.25s ease;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-sizing: border-box;
+}
+
+.submenu-popover.show {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 氣泡小指向箭頭 (45度旋轉正方形，移至頂部指向母按鈕) */
+.popover-arrow {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 12px;
+    height: 12px;
+    background: var(--modal-bg);
+    border-left: 1px solid var(--border-color);
+    border-top: 1px solid var(--border-color);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.drawer-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--text-color);
+}
+
+.drawer-close-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.drawer-close-btn:hover {
+    color: var(--text-color);
+}
+
+.drawer-body {
+    padding: 14px 16px 16px;
+    overflow-y: auto;
+    max-height: 50vh;
+}
+
+/* 氣泡內部子選單轉換為 2x2 Grid 卡片式排版 */
+.submenu-popover .sub-menu-area {
+    width: 100%;
+}
+
+.submenu-popover .sub-menu {
+    display: none;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+}
+
+.submenu-popover .sub-menu.active {
+    display: grid;
+}
+
+.submenu-popover .sub-btn {
+    height: 48px;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border-color);
+    background: var(--bg-card);
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+    white-space: nowrap;
+    width: 100%;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.submenu-popover .sub-btn:active {
+    transform: scale(0.96);
+    background: var(--bg-input);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* 深色模式特別微調 */
+[data-theme="dark"] .submenu-popover {
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .popover-arrow {
+    background: rgba(30, 41, 59, 0.95);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .submenu-popover .sub-btn {
+    background: rgba(15, 23, 42, 0.6);
+}
+[data-theme="dark"] .submenu-popover .sub-btn:active {
+    background: rgba(30, 41, 59, 0.9);
+}
+
+/* =================================================================
+   📱 全螢幕右側滑入面板樣式與適配 (Full-Screen Right-to-Left Slide-over Panel)
+   ================================================================= */
+.modal-backdrop.full-screen-panel {
+    display: block !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+    z-index: 1090;
+}
+
+.modal-backdrop.full-screen-panel.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.modal-backdrop.full-screen-panel .modal-content {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: auto;
+    width: 100% !important;
+    max-width: 480px !important;
+    height: 100% !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: none !important; /* 停用原有的彈出/貼底動畫 */
+    display: flex;
+    flex-direction: column;
+    box-shadow: -5px 0 25px rgba(0, 0, 0, 0.15);
+    background: var(--modal-bg);
+}
+
+.modal-backdrop.full-screen-panel.show .modal-content {
+    transform: translateX(0);
+}
+
+/* 為了貼合滿版邊緣，在手機版微調頂部安全區 */
+@media screen and (max-width: 480px) {
+    .modal-backdrop.full-screen-panel .modal-content {
+        max-width: 100vw !important;
+    }
+    
+    .modal-backdrop.full-screen-panel .modal-header {
+        padding: calc(15px + env(safe-area-inset-top, 0px)) 15px 12px !important;
+    }
+}
+
+/* =================================================================
+   🌙 深色模式全面優化 — 備忘子功能及其他彈窗之白底/高亮元件適配
+   ================================================================= */
+
+/* 1. 待辦事項與口袋名單中的自訂類別選單按鈕 */
+[data-theme="dark"] #selected_todo_cat,
+[data-theme="dark"] #selected_cat {
+    background: var(--input-bg) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--input-border) !important;
+}
+
+/* 2. 口袋名單與待辦事項篩選 Select 下拉選單 */
+[data-theme="dark"] #pocket_filter_cat,
+[data-theme="dark"] #pocket_filter_area,
+[data-theme="dark"] #todo_filter_cat {
+    background: var(--input-bg) !important;
+    color: var(--text-main) !important;
+    border: 1.5px solid var(--input-border) !important;
+}
+
+/* 3. 待辦清單優先級 (🔴 急要、🟡 重要 等) 標籤 */
+[data-theme="dark"] .priority-opt {
+    background: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] .priority-opt.active {
+    color: white !important;
+}
+[data-theme="dark"] .priority-opt.active.red {
+    background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+    border-color: #fca5a5 !important;
+}
+[data-theme="dark"] .priority-opt.active.yellow {
+    background: linear-gradient(135deg, #eab308, #ca8a04) !important;
+    border-color: #fde047 !important;
+}
+[data-theme="dark"] .priority-opt.active.orange {
+    background: linear-gradient(135deg, #f97316, #ea580c) !important;
+    border-color: #fdba74 !important;
+}
+[data-theme="dark"] .priority-opt.active.green {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    border-color: #6ee7b7 !important;
+}
+
+/* 4. 口袋名單內部的操作按鈕 (📋 複製、📌 移入常用、↩️ 移回口袋、距離顯示) */
+[data-theme="dark"] span[style*="background: #fffbeb"] {
+    background: rgba(217, 119, 6, 0.15) !important;
+    color: #fbbf24 !important;
+    border-color: rgba(251, 191, 36, 0.3) !important;
+}
+[data-theme="dark"] span[style*="background: #f0fdf4"] {
+    background: rgba(22, 163, 74, 0.15) !important;
+    color: #4ade80 !important;
+    border-color: rgba(74, 222, 128, 0.3) !important;
+}
+[data-theme="dark"] span[style*="background: #ecfdf5"] {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #34d399 !important;
+    border-color: rgba(52, 211, 153, 0.3) !important;
+}
+
+/* 5. 願願清單標籤 (💎 必買、✅ 可買、🤔 可不買) */
+[data-theme="dark"] .wish-tag {
+    background: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] .wish-tag.purple.active {
+    background: #7e22ce !important;
+    color: white !important;
+    border-color: #7e22ce !important;
+}
+[data-theme="dark"] .wish-tag.green.active {
+    background: #15803d !important;
+    color: white !important;
+    border-color: #15803d !important;
+}
+[data-theme="dark"] .wish-tag.yellow.active {
+    background: #a16207 !important;
+    color: white !important;
+    border-color: #a16207 !important;
+}
+
+/* 6. 願願清單輸入區塊 (#fff5f5) 與 行程常用地址帶入按鈕 (#fff1f2) */
+[data-theme="dark"] div[style*="background: #fff5f5"],
+[data-theme="dark"] div[style*="background:#fff5f5"] {
+    background: rgba(225, 29, 72, 0.08) !important;
+    border-bottom-color: var(--input-border) !important;
+}
+[data-theme="dark"] button[style*="background: #fff1f2"] {
+    background: rgba(225, 29, 72, 0.15) !important;
+    color: #fda4af !important;
+    border-color: rgba(253, 164, 175, 0.3) !important;
+}
+
+/* 7. 生理追蹤莫蘭迪月曆卡片與單元格 */
+[data-theme="dark"] div[style*="background: #fffdfd"],
+[data-theme="dark"] div[style*="background:#fffdfd"] {
+    background: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+}
+[data-theme="dark"] .cal-day-cell {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] .cal-day-cell:hover {
+    background: rgba(225, 29, 72, 0.15) !important;
+}
+[data-theme="dark"] .cal-day-cell.other-month {
+    color: rgba(255, 255, 255, 0.25) !important;
+}
+[data-theme="dark"] .cal-day-cell.recorded-period {
+    background: linear-gradient(135deg, rgba(225, 29, 72, 0.3) 0%, rgba(225, 29, 72, 0.5) 100%) !important;
+    color: #fda4af !important;
+}
+[data-theme="dark"] .cal-nav-btn {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] .cal-nav-btn:hover {
+    background: rgba(225, 29, 72, 0.15) !important;
+}
+[data-theme="dark"] div[style*="border-bottom: 1.5px solid #ffe4e6"],
+[data-theme="dark"] div[style*="border-bottom: 1.5px solid #ffe4e6;"] {
+    border-bottom-color: var(--input-border) !important;
+}
+
+/* 8. 待辦清單 (todoModal) 更多優化 */
+[data-theme="dark"] [id^="todo_text_"] {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] [id^="todo_item_"] span[style*="background: #eff6ff"],
+[data-theme="dark"] [id^="todo_item_"] span[style*="background:#eff6ff"] {
+    background: rgba(59, 130, 246, 0.15) !important;
+    color: #60a5fa !important;
+}
+[data-theme="dark"] .custom-checkbox {
+    border-color: var(--input-border) !important;
+}
+
+/* 9. 口袋名單 (pocketModal) 雙分頁與地名卡片適配 */
+[data-theme="dark"] .pocket-segmented-control {
+    background: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+}
+[data-theme="dark"] #pocket_tab_all[style*="background: white"],
+[data-theme="dark"] #pocket_tab_all[style*="background: rgb(255, 255, 255)"],
+[data-theme="dark"] #pocket_tab_fav[style*="background: white"],
+[data-theme="dark"] #pocket_tab_fav[style*="background: rgb(255, 255, 255)"] {
+    background: var(--modal-bg) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+[data-theme="dark"] #pocket_list a[style*="color: #0f172a"],
+[data-theme="dark"] #pocket_list a[style*="color:#0f172a"] {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #pocket_list div[style*="background: #f8fafc"],
+[data-theme="dark"] #pocket_list div[style*="background:#f8fafc"] {
+    background: var(--input-bg) !important;
+}
+
+/* 10. 願願清單 (wishlistModal) 卡片色彩半透明優化 */
+[data-theme="dark"] #wish_list > div[style*="background: #f3e8ff"],
+[data-theme="dark"] #wish_list > div[style*="background:#f3e8ff"] {
+    background: rgba(168, 85, 247, 0.15) !important;
+    border-color: rgba(168, 85, 247, 0.3) !important;
+    color: #c084fc !important;
+}
+[data-theme="dark"] #wish_list > div[style*="background: #f0fdf4"],
+[data-theme="dark"] #wish_list > div[style*="background:#f0fdf4"] {
+    background: rgba(34, 197, 94, 0.15) !important;
+    border-color: rgba(34, 197, 94, 0.3) !important;
+    color: #4ade80 !important;
+}
+[data-theme="dark"] #wish_list > div[style*="background: #fefce8"],
+[data-theme="dark"] #wish_list > div[style*="background:#fefce8"] {
+    background: rgba(234, 179, 8, 0.15) !important;
+    border-color: rgba(234, 179, 8, 0.3) !important;
+    color: #fde047 !important;
+}
+
+/* 11. 記帳管理 (expenseModal) 下拉與自訂清單適配 */
+[data-theme="dark"] #selected_expense_cat,
+[data-theme="dark"] #selected_expense_sub_cat {
+    background: var(--input-bg) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--input-border) !important;
+}
+[data-theme="dark"] #current_expense_sub_cat_display {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #current_expense_sub_cat_display[style*="color: rgb(148, 163, 184)"],
+[data-theme="dark"] #current_expense_sub_cat_display[style*="color: #94a3b8"] {
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] #charity_receipt_upload_wrapper button[style*="background: white"],
+[data-theme="dark"] #charity_receipt_upload_wrapper button[style*="background:white"] {
+    background: var(--input-bg) !important;
+    color: var(--text-main) !important;
+    border-color: var(--input-border) !important;
+}
+[data-theme="dark"] #expense_manage_list > div {
+    background: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+}
+[data-theme="dark"] #expense_manage_list > div div[style*="color: #1e293b"],
+[data-theme="dark"] #expense_manage_list > div div[style*="color:#1e293b"] {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #bill_split_list_container > div {
+    border-color: var(--input-border) !important;
+}
+[data-theme="dark"] #bill_split_list_container span[style*="background: #e2e8f0"],
+[data-theme="dark"] #bill_split_list_container span[style*="background:#e2e8f0"] {
+    background: var(--input-bg) !important;
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] #bill_split_list_container div[style*="border-top: 1px dashed #e2e8f0"],
+[data-theme="dark"] #bill_split_list_container div[style*="border-top:1px dashed #e2e8f0"] {
+    border-top-color: var(--input-border) !important;
+}
+
+/* 12. 每月固定支出 (fixedExpensesModal) 亮色文字看不清 Bug 修正 */
+.fixed-expense-card div[style*="color: #f8fafc"] {
+    color: #1e293b !important;
+}
+[data-theme="dark"] .fixed-expense-card div[style*="color: #f8fafc"] {
+    color: #f8fafc !important;
+}
+
+/* 13. 生理健康相關 (healthModal & trackingModal & menstrualBackfillModal) */
+[data-theme="dark"] #health_cold_start_banner {
+    background: linear-gradient(135deg, rgba(245, 208, 254, 0.08) 0%, rgba(245, 208, 254, 0.03) 100%) !important;
+    border-color: rgba(245, 208, 254, 0.2) !important;
+    color: #f5d0fe !important;
+}
+[data-theme="dark"] #health_phase_badge {
+    background: rgba(0, 0, 0, 0.4) !important;
+    color: #fda4af !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+}
+[data-theme="dark"] #health_pregnancy_badge {
+    background: rgba(0, 0, 0, 0.3) !important;
+    color: #cbd5e1 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+[data-theme="dark"] #health_current_interval_card button {
+    background: rgba(225, 29, 72, 0.15) !important;
+    color: #fda4af !important;
+}
+[data-theme="dark"] #health_current_interval_card button:hover {
+    background: rgba(225, 29, 72, 0.25) !important;
+}
+[data-theme="dark"] #health_current_interval_card div[style*="background: #fff5f5"],
+[data-theme="dark"] #health_current_interval_card div[style*="background:#fff5f5"] {
+    background: rgba(225, 29, 72, 0.08) !important;
+    border-color: rgba(225, 29, 72, 0.15) !important;
+}
+[data-theme="dark"] #health_current_interval_card div[style*="color: #be123c"],
+[data-theme="dark"] #health_current_interval_card div[style*="color:#be123c"] {
+    color: #fda4af !important;
+}
+[data-theme="dark"] #health_tips_card {
+    background: rgba(225, 29, 72, 0.08) !important;
+    border-color: rgba(225, 29, 72, 0.2) !important;
+    color: #fda4af !important;
+}
+[data-theme="dark"] #healthModal .modal-footer,
+[data-theme="dark"] #trackingModal .modal-footer {
+    background: var(--modal-bg) !important;
+    border-top-color: var(--input-border) !important;
+}
+[data-theme="dark"] #healthModal .sheet-link-btn,
+[data-theme="dark"] #trackingModal .sheet-link-btn {
+    background: var(--input-bg) !important;
+    color: #fda4af !important;
+    border-color: var(--input-border) !important;
+}
+[data-theme="dark"] #healthModal .sheet-link-btn:hover,
+[data-theme="dark"] #trackingModal .sheet-link-btn:hover {
+    background: rgba(225, 29, 72, 0.15) !important;
+}
+[data-theme="dark"] #trackingModal .close-modal {
+    background: rgba(225, 29, 72, 0.15) !important;
+    color: #fda4af !important;
+}
+[data-theme="dark"] #calendar_month_year {
+    color: #fda4af !important;
+}
+[data-theme="dark"] #calendar_loader_overlay {
+    background: rgba(15, 23, 42, 0.75) !important;
+}
+[data-theme="dark"] #calendar_loader_overlay span {
+    color: #fda4af !important;
+}
+[data-theme="dark"] #calendar_detail_card {
+    background: rgba(225, 29, 72, 0.08) !important;
+    border-color: rgba(225, 29, 72, 0.15) !important;
+    color: #fda4af !important;
+}
+[data-theme="dark"] #cal_detail_cycle {
+    background: rgba(0, 0, 0, 0.4) !important;
+    color: #fda4af !important;
+}
+[data-theme="dark"] div[style*="background: #faf5ff"],
+[data-theme="dark"] div[style*="background:#faf5ff"] {
+    background: rgba(109, 40, 217, 0.08) !important;
+    border-color: rgba(109, 40, 217, 0.2) !important;
+}
+[data-theme="dark"] h3[style*="color: #6d28d9"],
+[data-theme="dark"] h3[style*="color:#6d28d9"] {
+    color: #a78bfa !important;
+}
+[data-theme="dark"] label[style*="color: #4b5563"],
+[data-theme="dark"] label[style*="color:#4b5563"] {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #backfill_period_length {
+    background: rgba(109, 40, 217, 0.15) !important;
+    color: #c084fc !important;
+    border-color: rgba(109, 40, 217, 0.3) !important;
+}
+[data-theme="dark"] #symptoms_list > div[style*="background: white"],
+[data-theme="dark"] #symptoms_list > div[style*="background:#fff"] {
+    background: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+}
+[data-theme="dark"] #symptoms_list label {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] div[style*="border: 1px dashed #fecdd3"],
+[data-theme="dark"] div[style*="border:1px dashed #fecdd3"] {
+    border-color: var(--input-border) !important;
+}
+
+/* 14. 系統偏好設定 (settingsModal) */
+[data-theme="dark"] #settingsModal .modal-title,
+[data-theme="dark"] #settingsModal label,
+[data-theme="dark"] #settingsModal span {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #settingsModal p {
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] #settingsModal .modal-header {
+    border-bottom-color: var(--input-border) !important;
+}
+
+/* 15. 首登迎新精靈 (onboardingModal) */
+[data-theme="dark"] #onboardingModal h2,
+[data-theme="dark"] #onboardingModal h4,
+[data-theme="dark"] #onboardingModal label,
+[data-theme="dark"] #onboardingModal span {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #onboardingModal p {
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] #onboardingModal .gender-card {
+    background: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+}
+[data-theme="dark"] #onboardingModal .gender-card span {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #onboardingModal div[style*="border-top: 1.5px dashed #e2e8f0"],
+[data-theme="dark"] #onboardingModal div[style*="border-top:1.5px dashed #e2e8f0"] {
+    border-top-color: var(--input-border) !important;
+}
+[data-theme="dark"] #onboardingModal .gender-card.active {
+    background: rgba(99, 102, 241, 0.15) !important;
+    border-color: #6366f1 !important;
+}
+[data-theme="dark"] #onboardingModal .gender-card.active span {
+    color: #a5b4fc !important;
+}
+
+/* 16. 商業版計費牆 (upgradePaywallModal) */
+[data-theme="dark"] #upgradePaywallModal .modal-content {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+[data-theme="dark"] #upgradePaywallModal .modal-title {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #upgradePaywallModal p {
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] #upgradePaywallModal div[style*="background: rgba(14, 165, 233, 0.06)"],
+[data-theme="dark"] #upgradePaywallModal div[style*="background:rgba(14, 165, 233, 0.06)"] {
+    background: rgba(14, 165, 233, 0.12) !important;
+    border-color: rgba(14, 165, 233, 0.3) !important;
+}
+[data-theme="dark"] #upgradePaywallModal div[style*="background: rgba(14, 165, 233, 0.06)"] p,
+[data-theme="dark"] #upgradePaywallModal div[style*="background:rgba(14, 165, 233, 0.06)"] p {
+    color: #38bdf8 !important;
+}
+[data-theme="dark"] #paywall_basic_card {
+    background: linear-gradient(135deg, rgba(22, 163, 74, 0.08) 0%, rgba(30, 41, 59, 0.5) 100%) !important;
+    border-color: rgba(22, 163, 74, 0.3) !important;
+}
+[data-theme="dark"] #paywall_basic_card h4,
+[data-theme="dark"] #paywall_basic_card p {
+    color: #4ade80 !important;
+}
+[data-theme="dark"] #paywall_premium_monthly_card {
+    background: linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(30, 41, 59, 0.5) 100%) !important;
+    border-color: rgba(2, 132, 199, 0.3) !important;
+}
+[data-theme="dark"] #paywall_premium_monthly_card h4,
+[data-theme="dark"] #paywall_premium_monthly_card p {
+    color: #38bdf8 !important;
+}
+[data-theme="dark"] #paywall_premium_card {
+    background: linear-gradient(135deg, rgba(217, 119, 6, 0.08) 0%, rgba(30, 41, 59, 0.5) 100%) !important;
+    border-color: rgba(217, 119, 6, 0.3) !important;
+}
+[data-theme="dark"] #paywall_premium_card h4,
+[data-theme="dark"] #paywall_premium_card p {
+    color: #fbbf24 !important;
+}
+
+/* 17. Google Maps Autocomplete (pac-container) */
+[data-theme="dark"] .pac-container {
+    background-color: rgba(30, 41, 59, 0.98) !important;
+    border-color: var(--input-border) !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4) !important;
+}
+[data-theme="dark"] .pac-item {
+    color: var(--text-muted) !important;
+    border-top-color: var(--input-border) !important;
+}
+[data-theme="dark"] .pac-item:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+[data-theme="dark"] .pac-item-query {
+    color: var(--text-main) !important;
+}
+
+/* 18. 其他通用與微調 */
+[data-theme="dark"] #loginNdaModal h3 {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #loginNdaModal div[style*="background: #f8fafc"],
+[data-theme="dark"] #loginNdaModal div[style*="background:#f8fafc"] {
+    background: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #editPeriodModal .modal-content {
+    background: var(--modal-bg) !important;
+}
+[data-theme="dark"] #editPeriodModal label {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #editPeriodModal button[onclick*="closeModal"] {
+    background: var(--input-bg) !important;
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] #catInputModal label,
+[data-theme="dark"] #catInputModal h3 {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #catInputModal button[onclick*="closeCatInput(false)"] {
+    background: var(--input-bg) !important;
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] #pocketCustomNameModal label {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #pocketCustomNameModal input {
+    background: var(--input-bg) !important;
+    color: var(--text-main) !important;
+    border-color: var(--input-border) !important;
+}
+[data-theme="dark"] #pocketCustomNameModal button[onclick*="closePocketCustomNameModal(false)"] {
+    background: var(--input-bg) !important;
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] #pocketMoveBackModal,
+[data-theme="dark"] #pocketMoveBackModal h3,
+[data-theme="dark"] #pocketMoveBackModal label,
+[data-theme="dark"] #pocketMoveBackModal span,
+[data-theme="dark"] #pocketMoveBackModal p {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #move_back_category_select,
+[data-theme="dark"] #move_back_custom_category {
+    background: var(--input-bg) !important;
+    color: var(--text-main) !important;
+    border-color: var(--input-border) !important;
+}
+[data-theme="dark"] #pocketMoveBackModal button[onclick*="closePocketMoveBackModal(false)"] {
+    background: var(--input-bg) !important;
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] #addFavAddressModal .modal-content {
+    background: var(--modal-bg) !important;
+}
+[data-theme="dark"] #fav_address_preview {
+    background: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #addFavAddressModal label {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #fav_address_name_input {
+    background: var(--input-bg) !important;
+    color: var(--text-main) !important;
+    border-color: var(--input-border) !important;
+}
+[data-theme="dark"] #addFavAddressModal button[onclick*="closeAddFavAddressModal(false)"] {
+    background: var(--input-bg) !important;
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] #importFavAddressModal .modal-content {
+    background: var(--modal-bg) !important;
+}
+[data-theme="dark"] #importFavAddressModal p {
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] #import_fav_address_select {
+    background: var(--input-bg) !important;
+    color: var(--text-main) !important;
+    border-color: var(--input-border) !important;
+}
+[data-theme="dark"] #importFavAddressModal button[onclick*="closeImportFavAddressModal(false)"] {
+    background: var(--input-bg) !important;
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] #stockDashboardModal div[style*="background: rgba(255, 255, 255, 0.7)"],
+[data-theme="dark"] #stockDashboardModal div[style*="background:rgba(255, 255, 255, 0.7)"] {
+    background: rgba(15, 23, 42, 0.75) !important;
+}
+[data-theme="dark"] #stockDashboardModal h3 {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #stockDashboardModal h3[style*="color: #334155"] {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #stockDashboardModal span[style*="background: #e2e8f0"] {
+    background: var(--input-bg) !important;
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] .restore-btn-ui {
+    background: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] .add-fav-loc-btn[disabled] {
+    background: var(--input-bg) !important;
+    color: var(--text-muted) !important;
+    border-color: var(--input-border) !important;
+}
+[data-theme="dark"] .add-fav-loc-btn:not([disabled]) {
+    background: rgba(217, 119, 6, 0.15) !important;
+    color: #fbbf24 !important;
+    border-color: rgba(251, 191, 36, 0.3) !important;
+}
+
+/* 19. Webkit Autofill 瀏覽器自動填入樣式覆蓋 (防止 Chrome 自動帶入時背景變亮、字體變黑) */
+[data-theme="dark"] input:-webkit-autofill,
+[data-theme="dark"] input:-webkit-autofill:hover,
+[data-theme="dark"] input:-webkit-autofill:focus,
+[data-theme="dark"] input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px #0f172a inset !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* =================================================================
+   🌙 股票/存股功能 (stockModal & stockDashboardModal) 黑暗模式完美修復樣式 (V3.8 Premium Dark Mode)
+   ================================================================= */
+[data-theme="dark"] #stockModal .modal-content {
+    background: var(--modal-bg) !important;
+}
+
+[data-theme="dark"] #stockModal label {
+    color: var(--text-main) !important;
+}
+
+/* 1. 股票交易登記表單輸入框的強制深色與邊框適配 */
+[data-theme="dark"] #stockModal input[type="text"],
+[data-theme="dark"] #stockModal input[type="number"],
+[data-theme="dark"] #stockModal input[type="date"] {
+    background: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+    color: var(--text-main) !important;
+}
+
+[data-theme="dark"] #stockModal input::placeholder {
+    color: var(--text-muted) !important;
+}
+
+/* 2. 交易類別切換背景適配 */
+[data-theme="dark"] #stockModal div[style*="background: #f1f5f9"],
+[data-theme="dark"] #stockModal div[style*="background:#f1f5f9"] {
+    background: var(--bg-main) !important;
+}
+
+/* 3. 股票聯想下拉選單與聯想項目樣式適配 */
+[data-theme="dark"] #stock_ticker_autocomplete,
+[data-theme="dark"] #stock_name_autocomplete {
+    background: var(--modal-bg) !important;
+    border-color: var(--input-border) !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+}
+
+.stock-autocomplete-item {
+    color: #1e293b;
+}
+.stock-autocomplete-item .ticker-text {
+    color: #0f172a;
+}
+.stock-autocomplete-item .name-text {
+    color: #64748b;
+}
+.stock-autocomplete-item:hover {
+    background: #f1f5f9;
+}
+
+[data-theme="dark"] .stock-autocomplete-item {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] .stock-autocomplete-item .ticker-text {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] .stock-autocomplete-item .name-text {
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] .stock-autocomplete-item:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 4. 歷史持股快速補登指南提示框適配 */
+[data-theme="dark"] #stockModal div[style*="background: #f8fafc"],
+[data-theme="dark"] #stockModal div[style*="background:#f8fafc"] {
+    background: rgba(15, 23, 42, 0.6) !important;
+    border-color: var(--input-border) !important;
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] #stockModal div[style*="background: #f8fafc"] span,
+[data-theme="dark"] #stockModal div[style*="background:#f8fafc"] span {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] #stockModal div[style*="background: #f8fafc"] strong,
+[data-theme="dark"] #stockModal div[style*="background:#f8fafc"] strong {
+    color: #fbbf24 !important; /* 警告強烈金黃對比色 */
+}
+
+/* 5. 記帳匯入總預算提示框適配 */
+[data-theme="dark"] #stock_budget_helper_card {
+    background: rgba(37, 99, 235, 0.15) !important;
+    border-color: rgba(37, 99, 235, 0.3) !important;
+    color: #93c5fd !important;
+}
+[data-theme="dark"] #stock_budget_helper_card span,
+[data-theme="dark"] #stock_budget_helper_card p {
+    color: #93c5fd !important;
+}
+[data-theme="dark"] #stock_budget_helper_card span span {
+    color: #60a5fa !important;
+}
+
+/* 6. 雙向試算防呆卡片適配 */
+[data-theme="dark"] #stock_tx_preview_card[style*="background: #f0fdf4"],
+[data-theme="dark"] #stock_tx_preview_card[style*="background:#f0fdf4"] {
+    background: rgba(22, 163, 74, 0.15) !important;
+    border-color: rgba(22, 163, 74, 0.3) !important;
+    color: #4ade80 !important;
+}
+[data-theme="dark"] #stock_tx_preview_card[style*="background: #f0fdf4"] span,
+[data-theme="dark"] #stock_tx_preview_card[style*="background:#f0fdf4"] span,
+[data-theme="dark"] #stock_tx_preview_card[style*="background: #f0fdf4"] div,
+[data-theme="dark"] #stock_tx_preview_card[style*="background:#f0fdf4"] div {
+    color: #4ade80 !important;
+}
+
+[data-theme="dark"] #stock_tx_preview_card[style*="background: #fef2f2"],
+[data-theme="dark"] #stock_tx_preview_card[style*="background:#fef2f2"] {
+    background: rgba(239, 68, 68, 0.15) !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+    color: #f87171 !important;
+}
+[data-theme="dark"] #stock_tx_preview_card[style*="background: #fef2f2"] span,
+[data-theme="dark"] #stock_tx_preview_card[style*="background:#fef2f2"] span,
+[data-theme="dark"] #stock_tx_preview_card[style*="background: #fef2f2"] div,
+[data-theme="dark"] #stock_tx_preview_card[style*="background:#fef2f2"] div {
+    color: #f87171 !important;
+}
+
+/* =================================================================
+   🌙 存股同步記帳成功彈窗 (Sync Complete Modal) 樣式與黑暗模式適配
+   ================================================================= */
+.sync-complete-container {
+    text-align: left;
+    line-height: 1.6;
+    font-size: 0.85rem;
+    color: #334155;
+}
+.sync-complete-card {
+    background: #f8fafc;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+.sync-complete-label {
+    color: #64748b;
+}
+.sync-complete-value {
+    font-weight: bold;
+    color: #0f172a;
+}
+.sync-complete-total {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    color: #1e3a8a;
+}
+.sync-complete-footer {
+    margin: 0;
+    font-size: 0.78rem;
+    color: #475569;
+    font-weight: 500;
+}
+
+[data-theme="dark"] .sync-complete-container {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] .sync-complete-card {
+    background: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+}
+[data-theme="dark"] .sync-complete-label {
+    color: var(--text-muted) !important;
+}
+[data-theme="dark"] .sync-complete-value {
+    color: var(--text-main) !important;
+}
+[data-theme="dark"] .sync-complete-total {
+    color: var(--primary-color) !important;
+}
+[data-theme="dark"] .sync-complete-footer {
+    color: var(--text-muted) !important;
+}
+
+/* =================================================================
+   💳 個人資產帳戶與儀表板樣式及黑暗模式適配 (V3.8 Asset Accounts UI)
+   ================================================================= */
+.asset-account-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.asset-account-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.asset-account-card .account-name {
+    font-weight: bold;
+    font-size: 0.88rem;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.asset-account-card .account-type {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.asset-account-card .account-remark {
+    font-size: 0.7rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.asset-account-card .account-time {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+.asset-account-card .account-balance {
+    font-weight: 800;
+    font-size: 0.95rem;
+}
+
+.asset-account-card button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 4px;
+    transition: opacity 0.2s;
+}
+
+.asset-account-card button:hover {
+    opacity: 0.7;
+}
+
+/* 黑暗模式適配 */
+[data-theme="dark"] #assetAccountsModal .modal-content,
+[data-theme="dark"] #assetAccountsModal .modal-header {
+    background: var(--modal-bg) !important;
+}
+
+[data-theme="dark"] #assetAccountsModal label {
+    color: var(--text-main) !important;
+}
+
+[data-theme="dark"] #assetAccountsModal .asset-account-card {
+    background: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+}
+
+[data-theme="dark"] #assetAccountsModal .asset-account-card .account-name {
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] #assetAccountsModal .asset-account-card .account-remark {
+    color: #94a3b8 !important;
+}
+
+[data-theme="dark"] #assetAccountsModal .asset-account-card button {
+    color: var(--text-main) !important;
+}
+
+[data-theme="dark"] #assetAccountsModal .net-worth-dashboard {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.05) 100%) !important;
+    border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+[data-theme="dark"] #assetAccountsModal #net_worth_amount {
+    color: #34d399 !important;
+}
+
+[data-theme="dark"] #assetAccountsModal #liquid_assets_amount,
+[data-theme="dark"] #assetAccountsModal #stock_assets_amount {
+    color: var(--text-main) !important;
 }
 
