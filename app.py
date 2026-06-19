@@ -7752,8 +7752,8 @@ def upload_tax_receipt():
         today_str = now.strftime("%Y%m%d")
         year_str = now.strftime("%Y")
         
-        # 1. 取得或建立主資料夾「報稅公益收據管理」
-        main_folder_id = get_or_create_drive_folder(service_drive, "報稅公益收據管理")
+        # 1. 取得或建立主資料夾「報稅宗教與公益收據管理」
+        main_folder_id = get_or_create_drive_folder(service_drive, "報稅宗教與公益收據管理")
         
         # 2. 取得或建立年度子資料夾
         year_folder_id = get_or_create_drive_folder(service_drive, year_str, parent_id=main_folder_id)

@@ -3999,7 +3999,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await res.json();
                 if (data.status === 'success') {
                     showToast('✅ 收據成功上傳並歸檔在個人雲端硬碟！', 'success');
-                    appendMessage(`📸 系統已成功為您將該筆收據/發票照片以新檔名 <b>${data.filename}</b> 年度歸檔至雲端空間的「報稅公益收據管理/${data.year}」目錄！`);
+                    appendMessage(`📸 系統已成功為您將該筆收據/發票照片以新檔名 <b>${data.filename}</b> 年度歸檔至雲端空間的「報稅宗教與公益收據管理/${data.year}」目錄！`);
                 } else {
                     showToast(`❌ 上傳失敗: ${data.message}`, 'error');
                 }
@@ -4040,7 +4040,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!hasFile) {
                 const confirmed = await window.customConfirm(
                     '💖 公益收據雲端歸檔',
-                    '系統已將此筆交易標記為【年度報稅憑證】！是否要立即將發票/收據拍照存檔到個人的雲端硬碟「報稅公益收據管理」中？',
+                    '系統已將此筆交易標記為【年度報稅憑證】！是否要立即將發票/收據拍照存檔到個人的雲端硬碟「報稅宗教與公益收據管理」中？',
                     '📸',
                     '立即拍照上傳'
                 );
@@ -4127,7 +4127,7 @@ document.addEventListener('DOMContentLoaded', () => {
             appendMessage(data.message);
 
             if (uploadedFileName) {
-                appendMessage(`📸 系統已成功為您將該筆收據/發票照片以新檔名 <b>${uploadedFileName}</b> 年度歸檔至雲端空間的「報稅公益收據管理/${uploadedYear}」目錄！`);
+                appendMessage(`📸 系統已成功為您將該筆收據/發票照片以新檔名 <b>${uploadedFileName}</b> 年度歸檔至雲端空間的「報稅宗教與公益收據管理/${uploadedYear}」目錄！`);
             }
         } catch (e) {
             console.error(e);
