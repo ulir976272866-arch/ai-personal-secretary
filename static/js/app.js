@@ -51,6 +51,71 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- 📱 全螢幕右側滑入面板/彈窗左滑至右 (右滑) 返回/關閉手勢 ---
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    function isHorizontallyScrollable(el) {
+        if (!el || el === document.body || el === document.documentElement) return false;
+        const style = window.getComputedStyle(el);
+        const overflowX = style.getPropertyValue('overflow-x');
+        if ((overflowX === 'auto' || overflowX === 'scroll') && el.scrollWidth > el.clientWidth) {
+            return true;
+        }
+        return isHorizontallyScrollable(el.parentElement);
+    }
+
+    document.addEventListener('touchstart', (e) => {
+        const activePanel = document.querySelector('.finance-report-panel.show');
+        const activeModal = document.querySelector('.modal-backdrop.full-screen-panel.show');
+        
+        if (activePanel || activeModal) {
+            const tagName = e.target.tagName.toLowerCase();
+            // 避開表單元件與水平滾動區域
+            if (tagName === 'input' || tagName === 'textarea' || tagName === 'select' || tagName === 'option') {
+                touchStartX = 0;
+                touchStartY = 0;
+                return;
+            }
+            if (isHorizontallyScrollable(e.target)) {
+                touchStartX = 0;
+                touchStartY = 0;
+                return;
+            }
+            
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        } else {
+            touchStartX = 0;
+            touchStartY = 0;
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+        if (touchStartX === 0) return;
+        
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+        
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = touchEndY - touchStartY;
+        
+        // 由左至右滑動超過 80px 且垂直偏移小於 60px
+        if (deltaX > 80 && Math.abs(deltaY) < 60) {
+            const activePanel = document.querySelector('.finance-report-panel.show');
+            if (activePanel) {
+                if (window.closeFinanceReportPanel) window.closeFinanceReportPanel();
+                return;
+            }
+            
+            const activeModal = document.querySelector('.modal-backdrop.full-screen-panel.show');
+            if (activeModal) {
+                if (window.closeModal) window.closeModal(activeModal.id);
+                return;
+            }
+        }
+    }, { passive: true });
+
     // --- 🌸 生理健康免責聲明跨裝置自動解鎖同步 ---
     if (!localStorage.getItem('menstrual_disclaimer_agreed')) {
         fetch('/api/health/check_disclaimer')

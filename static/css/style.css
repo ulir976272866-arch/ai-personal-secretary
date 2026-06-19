@@ -3616,7 +3616,7 @@ select.form-input {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 20px;
+    padding: calc(20px + env(safe-area-inset-top, 0px)) 20px 20px;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
 }
