@@ -1368,7 +1368,7 @@ INCOME_SUB_CATEGORIES = {
 # 記帳分類與 Emoji 映射對照表 (確保雲端與本地端都有超高顏值 Emoji 符號)
 CATEGORY_EMOJI_MAP = {
     # 支出分類
-    "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖", "未分類": "❓",
+    "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "宗教/公益": "💖", "未分類": "❓",
     # 收入分類
     "薪資": "💼", "獎金": "🧧", "投資獲利": "💹", "副業收入": "🔮", "變更/退款": "↩️"
 }
@@ -2518,7 +2518,7 @@ VALID_EXPENSE_SUB_CATEGORIES = {
     "保險費": ["壽險", "醫療險", "車險", "產險", "其他保費", "其他"],
     "貸款": ["信貸", "車貸", "房貸", "商品貸", "其他"],
     "儲蓄/投資": ["緊急備用金", "定存", "活儲", "投資型保單", "股票", "基金", "外匯", "其他衍生性商品", "其他"],
-    "公益": ["其他"],
+    "宗教/公益": ["其他"],
     "其他雜支": ["其他"]
 }
 
@@ -2580,7 +2580,7 @@ def rule_based_expense_parser(text, email=None):
         '樂': ['電影', '遊戲', '唱歌', '玩具', '旅遊', '門票', '展覽', '密室', '打電動', '遊樂園', '住宿', '機票', '玩樂', '追劇', 'netflix', 'spotify', '按摩', 'spa', '油壓', '指壓'],
         '醫': ['看病', '門診', '藥', '醫院', '診所', '口罩', '感冒', '牙醫', '掛號', '醫療', '保健食品', '推拿', '整脊', '整骨', '復健'],
         '儲蓄/投資': ['股票', '基金', '定存', '理財', '投資', '買股', '證券', '美股', '台股'],
-        '公益': ['捐款', '發票', '捐贈', '慈善', '公益', '愛心', '捐錢']
+        '宗教/公益': ['捐款', '發票', '捐贈', '慈善', '公益', '愛心', '捐錢', '拜拜', '香油錢', '安太歲', '法會', '廟', '宗教']
     }
     
     for part in parts:
@@ -2727,9 +2727,13 @@ def rule_based_expense_parser(text, email=None):
                         ('外匯', '外匯'),
                         ('衍生性商品', '其他衍生性商品'),
                     ],
-                    '公益': [
+                    '宗教/公益': [
                         ('捐款', '其他'),
                         ('公益', '其他'),
+                        ('拜拜', '其他'),
+                        ('香油錢', '其他'),
+                        ('安太歲', '其他'),
+                        ('法會', '其他'),
                     ]
                 }
                 
@@ -2924,7 +2928,7 @@ def chat():
         parsed_data = bypass_data
     else:
         ai_rules_str = ""
-        expense_categories = ["食", "衣", "住", "行", "育", "樂", "醫", "保險費", "貸款", "儲蓄/投資", "公益"]
+        expense_categories = ["食", "衣", "住", "行", "育", "樂", "醫", "保險費", "貸款", "儲蓄/投資", "宗教/公益"]
         try:
             service_sheets = get_sheets_service()
             # 讀取記帳分類
@@ -3033,7 +3037,7 @@ def chat():
         - "保險費" -> "壽險"、"醫療險"、"車險"、"產險"、"其他保費"、"其他"
         - "貸款" -> "信貸"、"車貸"、"房貸"、"商品貸"、"其他"
         - "儲蓄/投資" -> "緊急備用金"、"定存"、"活儲"、"投資型保單"、"股票"、"基金"、"外匯"、"其他衍生性商品"、"其他"
-        - "公益" -> "其他"
+        - "宗教/公益" -> "其他"
         - "其他雜支" -> "其他"
         
         【特別規則 (收入母子分類映射)】：
@@ -3159,7 +3163,7 @@ def chat():
                 for exp in expenses:
                     is_income = exp.get('expense_type') == 'income'
                     category = exp.get('category')
-                    if category == '公益':
+                    if category in ['公益', '宗教/公益']:
                         has_charity = True
                     values_to_append.append([
                         str(now.year), 
@@ -3635,7 +3639,7 @@ def execute_single_intent_internal(parsed_data, email, now, ai_response_message=
                 print(f"Chat Linking Balance Error: {ex}")
                 msg += f"\n\n⚠️ 動態連動帳戶餘額失敗：{str(ex)}"
             
-        if parsed_data.get('category') == '公益':
+        if parsed_data.get('category') in ['公益', '宗教/公益']:
             sub_type = session.get('subscription_type', 'NONE')
             if os.getenv("SINGLE_USER_MODE", "false").lower() == "true" or sub_type != 'NONE' or email.lower() in developer_emails:
                 msg += "<br><br><button onclick='window.triggerChatReceiptUpload()' style='padding: 12px 20px; border-radius: 16px; border: none; background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); color: white; font-weight: 800; font-size: 0.9rem; cursor: pointer; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3); display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0;'>📸 立即拍照上傳收據</button>"
@@ -4615,7 +4619,7 @@ def parse_bill_split():
     【解析與分攤規則】：
     1. 提取所有可能的費用項目名稱（如「去程火車票」、「回程火車」、「Uber」等）。
     2. 判斷該交易整體的消費主體類別（category），且必須是以下清單之一：
-       ["食", "衣", "住", "行", "育", "樂", "醫", "保險費", "貸款", "儲蓄/投資", "公益", "未分類"]
+       ["食", "衣", "住", "行", "育", "樂", "醫", "保險費", "貸款", "儲蓄/投資", "宗教/公益", "未分類"]
        （例如：火車、計程車、機票選「行」；吃飯、外送選「食」；看電影、買遊戲選「樂」；看醫生選「醫」；房租選「住」等等）。
     3. 對於每一筆費用項目，計算：
        - 項目名稱（name）

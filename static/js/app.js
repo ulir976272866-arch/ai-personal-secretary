@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-    window.defaultExpenseCategories = ["食", "衣", "住", "行", "育", "樂", "醫", "保險費", "貸款", "儲蓄/投資", "公益", "其他雜支"];
+    window.defaultExpenseCategories = ["食", "衣", "住", "行", "育", "樂", "醫", "保險費", "貸款", "儲蓄/投資", "宗教/公益", "其他雜支"];
     window.incomeCategories = ["薪資", "獎金", "投資獲利", "副業收入", "變更/退款", "儲蓄/投資", "貸款"];
 
     window.INCOME_SUB_CATEGORIES = {
@@ -238,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "保險費": ["壽險", "醫療險", "車險", "產險", "其他保費", "其他"],
         "貸款": ["信貸", "車貸", "房貸", "商品貸", "其他"],
         "儲蓄/投資": ["緊急備用金", "定存", "活儲", "投資型保單", "股票", "基金", "外匯", "其他衍生性商品", "其他"],
-        "公益": ["其他"],
+        "宗教/公益": ["其他"],
         "其他雜支": ["其他"]
     };
 
@@ -253,7 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const customCats = window.loadExpenseCategories().filter(c => !deletedCats.includes(c.name) && !window.defaultExpenseCategories.includes(c.name));
         
         const incomeMap = { "薪資": "💼", "獎金": "🧧", "投資獲利": "💹", "副業收入": "🔮", "變更/退款": "↩️" };
-        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖", "其他雜支": "🏷️" };
+        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "宗教/公益": "💖", "其他雜支": "🏷️" };
 
         let finalCategories = [];
         if (mode === 'income') {
@@ -453,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 特殊分類：公益 → paywall + 顯示上傳區
-        if (name === '公益') {
+        if (name === '公益' || name === '宗教/公益') {
             if (!window.checkFeatureAccess('tax')) {
                 const confirmed = await window.customConfirm(
                     '解鎖報稅收據雲端備份特權 💎',
@@ -480,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!dropdown) return;
 
         const incomeMap = { "薪資": "💼", "獎金": "🧧", "投資獲利": "💹", "副業收入": "🔮", "變更/退款": "↩️", "儲蓄/投資": "💰", "貸款": "🏦" };
-        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖", "其他雜支": "🏷️" };
+        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "宗教/公益": "💖", "其他雜支": "🏷️" };
 
         let finalCategories = [];
         if (mode === 'income') {
@@ -4035,7 +4035,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const receiptInput = document.getElementById('charity_receipt_input');
         
         // 1. 防呆提醒：公益類別若未選取照片，詢問是否上傳
-        if (category === '公益' && window.checkFeatureAccess('tax')) {
+        if ((category === '公益' || category === '宗教/公益') && window.checkFeatureAccess('tax')) {
             const hasFile = receiptInput && receiptInput.files && receiptInput.files[0];
             if (!hasFile) {
                 const confirmed = await window.customConfirm(
@@ -7355,7 +7355,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const emojiMap = {
                         '食': '🍔', '衣': '👔', '住': '🏠', '行': '🚗', '育': '📚', '樂': '🎬', '醫': '🏥',
-                        '保險費': '🛡️', '貸款': '🏦', '儲蓄/投資': '💰', '公益': '💖'
+                        '保險費': '🛡️', '貸款': '🏦', '儲蓄/投資': '💰', '公益': '💖', '宗教/公益': '💖'
                     };
                     const emoji = emojiMap[item.category] || '💸';
                     
@@ -7484,7 +7484,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('fixed_expense_id').value = item.id;
             document.getElementById('fixed_expense_name').value = item.name;
             
-            const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖", "其他雜支": "🏷️" };
+            const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "宗教/公益": "💖", "其他雜支": "🏷️" };
             const icon = expenseMap[item.category] || "🏷️";
             window.selectFixedExpenseCategory(item.category, icon);
             
@@ -7525,7 +7525,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const catDropdown = document.getElementById('fixed_expense_cat_dropdown');
         if (!catDropdown) return;
         
-        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖", "其他雜支": "🏷️" };
+        const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "宗教/公益": "💖", "其他雜支": "🏷️" };
         const deletedCats = JSON.parse(localStorage.getItem('deletedExpenseCats') || '[]');
         const customCats = window.loadExpenseCategories().filter(c => !deletedCats.includes(c.name) && !window.defaultExpenseCategories.includes(c.name));
         
@@ -7973,7 +7973,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Populating the category dropdown
         const catSelect = document.getElementById('manual_split_category');
         if (catSelect) {
-            const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "公益": "💖", "未分類": "❓" };
+            const expenseMap = { "食": "🍔", "衣": "👔", "住": "🏠", "行": "🚗", "育": "📚", "樂": "🎬", "醫": "🏥", "保險費": "🛡️", "貸款": "🏦", "儲蓄/投資": "💰", "宗教/公益": "💖", "未分類": "❓" };
             catSelect.innerHTML = window.defaultExpenseCategories.map(cat => 
                 `<option value="${cat}">${expenseMap[cat] || "📝"} ${cat}</option>`
             ).join('') + `<option value="未分類">❓ 未分類</option>`;
