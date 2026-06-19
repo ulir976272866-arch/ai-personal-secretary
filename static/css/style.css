@@ -304,6 +304,48 @@ body {
     padding: 5px 10px;
     border: 1.5px solid var(--input-border);
     overflow: hidden; /* 防止內容溢出 */
+    position: relative;
+}
+
+/* 🎤 語音長跳線彩色音波容器 */
+.voice-wave-container {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 24px;
+    pointer-events: none; /* 點擊穿透，防止阻擋使用者點選輸入框 */
+    z-index: 5;
+    transition: opacity 0.25s ease;
+}
+
+.voice-wave-container .stroke {
+    display: block;
+    width: 3px;
+    border-radius: 1.5px;
+    animation: soundwave 1.2s infinite ease-in-out;
+}
+
+/* 各音波柱的彩色背景、動畫延遲與基本高度 */
+.voice-wave-container .stroke:nth-child(1) { background: #3b82f6; animation-delay: 0.1s; height: 10px; }
+.voice-wave-container .stroke:nth-child(2) { background: #ef4444; animation-delay: 0.3s; height: 18px; }
+.voice-wave-container .stroke:nth-child(3) { background: #10b981; animation-delay: 0.6s; height: 12px; }
+.voice-wave-container .stroke:nth-child(4) { background: #f59e0b; animation-delay: 0.2s; height: 22px; }
+.voice-wave-container .stroke:nth-child(5) { background: #8b5cf6; animation-delay: 0.4s; height: 14px; }
+.voice-wave-container .stroke:nth-child(6) { background: #ec4899; animation-delay: 0.7s; height: 10px; }
+.voice-wave-container .stroke:nth-child(7) { background: #06b6d4; animation-delay: 0.5s; height: 16px; }
+
+@keyframes soundwave {
+    0%, 100% {
+        transform: scaleY(0.3);
+    }
+    50% {
+        transform: scaleY(1.15);
+    }
 }
 
 #userInput {
@@ -341,11 +383,38 @@ body {
     cursor: pointer;
     padding: 0 8px;
     flex-shrink: 0; /* 禁止按鈕被擠壓變形 */
+    position: relative;
 }
 
 .voice-btn.listening {
-    color: var(--danger-red);
-    animation: pulse 1.2s infinite;
+    color: white !important;
+    background-color: var(--danger-red) !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
+    animation: voiceGlow 1.2s infinite ease-in-out;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 !important;
+    margin: 0 4px;
+    z-index: 1;
+}
+
+@keyframes voiceGlow {
+    0% {
+        box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 16px rgba(239, 68, 68, 0.8);
+        transform: scale(1.1);
+    }
+    100% {
+        box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
+        transform: scale(1);
+    }
 }
 
 /* 行程卡片 */

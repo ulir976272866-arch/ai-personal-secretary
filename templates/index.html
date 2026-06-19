@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="UniTask">
     
-    <link rel="stylesheet" href="/static/css/style.css?v=10.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=11.0">
     <link rel="apple-touch-icon" href="/static/icons/icon.png">
     <link rel="icon" type="image/png" href="/static/icons/icon.png">
     <!-- Google Fonts -->
@@ -532,6 +532,15 @@
             <button id="chatCameraBtn" class="voice-btn" onclick="document.getElementById('chat_camera_input').click()" style="margin-left: 5px;">📷</button>
             <input type="file" id="chat_camera_input" accept="image/*" capture="environment" style="display: none;" onchange="handleChatImage(this)">
             <input type="text" id="userInput" placeholder="輸入行程或指令..." autocomplete="off">
+            <div id="voiceWave" class="voice-wave-container" style="display: none;">
+                <span class="stroke"></span>
+                <span class="stroke"></span>
+                <span class="stroke"></span>
+                <span class="stroke"></span>
+                <span class="stroke"></span>
+                <span class="stroke"></span>
+                <span class="stroke"></span>
+            </div>
             <button id="sendBtn" class="send-btn">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -1862,7 +1871,7 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=11.0"></script>
+    <script src="/static/js/app.js?v=12.0"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&libraries=places&callback=initMap" async defer></script>
 
     <!-- 📊 存股看板 Modal (V3.2 - Interactive Premium Dashboard) -->

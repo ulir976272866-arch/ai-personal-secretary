@@ -1417,31 +1417,36 @@ def get_monthly_report(service, now):
         
         monthly_expense = 0
         monthly_income = 0
+        lifetime_expense = 0
+        lifetime_income = 0
         category_totals = {}
         
         for row in rows[1:]:
             if len(row) >= 6:
-                r_year = str(row[0]).replace("'", "")
-                r_month = str(row[1]).replace("'", "").zfill(2)
-                
-                if r_year == cur_year and r_month == cur_month:
-                    try:
-                        amt = float(str(row[5]).replace(',', ''))
-                        
-                        # 判斷是收入還是支出 (看 D 欄位是否有內容)
-                        is_income = len(row) > 3 and row[3].strip() != ""
-                        
+                try:
+                    amt = float(str(row[5]).replace(',', ''))
+                    is_income = len(row) > 3 and row[3].strip() != ""
+                    
+                    # 累計所有歷史收支
+                    if is_income:
+                        lifetime_income += amt
+                    else:
+                        lifetime_expense += amt
+                    
+                    # 累計當月收支
+                    r_year = str(row[0]).replace("'", "")
+                    r_month = str(row[1]).replace("'", "").zfill(2)
+                    if r_year == cur_year and r_month == cur_month:
                         if is_income:
                             monthly_income += amt
                         else:
                             monthly_expense += amt
                             cat = row[6] if len(row) > 6 else "未分類"
                             category_totals[cat] = category_totals.get(cat, 0) + amt
-                    except:
-                        pass
+                except:
+                    pass
         
-        balance = monthly_income - monthly_expense
-        save_rate = (balance / monthly_income * 100) if monthly_income > 0 else 0
+        lifetime_balance = lifetime_income - lifetime_expense
         
         cat_report = ""
         # 按金額排序
@@ -1450,11 +1455,8 @@ def get_monthly_report(service, now):
             percentage = (total / monthly_expense * 100) if monthly_expense > 0 else 0
             cat_report += f"🔹 {cat}: ${int(total):,} ({percentage:.1f}%)\n"
             
-        summary = f"💰 本月收入：${int(monthly_income):,}\n"
-        summary += f"💸 本月支出：${int(monthly_expense):,}\n"
-        summary += f"⚖️ 剩餘結餘：${int(balance):,}\n"
-        if monthly_income > 0:
-            summary += f"📈 結餘比例：{save_rate:.1f}%\n"
+        summary = f"💸 本月支出：${int(monthly_expense):,}\n"
+        summary += f"⚖️ 剩餘結餘 (歷史累計)：${int(lifetime_balance):,}\n"
             
         return monthly_expense, f"{summary}\n支出細目：\n{cat_report}", category_totals, monthly_income
     except Exception as e:
@@ -2505,6 +2507,63 @@ def sync_profile():
 
 
 
+VALID_EXPENSE_SUB_CATEGORIES = {
+    "食": ["早餐", "午餐", "晚餐", "飲料／咖啡", "外送", "超商／零食", "聚餐", "其他"],
+    "衣": ["上衣／褲子", "鞋子", "包包／配件", "保養／化妝品", "洗頭", "美甲", "做臉", "美容／理美髮", "其他"],
+    "住": ["房租", "水費", "電費", "瓦斯費", "管理費", "手機費", "網路費", "修繕／家具", "清潔用品", "其他"],
+    "行": ["油錢／加油", "停車費", "大眾交通", "Uber／計程車", "高鐵／火車", "機票", "其他"],
+    "育": ["書籍", "課程／學費", "補習", "文具", "其他"],
+    "樂": ["電影／演唱會", "KTV", "旅遊", "遊戲", "訂閱娛樂", "放鬆按摩", "SPA", "油壓／指壓", "其他"],
+    "醫": ["掛號／看診", "藥品", "健保", "保健品", "推拿／整脊", "復健", "其他"],
+    "保險費": ["壽險", "醫療險", "車險", "產險", "其他保費", "其他"],
+    "貸款": ["信貸", "車貸", "房貸", "商品貸", "其他"],
+    "儲蓄/投資": ["緊急備用金", "定存", "活儲", "投資型保單", "股票", "基金", "外匯", "其他衍生性商品", "其他"],
+    "公益": ["其他"],
+    "其他雜支": ["其他"]
+}
+
+VALID_INCOME_SUB_CATEGORIES = {
+    "薪資": ["正職薪水", "兼職時薪", "小費進帳", "其他"],
+    "獎金": ["年終獎金", "績效/三節", "專案分紅", "其他"],
+    "投資獲利": ["股票股利/價差", "基金配息", "定存利息", "加密貨幣", "其他"],
+    "副業收入": ["諮詢服務", "個人項目", "團購/分潤", "諮詢隨喜/小費", "其他"],
+    "變更/退款": ["購物退款", "代墊款收回", "其他雜項", "其他"],
+    "儲蓄/投資": ["緊急備用金", "定存", "活儲", "投資型保單", "股票", "基金", "外匯", "其他衍生性商品", "其他"],
+    "貸款": ["信貸", "車貸", "房貸", "商品貸", "其他"]
+}
+
+def normalize_sub_category(category, sub_cat, is_income=False):
+    sub_cat = (sub_cat or "").strip()
+    if not sub_cat:
+        return "其他"
+        
+    mapping = VALID_INCOME_SUB_CATEGORIES if is_income else VALID_EXPENSE_SUB_CATEGORIES
+    
+    if category not in mapping:
+        return "其他"
+        
+    valid_list = mapping[category]
+    
+    def clean_str(s):
+        return s.replace('／', '/').replace(' ', '').lower()
+        
+    cleaned_sub_cat = clean_str(sub_cat)
+    
+    # First pass: exact clean match
+    for valid_item in valid_list:
+        if clean_str(valid_item) == cleaned_sub_cat:
+            return valid_item
+            
+    # Second pass: substring match (excluding "其他")
+    for valid_item in valid_list:
+        if valid_item == "其他":
+            continue
+        cv = clean_str(valid_item)
+        if cleaned_sub_cat in cv or cv in cleaned_sub_cat:
+            return valid_item
+            
+    return "其他"
+
 def rule_based_expense_parser(text, email=None):
     import re
     # Split by common conjunctions
@@ -2516,10 +2575,10 @@ def rule_based_expense_parser(text, email=None):
         '食': ['餐', '便當', '飯', '麵', '壽司', '火鍋', '餐廳', '點心', '麵包', '宵夜', '水果', '超商', '飲料', '咖啡', '茶', '奶茶', '冰', '麥當勞', '肯德基', '早餐', '午餐', '晚餐', '吃', '喝', '雞排', '茶'],
         '行': ['捷運', '公車', '計程車', '火車', '高鐵', '加油', '停車', '機車', '汽車', '悠遊卡', 'uber', '車票', '機票', '油錢', '客運', '輕軌', '租車'],
         '住': ['房租', '水費', '電費', '瓦斯', '網路', '管理費', '衛生紙', '洗面乳', '沐浴乳', '日用品', '生活百貨', '水電', '租金', '裝潢', '傢俱', '家電'],
-        '衣': ['衣服', '褲子', '鞋子', '外套', '襪子', '襯衫', '帽子', '裙子', '西裝', '服飾', '買衣'],
+        '衣': ['衣服', '褲子', '鞋子', '外套', '襪子', '襯衫', '帽子', '裙子', '西裝', '服飾', '買衣', '洗頭', '美甲', '美睫', '做臉', '美容', '理髮', '剪髮', '染髮'],
         '育': ['書', '課', '學費', '文具', '雜誌', '報紙', '演講', '補習', '教材', '原子筆'],
-        '樂': ['電影', '遊戲', '唱歌', '玩具', '旅遊', '門票', '展覽', '密室', '打電動', '遊樂園', '住宿', '機票', '玩樂', '追劇', 'netflix', 'spotify'],
-        '醫': ['看病', '門診', '藥', '醫院', '診所', '口罩', '感冒', '牙醫', '掛號', '醫療', '保健食品'],
+        '樂': ['電影', '遊戲', '唱歌', '玩具', '旅遊', '門票', '展覽', '密室', '打電動', '遊樂園', '住宿', '機票', '玩樂', '追劇', 'netflix', 'spotify', '按摩', 'spa', '油壓', '指壓'],
+        '醫': ['看病', '門診', '藥', '醫院', '診所', '口罩', '感冒', '牙醫', '掛號', '醫療', '保健食品', '推拿', '整脊', '整骨', '復健'],
         '儲蓄/投資': ['股票', '基金', '定存', '理財', '投資', '買股', '證券', '美股', '台股'],
         '公益': ['捐款', '發票', '捐贈', '慈善', '公益', '愛心', '捐錢']
     }
@@ -2538,12 +2597,10 @@ def rule_based_expense_parser(text, email=None):
             category = None
             sub_category = None
             
-
-            
             # Predefined sub-category mapping rules based on keywords
             if not category or not sub_category:
                 category = '食' # default fallback
-                sub_category = '一般'
+                sub_category = '其他'
                 
                 # Check category keywords
                 for cat, keywords in cat_keywords.items():
@@ -2559,64 +2616,101 @@ def rule_based_expense_parser(text, email=None):
                         ('晚餐', '晚餐'),
                         ('便當', '午餐'),
                         ('宵夜', '晚餐'),
-                        ('飲料', '飲料 / 咖啡'),
-                        ('咖啡', '飲料 / 咖啡'),
-                        ('茶', '飲料 / 咖啡'),
-                        ('奶茶', '飲料 / 咖啡'),
-                        ('紅茶', '飲料 / 咖啡'),
-                        ('綠茶', '飲料 / 咖啡'),
-                        ('冰', '冰品/甜點'),
-                        ('甜點', '冰品/甜點'),
+                        ('飲料', '飲料／咖啡'),
+                        ('咖啡', '飲料／咖啡'),
+                        ('茶', '飲料／咖啡'),
+                        ('奶茶', '飲料／咖啡'),
+                        ('外送', '外送'),
+                        ('超商', '超商／零食'),
+                        ('零食', '超商／零食'),
+                        ('聚餐', '聚餐'),
                     ],
                     '行': [
-                        ('計程車', '計程車'),
-                        ('小黃', '計程車'),
-                        ('uber', '計程車'),
-                        ('捷運', '大眾運輸'),
-                        ('公車', '大眾運輸'),
-                        ('火車', '大眾運輸'),
-                        ('高鐵', '大眾運輸'),
-                        ('悠遊卡', '大眾運輸'),
-                        ('加油', '加油'),
-                        ('油錢', '加油'),
+                        ('計程車', 'Uber／計程車'),
+                        ('小黃', 'Uber／計程車'), # wait, Uber／計程車
+                        ('uber', 'Uber／計程車'),
+                        ('捷運', '大眾交通'),
+                        ('公車', '大眾交通'),
+                        ('火車', '高鐵／火車'),
+                        ('高鐵', '高鐵／火車'),
+                        ('飛機', '機票'),
+                        ('機票', '機票'),
+                        ('悠遊卡', '大眾交通'),
+                        ('加油', '油錢／加油'),
+                        ('油錢', '油錢／加油'),
                         ('停車', '停車費'),
                     ],
                     '住': [
-                        ('房租', '房租/房貸'),
-                        ('房貸', '房租/房貸'),
-                        ('水電', '水電瓦斯'),
-                        ('電費', '電費'),
-                        ('台電', '電費'),
+                        ('房租', '房租'),
+                        ('租金', '房租'),
                         ('水費', '水費'),
-                        ('日用品', '生活日用'),
-                        ('衛生紙', '生活日用'),
+                        ('電費', '電費'),
+                        ('瓦斯', '瓦斯費'),
+                        ('管理費', '管理費'),
+                        ('手機', '手機費'),
+                        ('電話費', '手機費'),
+                        ('網路', '網路費'),
+                        ('修繕', '修繕／家具'),
+                        ('家具', '修繕／家具'),
+                        ('清潔', '清潔用品'),
                     ],
                     '衣': [
-                        ('衣服', '衣服鞋襪'),
-                        ('褲子', '衣服鞋襪'),
-                        ('鞋', '衣服鞋襪'),
-                        ('服飾', '衣服鞋襪'),
+                        ('衣服', '上衣／褲子'),
+                        ('褲子', '上衣／褲子'),
+                        ('外套', '上衣／褲子'),
+                        ('襯衫', '上衣／褲子'),
+                        ('裙子', '上衣／褲子'),
+                        ('鞋', '鞋子'),
+                        ('包包', '包包／配件'),
+                        ('配件', '包包／配件'),
+                        ('保養', '保養／化妝品'),
+                        ('化妝', '保養／化妝品'),
+                        ('洗頭', '洗頭'),
+                        ('美甲', '美甲'),
+                        ('做臉', '做臉'),
+                        ('美容', '美容／理美髮'),
+                        ('美髮', '美容／理美髮'),
+                        ('理髮', '美容／理美髮'),
+                        ('剪髮', '美容／理美髮'),
+                        ('染髮', '美容／理美髮'),
                     ],
                     '育': [
-                        ('書', '書籍/教材'),
-                        ('課', '學習進修'),
-                        ('學費', '學習進修'),
+                        ('書', '書籍'),
+                        ('課程', '課程／學費'),
+                        ('學費', '課程／學費'),
+                        ('補習', '補習'),
+                        ('文具', '文具'),
                     ],
                     '樂': [
-                        ('電影', '娛樂'),
-                        ('遊戲', '娛樂'),
-                        ('唱歌', '娛樂'),
+                        ('電影', '電影／演唱會'),
+                        ('演唱會', '電影／演唱會'),
+                        ('ktv', 'KTV'),
+                        ('唱歌', 'KTV'),
                         ('旅遊', '旅遊'),
                         ('住宿', '旅遊'),
+                        ('遊戲', '遊戲'),
+                        ('電動', '遊戲'),
+                        ('訂閱', '訂閱娛樂'),
+                        ('按摩', '放鬆按摩'),
+                        ('spa', 'SPA'),
+                        ('SPA', 'SPA'),
+                        ('油壓', '油壓／指壓'),
+                        ('指壓', '油壓／指壓'),
                     ],
                     '醫': [
-                        ('看病', '醫療/掛號'),
-                        ('門診', '醫療/掛號'),
-                        ('掛號', '醫療/掛號'),
-                        ('藥', '藥品/醫療'),
-                        ('感冒', '藥品/醫療'),
+                        ('看病', '掛號／看診'),
+                        ('門診', '掛號／看診'),
+                        ('掛號', '掛號／看診'),
+                        ('診所', '掛號／看診'),
+                        ('藥', '藥品'),
+                        ('感冒', '藥品'),
+                        ('健保', '健保'),
                         ('保健品', '保健品'),
                         ('維他命', '保健品'),
+                        ('推拿', '推拿／整脊'),
+                        ('整脊', '推拿／整脊'),
+                        ('整骨', '推拿／整脊'),
+                        ('復健', '復健'),
                     ],
                     '儲蓄/投資': [
                         ('緊急備用金', '緊急備用金'),
@@ -2634,8 +2728,8 @@ def rule_based_expense_parser(text, email=None):
                         ('衍生性商品', '其他衍生性商品'),
                     ],
                     '公益': [
-                        ('捐款', '捐款'),
-                        ('公益', '捐款'),
+                        ('捐款', '其他'),
+                        ('公益', '其他'),
                     ]
                 }
                 
@@ -2645,6 +2739,9 @@ def rule_based_expense_parser(text, email=None):
                         if kw in item:
                             sub_category = sub_cat
                             break
+                            
+            # Ensure normalization
+            sub_category = normalize_sub_category(category, sub_category, is_income=False)
             
             # Strip verb prefix if any
             for prefix in ['買', '吃', '喝', '付', '繳']:
@@ -2660,6 +2757,90 @@ def rule_based_expense_parser(text, email=None):
             })
             
     return expenses
+
+def rule_based_calendar_parser(text, now):
+    import re
+    text_clean = text.strip()
+    if not any(kw in text_clean for kw in ["行程", "日曆", "行事曆", "新增", "安排", "唱歌", "約會", "開會", "會議"]):
+        return None
+        
+    start_time = None
+    title = "約會/活動"
+    location = ""
+    
+    # 1. 日期解析
+    date_match = re.search(r'(\d+)\s*月\s*(\d+)\s*[號日]', text_clean)
+    if date_match:
+        month = int(date_match.group(1))
+        day = int(date_match.group(2))
+        try:
+            start_dt = now.replace(month=month, day=day, hour=12, minute=0, second=0, microsecond=0)
+            start_time = start_dt.isoformat()
+        except:
+            pass
+            
+    if not start_time:
+        if "今天" in text_clean:
+            start_time = now.replace(hour=12, minute=0, second=0, microsecond=0).isoformat()
+        elif "明天" in text_clean:
+            start_time = (now + timedelta(days=1)).replace(hour=12, minute=0, second=0, microsecond=0).isoformat()
+        elif "後天" in text_clean:
+            start_time = (now + timedelta(days=2)).replace(hour=12, minute=0, second=0, microsecond=0).isoformat()
+            
+    time_match = re.search(r'(\d+)\s*點\s*(\d+)?\s*分?', text_clean)
+    if time_match and start_time:
+        hour = int(time_match.group(1))
+        minute = int(time_match.group(2)) if time_match.group(2) else 0
+        if any(kw in text_clean for kw in ["下午", "晚上", "pm"]) and hour < 12:
+            hour += 12
+        try:
+            dt = datetime.fromisoformat(start_time)
+            start_time = dt.replace(hour=hour, minute=minute).isoformat()
+        except:
+            pass
+            
+    if not start_time:
+        start_time = (now + timedelta(days=1)).replace(hour=12, minute=0, second=0, microsecond=0).isoformat()
+
+    # 2. 地點解析
+    loc_match = re.search(r'地點(?:是|在)\s*([^，。\s]+)', text_clean)
+    if loc_match:
+        location = loc_match.group(1).strip()
+    else:
+        loc_match2 = re.search(r'在\s*([^，。去新增時間地點在是\s]{2,15})', text_clean)
+        if loc_match2:
+            location = loc_match2.group(1).strip()
+            
+    # 3. 標題解析
+    title_match = re.search(r'去\s*([^，。地點是在\s]{2,10})', text_clean)
+    if title_match:
+        title = title_match.group(1).strip()
+    else:
+        temp_title = text_clean
+        temp_title = re.sub(r'新增|安排|行程|日曆|行事曆', '', temp_title)
+        temp_title = re.sub(r'\d+\s*月\s*\d+\s*[號日]|今天|明天|後天', '', temp_title)
+        temp_title = re.sub(r'\d+\s*點\s*(\d+\s*分)?', '', temp_title)
+        temp_title = re.sub(r'下午|晚上|上午|中午', '', temp_title)
+        if location:
+            temp_title = temp_title.replace(location, '')
+        temp_title = re.sub(r'地點(?:是|在)|是在|在|的|去', '', temp_title)
+        temp_title = temp_title.replace('，', '').replace('。', '').strip()
+        if len(temp_title) >= 2:
+            title = temp_title
+            
+    if location and location in title:
+        title = title.replace(location, '').strip()
+        
+    if not title:
+        title = "約會/活動"
+        
+    return {
+        "type": "calendar",
+        "title": title,
+        "location": location,
+        "start_time": start_time,
+        "end_time": (datetime.fromisoformat(start_time) + timedelta(hours=1)).isoformat()
+    }
 
 @app.route('/chat', methods=['POST'])
 @app.route('/api/chat', methods=['POST'])
@@ -2840,6 +3021,21 @@ def chat():
         - 輝達 / Nvidia / NVDA -> "NASDAQ:NVDA"
         - 特斯拉 / Tesla / TSLA -> "NASDAQ:TSLA"
         
+        【特別規則 (支出母子分類映射)】：
+        如果是支出，並且 category 與 sub_category 必須配對正確的項目：
+        - "食" -> "早餐"、"午餐"、"晚餐"、"飲料／咖啡"、"外送"、"超商／零食"、"聚餐"、"其他"
+        - "衣" -> "上衣／褲子"、"鞋子"、"包包／配件"、"保養／化妝品"、"洗頭"、"美甲"、"做臉"、"美容／理美髮"、"其他"
+        - "住" -> "房租"、"水費"、"電費"、"瓦斯費"、"管理費"、"手機費"、"網路費"、"修繕／家具"、"清潔用品"、"其他"
+        - "行" -> "油錢／加油"、"停車費"、"大眾交通"、"Uber／計程車"、"高鐵／火車"、"機票"、"其他"
+        - "育" -> "書籍"、"課程／學費"、"補習"、"文具"、"其他"
+        - "樂" -> "電影／演唱會"、"KTV"、"旅遊"、"遊戲"、"訂閱娛樂"、"放鬆按摩"、"SPA"、"油壓／指壓"、"其他"
+        - "醫" -> "掛號／看診"、"藥品"、"健保"、"保健品"、"推拿／整脊"、"復健"、"其他"
+        - "保險費" -> "壽險"、"醫療險"、"車險"、"產險"、"其他保費"、"其他"
+        - "貸款" -> "信貸"、"車貸"、"房貸"、"商品貸"、"其他"
+        - "儲蓄/投資" -> "緊急備用金"、"定存"、"活儲"、"投資型保單"、"股票"、"基金"、"外匯"、"其他衍生性商品"、"其他"
+        - "公益" -> "其他"
+        - "其他雜支" -> "其他"
+        
         【特別規則 (收入母子分類映射)】：
         如果是領錢、薪水、進帳、退款、中獎等屬於「收入」，請將 expense_type 設為 "income"。
         並且 category 只能從以下五大母分類挑選，且必須配對正確的 sub_category：
@@ -2847,8 +3043,9 @@ def chat():
         2. "獎金" -> sub_category: "年終獎金"、"績效/三節"、"專案分紅"
         3. "投資獲利" -> sub_category: "股票股利/價差"、"基金配息"、"定存利息"、"加密貨幣"
         4. "副業收入" -> sub_category: "諮詢服務"、"個人項目"、"團購/分潤"、"諮詢隨喜/小費"
-        5. "變更/退款" -> sub_category: "購物退款"、"代墊款收回"、"其他雜項"
+        5. "變更/退款" -> sub_category: "購物退款"、"代墊款收回"
         * 關鍵提示：當使用者說「收到諮詢隨喜」或「小費」時，請對應到 category: "副業收入", sub_category: "諮詢隨喜/小費" 或 category: "薪資", sub_category: "小費進帳"。
+        * 「其他」回退規則：如果此項支出/收入在各母分類的預設子分類中沒有對應項目，請將 sub_category 設定為 "其他"。
         {ai_rules_str}
         
         【格式要求】：
@@ -2864,9 +3061,26 @@ def chat():
             if image_file: contents.append(Image.open(image_file))
             
             response = model.generate_content(contents)
-            text = response.text.replace('```json', '').replace('```', '').strip()
+            raw_text = response.text.strip()
             
-            data = json.loads(text)
+            # 使用 Regex 強力提取 JSON，防止 Extra Data 錯誤
+            import re
+            json_text = raw_text
+            markdown_match = re.search(r'```json\s*(.*?)\s*```', raw_text, re.DOTALL | re.IGNORECASE)
+            if markdown_match:
+                json_text = markdown_match.group(1).strip()
+            else:
+                # 尋找最外圍的方括號 [ ]
+                array_match = re.search(r'(\[.*\])', raw_text, re.DOTALL)
+                if array_match:
+                    json_text = array_match.group(1).strip()
+                else:
+                    # 尋找最外圍的花括號 { }
+                    obj_match = re.search(r'(\{.*\})', raw_text, re.DOTALL)
+                    if obj_match:
+                        json_text = obj_match.group(1).strip()
+                        
+            data = json.loads(json_text)
             if isinstance(data, list):
                 if len(data) == 0:
                     raise Exception("AI returned empty list")
@@ -2885,18 +3099,23 @@ def chat():
                     check_and_deduct_points(email, 1)
         except Exception as e:
             print(f"Gemini AI Error: {e}")
-            fallback_parsed = rule_based_expense_parser(user_text, email) if user_text else []
-            if fallback_parsed:
-                parsed_data = fallback_parsed if len(fallback_parsed) > 1 else fallback_parsed[0]
+            cal_fallback = rule_based_calendar_parser(user_text, now) if user_text else None
+            if cal_fallback:
+                parsed_data = cal_fallback
                 session['ai_fallback_warning'] = True
             else:
-                err_msg = str(e)
-                if "API key was reported as leaked" in err_msg or "API_KEY_INVALID" in err_msg or "403" in err_msg or "prepayment credits" in err_msg:
-                    return jsonify({
-                        "status": "error",
-                        "message": "⚠️ 目前系統對話模組進行維護中，暫時無法處理此類型指令。請稍後再試！"
-                    })
-                return jsonify({"status": "error", "message": "AI 處理失敗，請稍後再試。"})
+                fallback_parsed = rule_based_expense_parser(user_text, email) if user_text else []
+                if fallback_parsed:
+                    parsed_data = fallback_parsed if len(fallback_parsed) > 1 else fallback_parsed[0]
+                    session['ai_fallback_warning'] = True
+                else:
+                    err_msg = str(e)
+                    if "API key was reported as leaked" in err_msg or "API_KEY_INVALID" in err_msg or "403" in err_msg or "prepayment credits" in err_msg:
+                        return jsonify({
+                            "status": "error",
+                            "message": "⚠️ 目前系統對話模組進行維護中，暫時無法處理此類型指令。請稍後再試！"
+                        })
+                    return jsonify({"status": "error", "message": "AI 處理失敗，請稍後再試。"})
 
     ai_response_message = None
     if isinstance(parsed_data, list):
@@ -2915,6 +3134,12 @@ def chat():
                         if k in nested_data and not ai_response_message:
                             ai_response_message = nested_data.pop(k)
                     item.update(nested_data)
+                if item.get('type') == 'expense':
+                    item['sub_category'] = normalize_sub_category(
+                        item.get('category'),
+                        item.get('sub_category'),
+                        is_income=(item.get('expense_type') == 'income')
+                    )
                 cleaned_intents.append(item)
                 
         expenses = [x for x in cleaned_intents if x.get('type') == 'expense']
@@ -3295,7 +3520,8 @@ def execute_single_intent_internal(parsed_data, email, now, ai_response_message=
         service = get_sheets_service()
         is_income = parsed_data.get('expense_type') == 'income'
         category = parsed_data.get('category')
-        sub_category = parsed_data.get('sub_category', '')
+        sub_category = normalize_sub_category(category, parsed_data.get('sub_category', ''), is_income)
+        parsed_data['sub_category'] = sub_category
         amount = int(parsed_data.get('amount') or 0)
         item = parsed_data.get('item')
         

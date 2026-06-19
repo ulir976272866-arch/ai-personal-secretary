@@ -51,9 +51,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 📱 全螢幕右側滑入面板/彈窗左滑至右 (右滑) 返回/關閉手勢 ---
+    // --- 📱 全螢幕右側滑入面板/彈窗左滑至右 (右滑) 跟手拖曳關閉手勢 ---
     let touchStartX = 0;
     let touchStartY = 0;
+    let activeElement = null; // 當前被拖曳的元素
+    let isDragging = false;
 
     function isHorizontallyScrollable(el) {
         if (!el || el === document.body || el === document.documentElement) return false;
@@ -75,24 +77,71 @@ document.addEventListener('DOMContentLoaded', () => {
             if (tagName === 'input' || tagName === 'textarea' || tagName === 'select' || tagName === 'option') {
                 touchStartX = 0;
                 touchStartY = 0;
+                activeElement = null;
+                isDragging = false;
                 return;
             }
             if (isHorizontallyScrollable(e.target)) {
                 touchStartX = 0;
                 touchStartY = 0;
+                activeElement = null;
+                isDragging = false;
                 return;
             }
             
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
+            isDragging = false;
+            
+            if (activePanel) {
+                activeElement = activePanel;
+            } else if (activeModal) {
+                activeElement = activeModal.querySelector('.modal-content');
+            }
         } else {
             touchStartX = 0;
             touchStartY = 0;
+            activeElement = null;
+            isDragging = false;
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (touchStartX === 0 || !activeElement) return;
+        
+        const touchCurrentX = e.touches[0].clientX;
+        const touchCurrentY = e.touches[0].clientY;
+        
+        const deltaX = touchCurrentX - touchStartX;
+        const deltaY = touchCurrentY - touchStartY;
+        
+        if (!isDragging) {
+            // 只有在滑動達到一定距離時才開始判定，防止過於靈敏影響一般滾動
+            if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+                if (deltaX > 0 && deltaX > Math.abs(deltaY)) {
+                    isDragging = true;
+                    activeElement.style.transition = 'none'; // 開始拖曳，暫時關閉動畫以求流暢
+                } else {
+                    // 取消本次追蹤，讓瀏覽器處理正常的垂直滾動
+                    touchStartX = 0;
+                    activeElement = null;
+                }
+            }
+        }
+        
+        if (isDragging && activeElement) {
+            // 實時偏移
+            activeElement.style.transform = `translateX(${deltaX}px)`;
         }
     }, { passive: true });
 
     document.addEventListener('touchend', (e) => {
-        if (touchStartX === 0) return;
+        if (touchStartX === 0 || !activeElement) {
+            touchStartX = 0;
+            activeElement = null;
+            isDragging = false;
+            return;
+        }
         
         const touchEndX = e.changedTouches[0].clientX;
         const touchEndY = e.changedTouches[0].clientY;
@@ -100,20 +149,42 @@ document.addEventListener('DOMContentLoaded', () => {
         const deltaX = touchEndX - touchStartX;
         const deltaY = touchEndY - touchStartY;
         
-        // 由左至右滑動超過 80px 且垂直偏移小於 60px
-        if (deltaX > 80 && Math.abs(deltaY) < 60) {
-            const activePanel = document.querySelector('.finance-report-panel.show');
-            if (activePanel) {
-                if (window.closeFinanceReportPanel) window.closeFinanceReportPanel();
-                return;
-            }
+        const elementWidth = activeElement.clientWidth || 375;
+        const threshold = elementWidth * 0.35; // 35% 寬度作為判定關閉的閾值
+        
+        if (isDragging && deltaX > threshold && Math.abs(deltaY) < deltaX) {
+            // 已過閾值，清理行內樣式，讓 CSS 類別控制過渡與關閉
+            activeElement.style.transform = '';
+            activeElement.style.transition = '';
             
-            const activeModal = document.querySelector('.modal-backdrop.full-screen-panel.show');
-            if (activeModal) {
-                if (window.closeModal) window.closeModal(activeModal.id);
-                return;
+            const activePanel = document.querySelector('.finance-report-panel.show');
+            if (activePanel && activeElement === activePanel) {
+                if (window.closeFinanceReportPanel) window.closeFinanceReportPanel();
+            } else {
+                const activeModal = document.querySelector('.modal-backdrop.full-screen-panel.show');
+                if (activeModal && activeElement === activeModal.querySelector('.modal-content')) {
+                    if (window.closeModal) window.closeModal(activeModal.id);
+                }
             }
+        } else if (isDragging) {
+            // 未過閾值，恢復過渡動畫並彈回原位
+            activeElement.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+            activeElement.style.transform = 'translateX(0)';
+            
+            const currentElement = activeElement;
+            setTimeout(() => {
+                if (currentElement) {
+                    currentElement.style.transform = '';
+                    currentElement.style.transition = '';
+                }
+            }, 400);
         }
+        
+        // 重置拖曳狀態
+        touchStartX = 0;
+        touchStartY = 0;
+        activeElement = null;
+        isDragging = false;
     }, { passive: true });
 
     // --- 🌸 生理健康免責聲明跨裝置自動解鎖同步 ---
@@ -147,28 +218,28 @@ document.addEventListener('DOMContentLoaded', () => {
     window.incomeCategories = ["薪資", "獎金", "投資獲利", "副業收入", "變更/退款", "儲蓄/投資", "貸款"];
 
     window.INCOME_SUB_CATEGORIES = {
-        "薪資": ["正職薪水", "兼職時薪", "小費進帳"],
-        "獎金": ["年終獎金", "績效/三節", "專案分紅"],
-        "投資獲利": ["股票股利/價差", "基金配息", "定存利息", "加密貨幣"],
-        "副業收入": ["諮詢服務", "個人項目", "團購/分潤", "諮詢隨喜/小費"],
-        "變更/退款": ["購物退款", "代墊款收回", "其他雜項"],
-        "儲蓄/投資": ["緊急備用金", "定存", "活儲", "投資型保單", "股票", "基金", "外匯", "其他衍生性商品"],
-        "貸款": ["信貸", "車貸", "房貸", "商品貸"]
+        "薪資": ["正職薪水", "兼職時薪", "小費進帳", "其他"],
+        "獎金": ["年終獎金", "績效/三節", "專案分紅", "其他"],
+        "投資獲利": ["股票股利/價差", "基金配息", "定存利息", "加密貨幣", "其他"],
+        "副業收入": ["諮詢服務", "個人項目", "團購/分潤", "諮詢隨喜/小費", "其他"],
+        "變更/退款": ["購物退款", "代墊款收回", "其他雜項", "其他"],
+        "儲蓄/投資": ["緊急備用金", "定存", "活儲", "投資型保單", "股票", "基金", "外匯", "其他衍生性商品", "其他"],
+        "貸款": ["信貸", "車貸", "房貸", "商品貸", "其他"]
     };
 
     window.FINANCE_SUB_CATEGORIES = {
-        "食": ["早餐", "午餐", "晚餐", "飲料／咖啡", "外送", "超商／零食", "聚餐"],
-        "衣": ["上衣／褲子", "鞋子", "包包／配件", "保養／化妝品"],
-        "住": ["房租", "水費", "電費", "瓦斯費", "管理費", "手機費", "網路費", "修繕／家具", "清潔用品"],
-        "行": ["油錢／加油", "停車費", "大眾交通", "Uber／計程車", "高鐵／火車", "機票"],
-        "育": ["書籍", "課程／學費", "補習", "文具"],
-        "樂": ["電影／演唱會", "KTV", "旅遊", "遊戲", "訂閱娛樂"],
-        "醫": ["掛號／看診", "藥品", "健保", "保健品"],
-        "保險費": ["壽險", "醫療險", "車險", "產險", "其他保費"],
-        "貸款": ["信貸", "車貸", "房貸", "商品貸"],
-        "儲蓄/投資": ["緊急備用金", "定存", "活儲", "投資型保單", "股票", "基金", "外匯", "其他衍生性商品"],
-        "公益": [],
-        "其他雜支": []
+        "食": ["早餐", "午餐", "晚餐", "飲料／咖啡", "外送", "超商／零食", "聚餐", "其他"],
+        "衣": ["上衣／褲子", "鞋子", "包包／配件", "保養／化妝品", "洗頭", "美甲", "做臉", "美容／理美髮", "其他"],
+        "住": ["房租", "水費", "電費", "瓦斯費", "管理費", "手機費", "網路費", "修繕／家具", "清潔用品", "其他"],
+        "行": ["油錢／加油", "停車費", "大眾交通", "Uber／計程車", "高鐵／火車", "機票", "其他"],
+        "育": ["書籍", "課程／學費", "補習", "文具", "其他"],
+        "樂": ["電影／演唱會", "KTV", "旅遊", "遊戲", "訂閱娛樂", "放鬆按摩", "SPA", "油壓／指壓", "其他"],
+        "醫": ["掛號／看診", "藥品", "健保", "保健品", "推拿／整脊", "復健", "其他"],
+        "保險費": ["壽險", "醫療險", "車險", "產險", "其他保費", "其他"],
+        "貸款": ["信貸", "車貸", "房貸", "商品貸", "其他"],
+        "儲蓄/投資": ["緊急備用金", "定存", "活儲", "投資型保單", "股票", "基金", "外匯", "其他衍生性商品", "其他"],
+        "公益": ["其他"],
+        "其他雜支": ["其他"]
     };
 
     // --- 分類選單核心邏輯 (V23.0 完美修復版) ---
@@ -969,6 +1040,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 介面控制與變數初始化 ---
     const voiceBtn = document.getElementById('voiceBtn');
     const clearBtn = document.getElementById('clearBtn');
+    const voiceWave = document.getElementById('voiceWave');
 
     // --- 商業特權與解鎖防線檢測 (V1.0) ---
     window.checkFeatureAccess = (featureOrModalId) => {
@@ -3216,8 +3288,12 @@ document.addEventListener('DOMContentLoaded', () => {
             voiceBtn.classList.add('listening');
             voiceBtn.innerHTML = '🛑'; // 變成停止圖示
             voiceBtn.title = "點擊紅色按鈕取消語音輸入";
-            userInput.placeholder = "聆聽中... (停頓 5 秒自動送出 / 點擊紅點取消)";
-            showToast('🎤 已開啟語音聆聽 (停頓 5 秒自動送出，點擊紅點可取消)', 'info');
+            userInput.placeholder = ""; // 清空 placeholder 以防重疊
+            if (voiceWave) {
+                voiceWave.style.display = 'flex';
+                voiceWave.style.opacity = '1';
+            }
+            showToast('🎤 已開啟語音聆聽 (停頓 3 秒自動送出，點擊紅點可取消)', 'info');
 
             if (window.speechSilenceTimer) clearTimeout(window.speechSilenceTimer);
             // 預設 15 秒完全沒有聲音輸入的安全逾時
@@ -3234,6 +3310,10 @@ document.addEventListener('DOMContentLoaded', () => {
             voiceBtn.innerHTML = '🎤'; // 恢復為麥克風
             voiceBtn.title = "點擊開始語音輸入";
             userInput.placeholder = "輸入行程或指令...";
+            if (voiceWave) {
+                voiceWave.style.display = 'none';
+                voiceWave.style.opacity = '1';
+            }
             if (window.speechSilenceTimer) clearTimeout(window.speechSilenceTimer);
 
             if (window.speechRecognitionShouldSendOnEnd && userInput.value.trim()) {
@@ -3257,12 +3337,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             userInput.value = currentFinal + currentInterim;
 
-            // 停頓 5 秒沒有新輸入，自動結束並送出
+            // 依據字數動態調整音波透明度，有字時淡出，無字時顯現
+            if (voiceWave) {
+                if (userInput.value.trim().length > 0) {
+                    voiceWave.style.opacity = '0';
+                } else {
+                    voiceWave.style.opacity = '1';
+                }
+            }
+
+            // 停頓 3 秒沒有新輸入，自動結束並送出
             window.speechSilenceTimer = setTimeout(() => {
                 if (window.isSpeechListening) {
                     recognition.stop();
                 }
-            }, 5000);
+            }, 3000);
         };
 
         voiceBtn.onclick = () => {
@@ -3270,6 +3359,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.speechRecognitionShouldSendOnEnd = false; // 取消自動送出
                 recognition.abort(); // 立即取消錄音
                 userInput.value = '';
+                if (voiceWave) {
+                    voiceWave.style.display = 'none';
+                    voiceWave.style.opacity = '1';
+                }
                 showToast('❌ 已取消語音輸入並清空內容', 'info');
             } else {
                 recognition.start();
@@ -3280,6 +3373,63 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('您的瀏覽器不支援語音功能，請更換瀏覽器後再試', 'warning');
         };
     }
+
+    // --- 語音諧音與錯別字修正 (V12.1 Auto-Fix) ---
+    window.fixSpeechHomophones = (text) => {
+        if (!text) return text;
+        const map = {
+            '五餐': '午餐',
+            '棗餐': '早餐',
+            '棗安': '早安',
+            '晚安': '晚安',
+            '計帳': '記帳',
+            '季帳': '記帳',
+            '吉張': '記帳',
+            '急漲': '記帳',
+            '急長': '記帳',
+            '級長': '記帳',
+            '即將': '記帳',
+            '即賬': '記帳',
+            '紀帳': '記帳',
+            '機長': '記帳',
+            '幾張': '記帳',
+            '晚殘': '晚餐',
+            '晚禪': '晚餐',
+            '消夜': '宵夜',
+            '消葉': '宵夜',
+            '交友': '加油',
+            '加有': '加油',
+            '捷雲': '捷運',
+            '結運': '捷運',
+            '結餘': '結餘',
+            '餘額': '餘額',
+            '日曆': '日曆',
+            '日立': '日曆',
+            '行事曆': '行事曆',
+            '形式力': '行事曆',
+            '型勢力': '行事曆',
+            '行勢力': '行事曆',
+            '形勢力': '行事曆',
+            '形式曆': '行事曆',
+            '型式曆': '行事曆',
+            '行事力': '行事曆',
+            '待辦': '待辦',
+            '戴辦': '待辦',
+            '代辦': '待辦',
+            '戴伴': '待辦',
+            '代半': '待辦',
+            '待半': '待辦',
+            '備忘': '備忘',
+            '被忘': '備忘',
+            '備網': '備忘',
+            '被網': '備忘'
+        };
+        let fixed = text;
+        for (const [wrong, right] of Object.entries(map)) {
+            fixed = fixed.replace(new RegExp(wrong, 'g'), right);
+        }
+        return fixed;
+    };
 
     // --- 核心查詢功能 ---
     window.queryFinanceSummary = async () => {
@@ -3350,6 +3500,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 voiceBtn.innerHTML = '🎤';
             }
             userInput.placeholder = "輸入行程或指令...";
+            if (voiceWave) {
+                voiceWave.style.display = 'none';
+                voiceWave.style.opacity = '1';
+            }
             if (window.speechSilenceTimer) clearTimeout(window.speechSilenceTimer);
         }
 
@@ -3367,7 +3521,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const message = text || userInput.value.trim();
+        let message = text || userInput.value.trim();
+        if (message) {
+            message = window.fixSpeechHomophones(message);
+        }
         if (!message && !file) return;
 
         // --- 代墊款智慧拆帳前置攔截 (V3.7 Step 4) ---
@@ -6070,35 +6227,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.loadStockPortfolio = async () => {
+    window.renderStockPortfolioData = (data) => {
         const listContainer = document.getElementById('stock_portfolio_list');
         const historyContainer = document.getElementById('stock_tx_history');
         if (!listContainer || !historyContainer) return;
         
-        listContainer.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 20px;"><span class="loading-spinner" style="width: 20px; height: 20px; border-color: #0f172a; border-top-color: transparent;"></span> 讀取證券資料中...</div>';
+        if (data.status === 'locked') {
+            closeModal('stockModal');
+            openModal('upgradePaywallModal');
+            return;
+        }
         
-        try {
-            const res = await fetch('/api/stock/portfolio');
-            const data = await res.json();
-            
-            if (data.status === 'locked') {
-                closeModal('stockModal');
-                openModal('upgradePaywallModal');
-                return;
-            }
-            
-            if (data.status === 'error') {
-                listContainer.innerHTML = `<div style="text-align: center; color: #ef4444; font-size: 0.85rem; padding: 20px;">❌ 載入失敗: ${data.message}</div>`;
-                return;
-            }
-            
-            // 1. 渲染頂部總體資產
-            document.getElementById('stock_total_value').innerText = `$ ${data.summary.total_value.toLocaleString()}`;
-            document.getElementById('stock_total_cost').innerText = `$ ${data.summary.total_cost.toLocaleString()}`;
-            
-            const roiVal = data.summary.total_roi;
-            const roiRate = data.summary.total_roi_rate;
-            const roiEl = document.getElementById('stock_total_roi');
+        if (data.status === 'error') {
+            listContainer.innerHTML = `<div style="text-align: center; color: #ef4444; font-size: 0.85rem; padding: 20px;">❌ 載入失敗: ${data.message}</div>`;
+            return;
+        }
+        
+        // 1. 渲染頂部總體資產
+        document.getElementById('stock_total_value').innerText = `$ ${data.summary.total_value.toLocaleString()}`;
+        document.getElementById('stock_total_cost').innerText = `$ ${data.summary.total_cost.toLocaleString()}`;
+        
+        const roiVal = data.summary.total_roi;
+        const roiRate = data.summary.total_roi_rate;
+        const roiEl = document.getElementById('stock_total_roi');
+        if (roiEl) {
             if (roiVal >= 0) {
                 roiEl.innerText = `+$ ${roiVal.toLocaleString()} (+${roiRate}%)`;
                 roiEl.style.color = '#34d399';
@@ -6106,91 +6258,134 @@ document.addEventListener('DOMContentLoaded', () => {
                 roiEl.innerText = `-$ ${Math.abs(roiVal).toLocaleString()} (${roiRate}%)`;
                 roiEl.style.color = '#f87171';
             }
-            
-            // 2. 渲染持股卡片
-            const portfolio = data.portfolio;
-            const tickers = Object.keys(portfolio);
-            
-            if (tickers.length === 0) {
-                listContainer.innerHTML = `
-                    <div style="text-align: center; padding: 25px; background: #f8fafc; border-radius: 16px; border: 1.5px dashed #cbd5e1;">
-                        <span style="font-size: 1.8rem; display: block; margin-bottom: 8px;">📈</span>
-                        <div style="font-weight: bold; color: #475569; font-size: 0.9rem; margin-bottom: 10px;">目前試算表尚無任何持股部位</div>
-                        <div style="text-align: left; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; font-size: 0.78rem; color: #64748b; margin-bottom: 12px; line-height: 1.6;">
-                            <div style="font-weight: 800; color: #334155; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">🎯 系統將在此為您條列與統計：</div>
-                            <div style="display: flex; gap: 4px; margin-bottom: 2px;"><span>1.</span><span><strong>條列持有股票</strong>：股票名稱與代號</span></div>
-                            <div style="display: flex; gap: 4px; margin-bottom: 2px;"><span>2.</span><span><strong>共持有多少股數</strong>：累計持股總股數</span></div>
-                            <div style="display: flex; gap: 4px; margin-bottom: 2px;"><span>3.</span><span><strong>每股平均成本</strong>：每整股的平均取得成本</span></div>
-                            <div style="display: flex; gap: 4px; margin-bottom: 2px;"><span>4.</span><span><strong>即時最新市價</strong>：對接 Google 金融報價</span></div>
-                            <div style="display: flex; gap: 4px;"><span>5.</span><span><strong>累計即時損益</strong>：最新市值減成本與 ROI (%)</span></div>
+        }
+        
+        // 2. 渲染持股卡片
+        const portfolio = data.portfolio || {};
+        const tickers = Object.keys(portfolio);
+        
+        if (tickers.length === 0) {
+            listContainer.innerHTML = `
+                <div style="text-align: center; padding: 25px; background: #f8fafc; border-radius: 16px; border: 1.5px dashed #cbd5e1;">
+                    <span style="font-size: 1.8rem; display: block; margin-bottom: 8px;">📈</span>
+                    <div style="font-weight: bold; color: #475569; font-size: 0.9rem; margin-bottom: 10px;">目前試算表尚無任何持股部位</div>
+                    <div style="text-align: left; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; font-size: 0.78rem; color: #64748b; margin-bottom: 12px; line-height: 1.6;">
+                        <div style="font-weight: 800; color: #334155; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">🎯 系統將在此為您條列與統計：</div>
+                        <div style="display: flex; gap: 4px; margin-bottom: 2px;"><span>1.</span><span><strong>條列持有股票</strong>：股票名稱與代號</span></div>
+                        <div style="display: flex; gap: 4px; margin-bottom: 2px;"><span>2.</span><span><strong>共持有多少股數</strong>：累計持股總股數</span></div>
+                        <div style="display: flex; gap: 4px; margin-bottom: 2px;"><span>3.</span><span><strong>每股平均成本</strong>：每整股的平均取得成本</span></div>
+                        <div style="display: flex; gap: 4px; margin-bottom: 2px;"><span>4.</span><span><strong>即時最新市價</strong>：對接 Google 金融報價</span></div>
+                        <div style="display: flex; gap: 4px;"><span>5.</span><span><strong>累計即時損益</strong>：最新市值減成本與 ROI (%)</span></div>
+                    </div>
+                    <div style="color: #94a3b8; font-size: 0.75rem;">點擊上方「➕ 新增持股」分頁即可開始存股！</div>
+                </div>
+            `;
+        } else {
+            listContainer.innerHTML = tickers.map(t => {
+                const p = portfolio[t];
+                const roi = p.total_roi;
+                const roiRate = p.total_cost > 0 ? ((roi / p.total_cost) * 100).toFixed(2) : "0.00";
+                const isProfit = roi >= 0;
+                const badgeColor = isProfit ? "#d1fae5" : "#fee2e2";
+                const textColor = isProfit ? "#065f46" : "#991b1b";
+                const sign = isProfit ? "+" : "";
+                
+                return `
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 15px; display: flex; flex-direction: column; gap: 8px; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.01)'" onmouseout="this.style.transform='scale(1.0)'">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-size: 0.95rem; font-weight: 800; color: #1e293b; text-align: left; display: inline-block;">${p.name}</span>
+                                <span style="font-size: 0.72rem; color: #64748b; margin-left: 4px; background: #e2e8f0; padding: 2px 6px; border-radius: 6px;">${p.ticker}</span>
+                            </div>
+                            <div style="background: ${badgeColor}; color: ${textColor}; font-size: 0.75rem; font-weight: 800; padding: 4px 8px; border-radius: 20px;">
+                                ${sign}${roi.toLocaleString()} (${sign}${roiRate}%)
+                            </div>
                         </div>
-                        <div style="color: #94a3b8; font-size: 0.75rem;">點擊上方「➕ 新增持股」分頁即可開始存股！</div>
+                        
+                        <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: #64748b; margin-top: 4px; text-align: left;">
+                            <div>
+                                <div>持股股數: <span style="font-weight: bold; color: #1e293b;">${p.net_shares.toLocaleString()} 股</span></div>
+                                <div>每股平均成本: <span style="font-weight: bold; color: #1e293b;">$ ${p.avg_cost}</span></div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div>即時市價: <span style="font-weight: bold; color: #1e293b;">$ ${p.live_price}</span></div>
+                                <div>部位累計成本: <span style="font-weight: bold; color: #1e293b;">$ ${p.total_cost.toLocaleString()}</span></div>
+                            </div>
+                        </div>
                     </div>
                 `;
-            } else {
-                listContainer.innerHTML = tickers.map(t => {
-                    const p = portfolio[t];
-                    const roi = p.total_roi;
-                    const roiRate = p.total_cost > 0 ? ((roi / p.total_cost) * 100).toFixed(2) : "0.00";
-                    const isProfit = roi >= 0;
-                    const badgeColor = isProfit ? "#d1fae5" : "#fee2e2";
-                    const textColor = isProfit ? "#065f46" : "#991b1b";
-                    const sign = isProfit ? "+" : "";
-                    
-                    return `
-                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 15px; display: flex; flex-direction: column; gap: 8px; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.01)'" onmouseout="this.style.transform='scale(1.0)'">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <span style="font-size: 0.95rem; font-weight: 800; color: #1e293b; text-align: left; display: inline-block;">${p.name}</span>
-                                    <span style="font-size: 0.72rem; color: #64748b; margin-left: 4px; background: #e2e8f0; padding: 2px 6px; border-radius: 6px;">${p.ticker}</span>
-                                </div>
-                                <div style="background: ${badgeColor}; color: ${textColor}; font-size: 0.75rem; font-weight: 800; padding: 4px 8px; border-radius: 20px;">
-                                    ${sign}${roi.toLocaleString()} (${sign}${roiRate}%)
-                                </div>
-                            </div>
-                            
-                            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: #64748b; margin-top: 4px; text-align: left;">
-                                <div>
-                                    <div>持股股數: <span style="font-weight: bold; color: #1e293b;">${p.net_shares.toLocaleString()} 股</span></div>
-                                    <div>每股平均成本: <span style="font-weight: bold; color: #1e293b;">$ ${p.avg_cost}</span></div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div>即時市價: <span style="font-weight: bold; color: #1e293b;">$ ${p.live_price}</span></div>
-                                    <div>部位累計成本: <span style="font-weight: bold; color: #1e293b;">$ ${p.total_cost.toLocaleString()}</span></div>
-                                </div>
-                            </div>
+            }).join('');
+        }
+        
+        // 3. 渲染交易歷史
+        const transactions = data.transactions || [];
+        if (transactions.length === 0) {
+            historyContainer.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.75rem; padding: 10px;">目前尚無交易明細。</div>';
+        } else {
+            historyContainer.innerHTML = transactions.map(tx => {
+                const isBuy = tx.type === '買進';
+                const pillColor = isBuy ? '#e0f2fe' : '#fee2e2';
+                const textColor = isBuy ? '#0369a1' : '#b91c1c';
+                
+                return `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 10px; font-size: 0.78rem;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="background: ${pillColor}; color: ${textColor}; font-weight: 800; padding: 2px 6px; border-radius: 6px; font-size: 0.7rem;">${tx.type}</span>
+                            <span style="font-weight: bold; color: #1e293b;">${tx.name}</span>
+                            <span style="color: #94a3b8;">${tx.date}</span>
                         </div>
-                    `;
-                }).join('');
-            }
-            
-            // 3. 渲染交易歷史
-            const transactions = data.transactions;
-            if (transactions.length === 0) {
-                historyContainer.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.75rem; padding: 10px;">目前尚無交易明細。</div>';
-            } else {
-                historyContainer.innerHTML = transactions.map(tx => {
-                    const isBuy = tx.type === '買進';
-                    const pillColor = isBuy ? '#e0f2fe' : '#fee2e2';
-                    const textColor = isBuy ? '#0369a1' : '#b91c1c';
-                    
-                    return `
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 10px; font-size: 0.78rem;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span style="background: ${pillColor}; color: ${textColor}; font-weight: 800; padding: 2px 6px; border-radius: 6px; font-size: 0.7rem;">${tx.type}</span>
-                                <span style="font-weight: bold; color: #1e293b;">${tx.name}</span>
-                                <span style="color: #94a3b8;">${tx.date}</span>
-                            </div>
-                            <div style="text-align: right; font-weight: bold; color: #475569;">
-                                ${tx.shares.toLocaleString()} 股 @ $ ${tx.price}
-                            </div>
+                        <div style="text-align: right; font-weight: bold; color: #475569;">
+                            ${tx.shares.toLocaleString()} 股 @ $ ${tx.price}
                         </div>
-                    `;
-                }).join('');
+                    </div>
+                `;
+            }).join('');
+        }
+    };
+
+    window.loadStockPortfolio = async () => {
+        const listContainer = document.getElementById('stock_portfolio_list');
+        const historyContainer = document.getElementById('stock_tx_history');
+        if (!listContainer || !historyContainer) return;
+        
+        const cacheKey = 'stock_portfolio_cache';
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                const cachedData = JSON.parse(cached);
+                window.renderStockPortfolioData(cachedData);
+            } catch (err) {
+                console.error('Error parsing stock portfolio cache:', err);
             }
+        } else {
+            listContainer.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 20px;"><span class="loading-spinner" style="width: 20px; height: 20px; border-color: #0f172a; border-top-color: transparent;"></span> 讀取證券資料中...</div>';
+        }
+        
+        try {
+            const res = await fetch('/api/stock/portfolio');
+            const data = await res.json();
             
+            if (data.status === 'success') {
+                localStorage.setItem(cacheKey, JSON.stringify(data));
+                window.renderStockPortfolioData(data);
+                if (window.renderStockDashboardData) {
+                    window.renderStockDashboardData(data);
+                }
+            } else {
+                if (!cached) {
+                    if (data.status === 'locked') {
+                        closeModal('stockModal');
+                        openModal('upgradePaywallModal');
+                    } else {
+                        listContainer.innerHTML = `<div style="text-align: center; color: #ef4444; font-size: 0.85rem; padding: 20px;">❌ 載入失敗: ${data.message}</div>`;
+                    }
+                }
+            }
         } catch (e) {
-            listContainer.innerHTML = '<div style="text-align: center; color: #ef4444; font-size: 0.85rem; padding: 20px;">❌ 載入失敗，連線異常</div>';
+            console.error(e);
+            if (!cached) {
+                listContainer.innerHTML = '<div style="text-align: center; color: #ef4444; font-size: 0.85rem; padding: 20px;">❌ 載入失敗，連線異常</div>';
+            }
         }
     };
 
@@ -6454,193 +6649,227 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- 📊 存股看板核心載入渲染器 (V3.2 - Premium Glassmorphism) ---
+    window.renderStockDashboardData = (data) => {
+        const portfolioListEl = document.getElementById('dash_portfolio_list');
+        if (!portfolioListEl) return;
+        
+        if (data.status === 'locked') {
+            portfolioListEl.innerHTML = `
+                <div style="text-align: center; padding: 40px 10px; color: #64748b; font-weight: bold; font-size: 0.85rem;">
+                    🔒 升級旗艦版會員解鎖實時存股看板
+                </div>
+            `;
+            return;
+        }
+        
+        if (data.status !== 'success') {
+            portfolioListEl.innerHTML = `
+                <div style="text-align: center; padding: 40px 10px; color: #f87171; font-weight: bold; font-size: 0.85rem;">
+                    ❌ 載入失敗：${data.message || '無法連線到試算表'}
+                </div>
+            `;
+            return;
+        }
+        
+        const summary = data.summary || { total_cost: 0, total_value: 0, total_roi: 0, total_roi_rate: 0, total_dividends: 0, total_realized_pnl: 0, global_total_roi: 0 };
+        const portfolio = data.portfolio || {};
+        
+        const totalValueEl = document.getElementById('dash_total_value');
+        const totalCostEl = document.getElementById('dash_total_cost');
+        const totalDividendsEl = document.getElementById('dash_total_dividends');
+        const totalRoiEl = document.getElementById('dash_total_roi');
+
+        if (totalValueEl) totalValueEl.innerHTML = `$${Math.round(summary.total_value).toLocaleString()} <span style="font-size: 1rem; color: #94a3b8; font-weight: 700;">NTD</span>`;
+        if (totalCostEl) totalCostEl.innerText = `$${Math.round(summary.total_cost).toLocaleString()}`;
+        if (totalDividendsEl) totalDividendsEl.innerText = `$${Math.round(summary.total_dividends || 0).toLocaleString()} NTD`;
+        
+        const totalRealizedEl = document.getElementById('dash_total_realized');
+        if (totalRealizedEl) {
+            const realizedVal = Math.round(summary.total_realized_pnl || 0);
+            const realizedColor = realizedVal >= 0 ? '#38bdf8' : '#f87171';
+            totalRealizedEl.innerHTML = `$${realizedVal.toLocaleString()} NTD`;
+            totalRealizedEl.style.color = realizedColor;
+        }
+        
+        const globalRoi = Math.round(summary.global_total_roi || 0);
+        const globalRoiRate = (summary.total_roi_rate || 0).toFixed(2);
+        if (totalRoiEl) {
+            if (globalRoi >= 0) {
+                totalRoiEl.innerText = `+${globalRoi.toLocaleString()} (+${globalRoiRate}%)`;
+                totalRoiEl.style.color = '#4ade80';
+            } else {
+                totalRoiEl.innerText = `${globalRoi.toLocaleString()} (${globalRoiRate}%)`;
+                totalRoiEl.style.color = '#f87171';
+            }
+        }
+        
+        const tickers = Object.keys(portfolio);
+        if (tickers.length === 0) {
+            portfolioListEl.innerHTML = `
+                <div style="text-align: center; padding: 40px 10px; color: #94a3b8; font-size: 0.82rem; font-weight: 700; line-height: 1.5;">
+                    🌱 您的證券投資組合目前沒有持股紀錄喔！<br>
+                    點擊下方「➕ 新增持股」快速補登您的第一筆部位吧！
+                </div>
+            `;
+        } else {
+            let htmlContent = '';
+            tickers.forEach(t => {
+                const p = portfolio[t];
+                const netShares = Math.round(p.net_shares);
+                let sharesText = '';
+                if (netShares >= 1000) {
+                    const sheets = Math.floor(netShares / 1000);
+                    const rem = netShares % 1000;
+                    sharesText = rem > 0 ? `🎟️ ${sheets}張 ${rem}股` : `🎟️ ${sheets}張`;
+                } else {
+                    sharesText = `🌱 ${netShares}股`;
+                }
+                
+                const stockRoiRate = p.total_cost > 0 ? ((p.unrealized_roi / p.total_cost) * 100).toFixed(2) : '0.00';
+                const isProfit = p.unrealized_roi >= 0;
+                const roiColor = isProfit ? '#4ade80' : '#f87171';
+                const roiSign = isProfit ? '+' : '';
+                const bgBorderStyling = isProfit 
+                    ? 'border: 1px solid rgba(74, 222, 128, 0.16); background: rgba(255, 255, 255, 0.02);' 
+                    : 'border: 1px solid rgba(248, 113, 113, 0.16); background: rgba(255, 255, 255, 0.02);';
+                    
+                htmlContent += `
+                    <div style="border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; ${bgBorderStyling} transition: all 0.2s ease;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-weight: 800; font-size: 0.95rem; color: #f8fafc; letter-spacing: -0.2px;">
+                                ${p.name}
+                                <span style="font-size: 0.72rem; color: #64748b; font-weight: normal; margin-left: 5px;">${p.ticker}</span>
+                            </span>
+                            <span style="font-weight: 800; font-size: 0.92rem; color: #f8fafc; font-family: monospace;">
+                                $${p.live_price.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 2})}
+                            </span>
+                        </div>
+                        
+                        <div style="display: flex; align-items: flex-end; justify-content: space-between; font-size: 0.78rem;">
+                            <div style="display: flex; flex-direction: column; gap: 2px; color: #94a3b8;">
+                                <span>數量: <span style="font-weight: 700; color: #cbd5e1;">${sharesText}</span></span>
+                                <span>均價: <span style="font-weight: 700; color: #cbd5e1;">$${p.avg_cost.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 2})}</span></span>
+                            </div>
+                            <div style="text-align: right; display: flex; flex-direction: column; gap: 2px;">
+                                <span style="font-size: 0.7rem; color: #64748b; font-weight: 700;">帳面損益</span>
+                                <span style="font-weight: 800; color: ${roiColor}; font-size: 0.88rem; font-family: monospace;">
+                                    ${roiSign}$${Math.round(p.unrealized_roi).toLocaleString()} (${roiSign}${stockRoiRate}%)
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            portfolioListEl.innerHTML = htmlContent;
+        }
+
+        const closedListEl = document.getElementById('dash_closed_list');
+        if (closedListEl) {
+            const closedPortfolio = data.closed_portfolio || {};
+            const closedTickers = Object.keys(closedPortfolio);
+            
+            if (closedTickers.length === 0) {
+                closedListEl.innerHTML = `
+                    <div style="text-align: center; padding: 20px 10px; color: #64748b; font-size: 0.8rem; font-weight: bold;">
+                        目​​前尚無已結清的歷史交易紀錄喔！
+                    </div>
+                `;
+            } else {
+                let closedHtmlContent = '';
+                closedTickers.forEach(t => {
+                    const p = closedPortfolio[t];
+                    const realizedVal = Math.round(p.realized_pnl);
+                    const isProfit = realizedVal >= 0;
+                    const roiColor = isProfit ? '#4ade80' : '#f87171';
+                    const roiSign = isProfit ? '+' : '';
+                    const bgBorderStyling = isProfit 
+                        ? 'border: 1px solid rgba(74, 222, 128, 0.1); background: rgba(255, 255, 255, 0.01);' 
+                        : 'border: 1px solid rgba(248, 113, 113, 0.1); background: rgba(255, 255, 255, 0.01);';
+                        
+                    closedHtmlContent += `
+                        <div style="border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; ${bgBorderStyling} font-size: 0.78rem;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="font-weight: 800; color: #e2e8f0; letter-spacing: -0.2px;">
+                                    ${p.name} <span style="font-size: 0.68rem; color: #64748b; font-weight: normal; margin-left: 3px;">${p.ticker}</span>
+                                </span>
+                                <span style="color: #64748b; font-size: 0.68rem;">結清日期: ${p.close_date || '未知'}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="color: #94a3b8; font-size: 0.72rem;">歷史配息: <span style="color: #fcd34d; font-weight: 700;">$${Math.round(p.dividends).toLocaleString()}</span></span>
+                                <span style="font-weight: 800; color: ${roiColor}; font-family: monospace;">
+                                    實際賺賠: ${roiSign}$${realizedVal.toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                });
+                closedListEl.innerHTML = closedHtmlContent;
+            }
+        }
+    };
+
     window.openStockDashboard = async () => {
         window.openModal('stockDashboardModal');
         
         // 取得渲染容器與指標 DOM
-        const totalValueEl = document.getElementById('dash_total_value');
-        const totalRoiEl = document.getElementById('dash_total_roi');
-        const totalCostEl = document.getElementById('dash_total_cost');
-        const totalDividendsEl = document.getElementById('dash_total_dividends');
         const portfolioListEl = document.getElementById('dash_portfolio_list');
-        
         if (!portfolioListEl) return;
         
-        // 初始化 Loading 狀態
-        portfolioListEl.innerHTML = `
-            <div style="text-align: center; padding: 40px 10px; color: #64748b; font-weight: bold; font-size: 0.85rem; width: 100%;">
-                <div class="loading-spinner" style="border-top-color: #38bdf8; margin: 0 auto 10px auto;"></div>
-                正在安全連結 Google 試算表計算最新損益...
-            </div>
-        `;
+        const cacheKey = 'stock_portfolio_cache';
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                const cachedData = JSON.parse(cached);
+                window.renderStockDashboardData(cachedData);
+            } catch (err) {
+                console.error('Error parsing stock dashboard cache:', err);
+            }
+        } else {
+            // 初始化 Loading 狀態
+            portfolioListEl.innerHTML = `
+                <div style="text-align: center; padding: 40px 10px; color: #64748b; font-weight: bold; font-size: 0.85rem; width: 100%;">
+                    <div class="loading-spinner" style="border-top-color: #38bdf8; margin: 0 auto 10px auto;"></div>
+                    正在安全連結 Google 試算表計算最新損益...
+                </div>
+            `;
+        }
         
         try {
             const res = await fetch('/api/stock/portfolio');
             const data = await res.json();
             
-            if (data.status === 'locked') {
-                // 如果是免費版被鎖定，直接交由 HTML 訂閱遮罩阻擋即可，此處清空列表
-                portfolioListEl.innerHTML = `
-                    <div style="text-align: center; padding: 40px 10px; color: #64748b; font-weight: bold; font-size: 0.85rem;">
-                        🔒 升級旗艦版會員解鎖實時存股看板
-                    </div>
-                `;
-                return;
-            }
-            
-            if (data.status !== 'success') {
-                portfolioListEl.innerHTML = `
-                    <div style="text-align: center; padding: 40px 10px; color: #f87171; font-weight: bold; font-size: 0.85rem;">
-                        ❌ 載入失敗：${data.message || '無法連線到試算表'}
-                    </div>
-                `;
-                return;
-            }
-            
-            const summary = data.summary || { total_cost: 0, total_value: 0, total_roi: 0, total_roi_rate: 0, total_dividends: 0, total_realized_pnl: 0, global_total_roi: 0 };
-            const portfolio = data.portfolio || {};
-            
-            // 1. 渲染頂部總計資產卡片 (一鍵資產看板)
-            totalValueEl.innerHTML = `$${Math.round(summary.total_value).toLocaleString()} <span style="font-size: 1rem; color: #94a3b8; font-weight: 700;">NTD</span>`;
-            totalCostEl.innerText = `$${Math.round(summary.total_cost).toLocaleString()}`;
-            totalDividendsEl.innerText = `$${Math.round(summary.total_dividends || 0).toLocaleString()} NTD`;
-            
-            // 渲染新增的「累計已實現損益」指標
-            const totalRealizedEl = document.getElementById('dash_total_realized');
-            if (totalRealizedEl) {
-                const realizedVal = Math.round(summary.total_realized_pnl || 0);
-                const realizedSign = realizedVal >= 0 ? '+' : '';
-                const realizedColor = realizedVal >= 0 ? '#38bdf8' : '#f87171';
-                totalRealizedEl.innerHTML = `$${realizedVal.toLocaleString()} NTD`;
-                totalRealizedEl.style.color = realizedColor;
-            }
-            
-            // 渲染全域報酬率為：未實現 + 已實現 + 股息 的全局利潤
-            const globalRoi = Math.round(summary.global_total_roi || 0);
-            const globalRoiRate = (summary.total_roi_rate || 0).toFixed(2);
-            if (globalRoi >= 0) {
-                totalRoiEl.innerText = `+${globalRoi.toLocaleString()} (+${globalRoiRate}%)`;
-                totalRoiEl.style.color = '#4ade80'; // Soft Mint Green
+            if (data.status === 'success') {
+                localStorage.setItem(cacheKey, JSON.stringify(data));
+                window.renderStockDashboardData(data);
+                if (window.renderStockPortfolioData) {
+                    window.renderStockPortfolioData(data);
+                }
             } else {
-                totalRoiEl.innerText = `${globalRoi.toLocaleString()} (${globalRoiRate}%)`;
-                totalRoiEl.style.color = '#f87171'; // Warning Coral Red
-            }
-            
-            // 2. 渲染持股明細清單 (微軟式極簡深色毛玻璃卡片)
-            const tickers = Object.keys(portfolio);
-            if (tickers.length === 0) {
-                portfolioListEl.innerHTML = `
-                    <div style="text-align: center; padding: 40px 10px; color: #94a3b8; font-size: 0.82rem; font-weight: 700; line-height: 1.5;">
-                        🌱 您的證券投資組合目前沒有持股紀錄喔！<br>
-                        點擊下方「➕ 新增持股」快速補登您的第一筆部位吧！
-                    </div>
-                `;
-            } else {
-                let htmlContent = '';
-                tickers.forEach(t => {
-                    const p = portfolio[t];
-                    
-                    const netShares = Math.round(p.net_shares);
-                    let sharesText = '';
-                    if (netShares >= 1000) {
-                        const sheets = Math.floor(netShares / 1000);
-                        const rem = netShares % 1000;
-                        sharesText = rem > 0 ? `🎟️ ${sheets}張 ${rem}股` : `🎟️ ${sheets}張`;
-                    } else {
-                        sharesText = `🌱 ${netShares}股`;
-                    }
-                    
-                    const stockRoiRate = p.total_cost > 0 ? ((p.unrealized_roi / p.total_cost) * 100).toFixed(2) : '0.00';
-                    
-                    const isProfit = p.unrealized_roi >= 0;
-                    const roiColor = isProfit ? '#4ade80' : '#f87171';
-                    const roiSign = isProfit ? '+' : '';
-                    const bgBorderStyling = isProfit 
-                        ? 'border: 1px solid rgba(74, 222, 128, 0.16); background: rgba(255, 255, 255, 0.02);' 
-                        : 'border: 1px solid rgba(248, 113, 113, 0.16); background: rgba(255, 255, 255, 0.02);';
-                        
-                    htmlContent += `
-                        <div style="border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; ${bgBorderStyling} transition: all 0.2s ease;">
-                            <div style="display: flex; align-items: center; justify-content: space-between;">
-                                <span style="font-weight: 800; font-size: 0.95rem; color: #f8fafc; letter-spacing: -0.2px;">
-                                    ${p.name}
-                                    <span style="font-size: 0.72rem; color: #64748b; font-weight: normal; margin-left: 5px;">${p.ticker}</span>
-                                </span>
-                                <span style="font-weight: 800; font-size: 0.92rem; color: #f8fafc; font-family: monospace;">
-                                    $${p.live_price.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 2})}
-                                </span>
-                            </div>
-                            
-                            <div style="display: flex; align-items: flex-end; justify-content: space-between; font-size: 0.78rem;">
-                                <div style="display: flex; flex-direction: column; gap: 2px; color: #94a3b8;">
-                                    <span>數量: <span style="font-weight: 700; color: #cbd5e1;">${sharesText}</span></span>
-                                    <span>均價: <span style="font-weight: 700; color: #cbd5e1;">$${p.avg_cost.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 2})}</span></span>
-                                </div>
-                                <div style="text-align: right; display: flex; flex-direction: column; gap: 2px;">
-                                    <span style="font-size: 0.7rem; color: #64748b; font-weight: 700;">帳面損益</span>
-                                    <span style="font-weight: 800; color: ${roiColor}; font-size: 0.88rem; font-family: monospace;">
-                                        ${roiSign}$${Math.round(p.unrealized_roi).toLocaleString()} (${roiSign}${stockRoiRate}%)
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-                portfolioListEl.innerHTML = htmlContent;
-            }
-
-            // 3. 渲染已結清歷史戰績 (Closed Positions Dashboard)
-            const closedListEl = document.getElementById('dash_closed_list');
-            if (closedListEl) {
-                const closedPortfolio = data.closed_portfolio || {};
-                const closedTickers = Object.keys(closedPortfolio);
-                
-                if (closedTickers.length === 0) {
-                    closedListEl.innerHTML = `
-                        <div style="text-align: center; padding: 20px 10px; color: #64748b; font-size: 0.8rem; font-weight: bold;">
-                            目前尚無已結清的歷史交易紀錄喔！
-                        </div>
-                    `;
-                } else {
-                    let closedHtmlContent = '';
-                    closedTickers.forEach(t => {
-                        const p = closedPortfolio[t];
-                        const realizedVal = Math.round(p.realized_pnl);
-                        const isProfit = realizedVal >= 0;
-                        const roiColor = isProfit ? '#4ade80' : '#f87171';
-                        const roiSign = isProfit ? '+' : '';
-                        const bgBorderStyling = isProfit 
-                            ? 'border: 1px solid rgba(74, 222, 128, 0.1); background: rgba(255, 255, 255, 0.01);' 
-                            : 'border: 1px solid rgba(248, 113, 113, 0.1); background: rgba(255, 255, 255, 0.01);';
-                            
-                        closedHtmlContent += `
-                            <div style="border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; ${bgBorderStyling} font-size: 0.78rem;">
-                                <div style="display: flex; align-items: center; justify-content: space-between;">
-                                    <span style="font-weight: 800; color: #e2e8f0; letter-spacing: -0.2px;">
-                                        ${p.name} <span style="font-size: 0.68rem; color: #64748b; font-weight: normal; margin-left: 3px;">${p.ticker}</span>
-                                    </span>
-                                    <span style="color: #64748b; font-size: 0.68rem;">結清日期: ${p.close_date || '未知'}</span>
-                                </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between;">
-                                    <span style="color: #94a3b8; font-size: 0.72rem;">歷史配息: <span style="color: #fcd34d; font-weight: 700;">$${Math.round(p.dividends).toLocaleString()}</span></span>
-                                    <span style="font-weight: 800; color: ${roiColor}; font-family: monospace;">
-                                        實際賺賠: ${roiSign}$${realizedVal.toLocaleString()}
-                                    </span>
-                                </div>
+                if (!cached) {
+                    if (data.status === 'locked') {
+                        portfolioListEl.innerHTML = `
+                            <div style="text-align: center; padding: 40px 10px; color: #64748b; font-weight: bold; font-size: 0.85rem;">
+                                🔒 升級旗艦版會員解鎖實時存股看板
                             </div>
                         `;
-                    });
-                    closedListEl.innerHTML = closedHtmlContent;
+                    } else {
+                        portfolioListEl.innerHTML = `
+                            <div style="text-align: center; padding: 40px 10px; color: #f87171; font-weight: bold; font-size: 0.85rem;">
+                                ❌ 載入失敗：${data.message || '無法連線到試算表'}
+                            </div>
+                        `;
+                    }
                 }
             }
-            
-        } catch (error) {
-            console.error('[Dashboard Error]', error);
-            portfolioListEl.innerHTML = `
-                <div style="text-align: center; padding: 40px 10px; color: #f87171; font-weight: bold; font-size: 0.85rem;">
-                    ❌ 連線異常，請確認您的網路環境後再重試！
-                </div>
-            `;
+        } catch (e) {
+            console.error(e);
+            if (!cached) {
+                portfolioListEl.innerHTML = `
+                    <div style="text-align: center; padding: 40px 10px; color: #f87171; font-weight: bold; font-size: 0.85rem;">
+                        ❌ 載入失敗，連線異常
+                    </div>
+                `;
+            }
         }
     };
 
@@ -8511,164 +8740,101 @@ document.addEventListener('DOMContentLoaded', () => {
         if (panel) panel.classList.remove('show');
     };
 
-    window.fetchFinanceReport = async () => {
-        const yearSelect = document.getElementById('report_year_select');
-        const monthSelect = document.getElementById('report_month_select');
-        if (!yearSelect || !monthSelect) return;
-
-        const year = yearSelect.value;
-        const month = monthSelect.value;
-
-        // 取得相關 DOM 元素
-        const queryBtn = document.getElementById('report_query_btn');
+    window.renderFinanceReportData = (data, year, month) => {
         const totalExpenseEl = document.getElementById('report_total_expense');
         const totalIncomeEl = document.getElementById('report_total_income');
         const totalBalanceEl = document.getElementById('report_total_balance');
+        const categoryListEl = document.getElementById('report_category_list');
         const pieChartCanvas = document.getElementById('financeReportPieChart');
         const chartPlaceholder = document.getElementById('report_chart_loading_placeholder');
-        const categoryListEl = document.getElementById('report_category_list');
 
-        // 1. 設定按鈕為載入狀態
-        if (queryBtn) {
-            queryBtn.disabled = true;
-            queryBtn.innerHTML = '<span class="btn-spinner"></span> 查詢中...';
-        }
+        if (data.status === 'no_data') {
+            if (totalExpenseEl) totalExpenseEl.innerText = '$0';
+            if (totalIncomeEl) totalIncomeEl.innerText = '$0';
+            if (totalBalanceEl) {
+                totalBalanceEl.innerText = '$0';
+                totalBalanceEl.style.color = '';
+            }
 
-        // 2. 設定卡片數值為骨架屏閃爍狀態
-        if (totalExpenseEl) {
-            totalExpenseEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:60px; height:18px; margin-top:4px;"></span>';
-        }
-        if (totalIncomeEl) {
-            totalIncomeEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:60px; height:18px; margin-top:4px;"></span>';
-        }
-        if (totalBalanceEl) {
-            totalBalanceEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:60px; height:18px; margin-top:4px;"></span>';
-        }
-
-        // 3. 圓餅圖切換為骨架屏
-        if (pieChartCanvas) pieChartCanvas.style.display = 'none';
-        if (chartPlaceholder) chartPlaceholder.style.display = 'block';
-
-        // 4. 尊榮旗艦版股票區 (如果當前是顯示狀態，也顯示骨架)
-        const stockExpenseEl = document.getElementById('report_stock_expense');
-        const stockUnrealizedEl = document.getElementById('report_stock_unrealized_roi');
-        const stockRealizedEl = document.getElementById('report_stock_realized_roi');
-        if (stockExpenseEl) stockExpenseEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:50px; height:14px;"></span>';
-        if (stockUnrealizedEl) stockUnrealizedEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:50px; height:14px;"></span>';
-        if (stockRealizedEl) stockRealizedEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:50px; height:14px;"></span>';
-
-        // 5. 分類列表顯示三行骨架屏
-        if (categoryListEl) {
-            categoryListEl.innerHTML = `
-                <div class="report-cat-row" style="pointer-events: none; border-color: var(--border-color); opacity: 0.7;">
-                    <div style="display: flex; justify-content: space-between; width: 100%;">
-                        <span class="skeleton-shimmer" style="width: 80px; height: 14px;"></span>
-                        <span class="skeleton-shimmer" style="width: 60px; height: 14px;"></span>
-                    </div>
-                    <div class="report-cat-progress-wrapper" style="margin-top: 8px;">
-                        <div class="skeleton-shimmer" style="width: 100%; height: 100%;"></div>
-                    </div>
-                </div>
-                <div class="report-cat-row" style="pointer-events: none; border-color: var(--border-color); opacity: 0.7;">
-                    <div style="display: flex; justify-content: space-between; width: 100%;">
-                        <span class="skeleton-shimmer" style="width: 100px; height: 14px;"></span>
-                        <span class="skeleton-shimmer" style="width: 50px; height: 14px;"></span>
-                    </div>
-                    <div class="report-cat-progress-wrapper" style="margin-top: 8px;">
-                        <div class="skeleton-shimmer" style="width: 100%; height: 100%;"></div>
-                    </div>
-                </div>
-                <div class="report-cat-row" style="pointer-events: none; border-color: var(--border-color); opacity: 0.7;">
-                    <div style="display: flex; justify-content: space-between; width: 100%;">
-                        <span class="skeleton-shimmer" style="width: 70px; height: 14px;"></span>
-                        <span class="skeleton-shimmer" style="width: 70px; height: 14px;"></span>
-                    </div>
-                    <div class="report-cat-progress-wrapper" style="margin-top: 8px;">
-                        <div class="skeleton-shimmer" style="width: 100%; height: 100%;"></div>
-                    </div>
-                </div>
-            `;
-        }
-
-        try {
-            const res = await fetch(`/api/finance_report?year=${year}&month=${month}`);
-            const data = await res.json();
-
-            if (data.status === 'no_data') {
-                document.getElementById('report_total_expense').innerText = '$0';
-                document.getElementById('report_total_income').innerText = '$0';
-                document.getElementById('report_total_balance').innerText = '$0';
-
-                document.getElementById('report_category_list').innerHTML = `
+            if (categoryListEl) {
+                categoryListEl.innerHTML = `
                     <div style="text-align:center; padding: 30px 20px; color: var(--text-muted); font-size: 0.82rem;">
                         ⚠️ 該月份 (${year}-${month.toString().padStart(2, '0')}) 尚無記帳資料
                     </div>
                 `;
-
-                if (window.financeReportChart) {
-                    window.financeReportChart.destroy();
-                    window.financeReportChart = null;
-                }
-                
-                // 隱藏股票概覽
-                document.getElementById('report_premium_stock_section').style.display = 'none';
-                document.getElementById('report_locked_stock_section').style.display = 'block';
-                return;
             }
 
-            if (data.status === 'format_error') {
-                document.getElementById('report_total_expense').innerText = '錯誤';
-                document.getElementById('report_total_income').innerText = '錯誤';
-                document.getElementById('report_total_balance').innerText = '錯誤';
-                document.getElementById('report_category_list').innerHTML = `
+            if (window.financeReportChart) {
+                window.financeReportChart.destroy();
+                window.financeReportChart = null;
+            }
+            
+            const premSection = document.getElementById('report_premium_stock_section');
+            const lockSection = document.getElementById('report_locked_stock_section');
+            if (premSection) premSection.style.display = 'none';
+            if (lockSection) lockSection.style.display = 'block';
+            return;
+        }
+
+        if (data.status === 'format_error') {
+            if (totalExpenseEl) totalExpenseEl.innerText = '錯誤';
+            if (totalIncomeEl) totalIncomeEl.innerText = '錯誤';
+            if (totalBalanceEl) {
+                totalBalanceEl.innerText = '錯誤';
+                totalBalanceEl.style.color = '#ef4444';
+            }
+            if (categoryListEl) {
+                categoryListEl.innerHTML = `
                     <div style="text-align:center; padding: 20px; color: #ef4444; font-size: 0.8rem; font-weight: 700;">
                         ❌ ${data.message}
                     </div>
                 `;
-                if (window.financeReportChart) {
-                    window.financeReportChart.destroy();
-                    window.financeReportChart = null;
-                }
-                return;
+            }
+            if (window.financeReportChart) {
+                window.financeReportChart.destroy();
+                window.financeReportChart = null;
+            }
+            return;
+        }
+
+        if (data.status === 'success') {
+            if (totalExpenseEl) totalExpenseEl.innerText = '$' + Math.round(data.total_expense).toLocaleString();
+            if (totalIncomeEl) totalIncomeEl.innerText = '$' + Math.round(data.total_income).toLocaleString();
+            
+            const balanceVal = Math.round(data.balance);
+            if (totalBalanceEl) {
+                totalBalanceEl.innerText = (balanceVal >= 0 ? '$' : '-$') + Math.abs(balanceVal).toLocaleString();
+                totalBalanceEl.style.color = balanceVal >= 0 ? '#10b981' : '#ef4444';
             }
 
-            if (data.status === 'success') {
-                // 渲染收支結餘
-                document.getElementById('report_total_expense').innerText = '$' + Math.round(data.total_expense).toLocaleString();
-                document.getElementById('report_total_income').innerText = '$' + Math.round(data.total_income).toLocaleString();
-                
-                const balanceVal = Math.round(data.balance);
-                const balanceEl = document.getElementById('report_total_balance');
-                balanceEl.innerText = (balanceVal >= 0 ? '$' : '-$') + Math.abs(balanceVal).toLocaleString();
-                balanceEl.style.color = balanceVal >= 0 ? '#10b981' : '#ef4444';
+            const categories = data.categories || {};
+            const sortedCats = Object.entries(categories).sort((a, b) => b[1] - a[1]);
 
-                // 繪製圓餅圖 (只繪製有支出金額的母分類)
-                const categories = data.categories || {};
-                const sortedCats = Object.entries(categories).sort((a, b) => b[1] - a[1]);
+            let chartLabels = [];
+            let chartData = [];
+            let otherSum = 0;
 
-                let chartLabels = [];
-                let chartData = [];
-                let otherSum = 0;
-
-                for (let i = 0; i < sortedCats.length; i++) {
-                    if (i < 5) {
-                        chartLabels.push(sortedCats[i][0]);
-                        chartData.push(Math.round(sortedCats[i][1]));
-                    } else {
-                        otherSum += sortedCats[i][1];
-                    }
+            for (let i = 0; i < sortedCats.length; i++) {
+                if (i < 5) {
+                    chartLabels.push(sortedCats[i][0]);
+                    chartData.push(Math.round(sortedCats[i][1]));
+                } else {
+                    otherSum += sortedCats[i][1];
                 }
-                if (otherSum > 0) {
-                    chartLabels.push("其他");
-                    chartData.push(Math.round(otherSum));
-                }
+            }
+            if (otherSum > 0) {
+                chartLabels.push("其他");
+                chartData.push(Math.round(otherSum));
+            }
 
-                if (window.financeReportChart) {
-                    window.financeReportChart.destroy();
-                }
+            if (window.financeReportChart) {
+                window.financeReportChart.destroy();
+                window.financeReportChart = null;
+            }
 
-                if (chartData.length > 0) {
-                    const ctx = document.getElementById('financeReportPieChart').getContext('2d');
+            if (chartData.length > 0) {
+                const ctx = document.getElementById('financeReportPieChart').getContext('2d');
+                if (ctx) {
                     const textColor = window.getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim() || '#1e293b';
                     const borderColor = window.getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim() || '#e2e8f0';
                     window.financeReportChart = new Chart(ctx, {
@@ -8717,84 +8883,201 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
                     });
-                } else {
-                    const ctx = document.getElementById('financeReportPieChart').getContext('2d');
-                    ctx.clearRect(0, 0, 220, 220);
                 }
+            } else {
+                const ctx = document.getElementById('financeReportPieChart').getContext('2d');
+                if (ctx) ctx.clearRect(0, 0, 220, 220);
+            }
 
-                // 渲染分類明細
-                let catListHtml = '';
-                const totalExpense = data.total_expense || 1;
+            let catListHtml = '';
+            const totalExpense = data.total_expense || 1;
 
-                for (const [catName, catAmt] of sortedCats) {
-                    const pct = Math.round((catAmt / totalExpense) * 100);
-                    
-                    const subcats = data.subcategories[catName] || {};
-                    const sortedSubcats = Object.entries(subcats).sort((a, b) => b[1] - a[1]);
-                    let subcatHtml = '';
-                    
-                    for (const [subName, subAmt] of sortedSubcats) {
-                        subcatHtml += `
-                            <div class="report-subcat-item">
-                                <span>└─ ${subName}</span>
-                                <span class="sub-val">$${Math.round(subAmt).toLocaleString()}</span>
-                            </div>
-                        `;
-                    }
-
-                    catListHtml += `
-                        <div class="report-cat-row" onclick="window.toggleReportSubcat(this)">
-                            <div class="report-cat-header">
-                                <div class="report-cat-title-group">
-                                    <span class="expand-arrow">▶</span>
-                                    <span>${catName}</span>
-                                </div>
-                                <div class="report-cat-amount-group">
-                                    <span>$${Math.round(catAmt).toLocaleString()}</span>
-                                    <small style="color: var(--text-muted); font-size: 0.72rem;">${pct}%</small>
-                                </div>
-                            </div>
-                            <div class="report-cat-progress-wrapper">
-                                <div class="report-cat-progress" style="width: ${pct}%"></div>
-                            </div>
-                            <div class="report-subcat-list" style="display: none;">
-                                ${subcatHtml || '<div style="padding:4px 8px; color:var(--text-muted); font-size:0.75rem;">無子分類細項</div>'}
-                            </div>
+            for (const [catName, catAmt] of sortedCats) {
+                const pct = Math.round((catAmt / totalExpense) * 100);
+                
+                const subcats = data.subcategories[catName] || {};
+                const sortedSubcats = Object.entries(subcats).sort((a, b) => b[1] - a[1]);
+                let subcatHtml = '';
+                
+                for (const [subName, subAmt] of sortedSubcats) {
+                    subcatHtml += `
+                        <div class="report-subcat-item">
+                            <span>└─ ${subName}</span>
+                            <span class="sub-val">$${Math.round(subAmt).toLocaleString()}</span>
                         </div>
                     `;
                 }
 
-                document.getElementById('report_category_list').innerHTML = catListHtml || '<div style="text-align:center; padding: 20px; color:var(--text-muted); font-size:0.8rem;">無支出資料</div>';
+                catListHtml += `
+                    <div class="report-cat-row" onclick="window.toggleReportSubcat(this)">
+                        <div class="report-cat-header">
+                            <div class="report-cat-title-group">
+                                <span class="expand-arrow">▶</span>
+                                <span>${catName}</span>
+                            </div>
+                            <div class="report-cat-amount-group">
+                                <span>$${Math.round(catAmt).toLocaleString()}</span>
+                                <small style="color: var(--text-muted); font-size: 0.72rem;">${pct}%</small>
+                            </div>
+                        </div>
+                        <div class="report-cat-progress-wrapper">
+                            <div class="report-cat-progress" style="width: ${pct}%"></div>
+                        </div>
+                        <div class="report-subcat-list" style="display: none;">
+                            ${subcatHtml || '<div style="padding:4px 8px; color:var(--text-muted); font-size:0.75rem;">無子分類細項</div>'}
+                        </div>
+                    </div>
+                `;
+            }
 
-                const premSection = document.getElementById('report_premium_stock_section');
-                const lockSection = document.getElementById('report_locked_stock_section');
-                if (data.is_premium) {
-                    if (premSection) premSection.style.display = 'block';
-                    if (lockSection) lockSection.style.display = 'none';
+            if (categoryListEl) {
+                categoryListEl.innerHTML = catListHtml || '<div style="text-align:center; padding: 20px; color:var(--text-muted); font-size:0.8rem;">無支出資料</div>';
+            }
 
-                    document.getElementById('report_stock_expense').innerText = '$' + Math.round(data.stock_expense).toLocaleString();
-                    
-                    const unrealizedVal = Math.round(data.stock_unrealized_roi);
-                    const unrealizedEl = document.getElementById('report_stock_unrealized_roi');
+            const premSection = document.getElementById('report_premium_stock_section');
+            const lockSection = document.getElementById('report_locked_stock_section');
+            if (data.is_premium) {
+                if (premSection) premSection.style.display = 'block';
+                if (lockSection) lockSection.style.display = 'none';
+
+                const stockExpenseEl = document.getElementById('report_stock_expense');
+                if (stockExpenseEl) stockExpenseEl.innerText = '$' + Math.round(data.stock_expense).toLocaleString();
+                
+                const unrealizedVal = Math.round(data.stock_unrealized_roi);
+                const unrealizedEl = document.getElementById('report_stock_unrealized_roi');
+                if (unrealizedEl) {
                     unrealizedEl.innerText = (unrealizedVal >= 0 ? '+' : '-') + '$' + Math.abs(unrealizedVal).toLocaleString();
                     unrealizedEl.style.color = unrealizedVal >= 0 ? '#10b981' : '#ef4444';
+                }
 
-                    const realizedVal = Math.round(data.stock_realized_roi);
-                    const realizedEl = document.getElementById('report_stock_realized_roi');
+                const realizedVal = Math.round(data.stock_realized_roi);
+                const realizedEl = document.getElementById('report_stock_realized_roi');
+                if (realizedEl) {
                     realizedEl.innerText = (realizedVal >= 0 ? '+' : '-') + '$' + Math.abs(realizedVal).toLocaleString();
                     realizedEl.style.color = realizedVal >= 0 ? '#10b981' : '#ef4444';
-                } else {
-                    if (premSection) premSection.style.display = 'none';
-                    if (lockSection) lockSection.style.display = 'block';
+                }
+            } else {
+                if (premSection) premSection.style.display = 'none';
+                if (lockSection) lockSection.style.display = 'block';
+            }
+        }
+    };
+
+    window.fetchFinanceReport = async () => {
+        const yearSelect = document.getElementById('report_year_select');
+        const monthSelect = document.getElementById('report_month_select');
+        if (!yearSelect || !monthSelect) return;
+
+        const year = yearSelect.value;
+        const month = monthSelect.value;
+
+        // 取得相關 DOM 元素
+        const queryBtn = document.getElementById('report_query_btn');
+        const totalExpenseEl = document.getElementById('report_total_expense');
+        const totalIncomeEl = document.getElementById('report_total_income');
+        const totalBalanceEl = document.getElementById('report_total_balance');
+        const pieChartCanvas = document.getElementById('financeReportPieChart');
+        const chartPlaceholder = document.getElementById('report_chart_loading_placeholder');
+        const categoryListEl = document.getElementById('report_category_list');
+
+        const cacheKey = `finance_report_cache_${year}_${month}`;
+        const cached = localStorage.getItem(cacheKey);
+        const hasCache = !!cached;
+
+        if (hasCache) {
+            try {
+                const cachedData = JSON.parse(cached);
+                window.renderFinanceReportData(cachedData, year, month);
+            } catch (err) {
+                console.error('Error parsing finance report cache:', err);
+            }
+        }
+
+        // 1. 設定按鈕為載入狀態
+        if (queryBtn) {
+            queryBtn.disabled = true;
+            queryBtn.innerHTML = hasCache ? '<span class="btn-spinner"></span> 同步中...' : '<span class="btn-spinner"></span> 查詢中...';
+        }
+
+        if (!hasCache) {
+            // 2. 設定卡片數值為骨架屏閃爍狀態
+            if (totalExpenseEl) {
+                totalExpenseEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:60px; height:18px; margin-top:4px;"></span>';
+            }
+            if (totalIncomeEl) {
+                totalIncomeEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:60px; height:18px; margin-top:4px;"></span>';
+            }
+            if (totalBalanceEl) {
+                totalBalanceEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:60px; height:18px; margin-top:4px;"></span>';
+            }
+
+            // 3. 圓餅圖切換為骨架屏
+            if (pieChartCanvas) pieChartCanvas.style.display = 'none';
+            if (chartPlaceholder) chartPlaceholder.style.display = 'block';
+
+            // 4. 尊榮旗艦版股票區 (如果當前是顯示狀態，也顯示骨架)
+            const stockExpenseEl = document.getElementById('report_stock_expense');
+            const stockUnrealizedEl = document.getElementById('report_stock_unrealized_roi');
+            const stockRealizedEl = document.getElementById('report_stock_realized_roi');
+            if (stockExpenseEl) stockExpenseEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:50px; height:14px;"></span>';
+            if (stockUnrealizedEl) stockUnrealizedEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:50px; height:14px;"></span>';
+            if (stockRealizedEl) stockRealizedEl.innerHTML = '<span class="skeleton-shimmer" style="display:inline-block; width:50px; height:14px;"></span>';
+
+            // 5. 分類列表顯示三行骨架屏
+            if (categoryListEl) {
+                categoryListEl.innerHTML = `
+                    <div class="report-cat-row" style="pointer-events: none; border-color: var(--border-color); opacity: 0.7;">
+                        <div style="display: flex; justify-content: space-between; width: 100%;">
+                            <span class="skeleton-shimmer" style="width: 80px; height: 14px;"></span>
+                            <span class="skeleton-shimmer" style="width: 60px; height: 14px;"></span>
+                        </div>
+                        <div class="report-cat-progress-wrapper" style="margin-top: 8px;">
+                            <div class="skeleton-shimmer" style="width: 100%; height: 100%;"></div>
+                        </div>
+                    </div>
+                    <div class="report-cat-row" style="pointer-events: none; border-color: var(--border-color); opacity: 0.7;">
+                        <div style="display: flex; justify-content: space-between; width: 100%;">
+                            <span class="skeleton-shimmer" style="width: 100px; height: 14px;"></span>
+                            <span class="skeleton-shimmer" style="width: 50px; height: 14px;"></span>
+                        </div>
+                        <div class="report-cat-progress-wrapper" style="margin-top: 8px;">
+                            <div class="skeleton-shimmer" style="width: 100%; height: 100%;"></div>
+                        </div>
+                    </div>
+                    <div class="report-cat-row" style="pointer-events: none; border-color: var(--border-color); opacity: 0.7;">
+                        <div style="display: flex; justify-content: space-between; width: 100%;">
+                            <span class="skeleton-shimmer" style="width: 70px; height: 14px;"></span>
+                            <span class="skeleton-shimmer" style="width: 70px; height: 14px;"></span>
+                        </div>
+                        <div class="report-cat-progress-wrapper" style="margin-top: 8px;">
+                            <div class="skeleton-shimmer" style="width: 100%; height: 100%;"></div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        try {
+            const res = await fetch(`/api/finance_report?year=${year}&month=${month}`);
+            const data = await res.json();
+
+            if (data.status === 'success' || data.status === 'no_data' || data.status === 'format_error') {
+                localStorage.setItem(cacheKey, JSON.stringify(data));
+                window.renderFinanceReportData(data, year, month);
+            } else {
+                if (!hasCache) {
+                    categoryListEl.innerHTML = `<div style="text-align:center; padding: 20px; color: #ef4444; font-size: 0.8rem;">❌ 載入失敗: ${data.message}</div>`;
                 }
             }
         } catch (err) {
             console.error(err);
-            document.getElementById('report_category_list').innerHTML = `
-                <div style="text-align:center; padding: 20px; color: #ef4444; font-size: 0.8rem;">
-                    ❌ 載入失敗，伺服器或連線異常
-                </div>
-            `;
+            if (!hasCache) {
+                categoryListEl.innerHTML = `
+                    <div style="text-align:center; padding: 20px; color: #ef4444; font-size: 0.8rem;">
+                        ❌ 載入失敗，伺服器或連線異常
+                    </div>
+                `;
+            }
         } finally {
             if (queryBtn) {
                 queryBtn.disabled = false;
