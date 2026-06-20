@@ -5615,7 +5615,13 @@ def get_stock_total_value_internal(spreadsheet_id):
 
 @app.route('/api/asset_accounts', methods=['GET', 'POST'])
 def handle_asset_accounts():
-    spreadsheet_id = get_spreadsheet_id()
+    # 確保表單存在與自癒
+    try:
+        spreadsheet_id = ensure_user_spreadsheet()
+    except Exception as e:
+        print(f"Error in handle_asset_accounts ensuring spreadsheet: {e}")
+        spreadsheet_id = get_spreadsheet_id()
+        
     if not spreadsheet_id:
         return jsonify({"status": "error", "message": "尚未設定 GOOGLE_SHEET_ID"}), 400
         
@@ -5623,9 +5629,6 @@ def handle_asset_accounts():
     
     if request.method == 'GET':
         try:
-            # 確保表單存在與自癒
-            ensure_user_spreadsheet()
-            
             res = service.spreadsheets().values().get(
                 spreadsheetId=spreadsheet_id,
                 range='資產帳戶!A:F'
