@@ -8788,8 +8788,8 @@ def sync_diary_to_drive(email, spreadsheet_id, creds=None):
 
 
 def init_users_table_migration():
-    """初始化並自癒升級 users 資料表，新增 subscription_expires_at, last_ad_rewarded_at, daily_ad_rewards_count 欄位"""
-    print("[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...")
+    """初始化並自癒升級 users 資料表，新增 subscription_expires_at 欄位"""
+    print("[Subscription DB Guard] 啟動 TiDB 使用者表訂閱過期欄位檢查與自癒程序...")
     conn = None
     try:
         conn = get_db_connection()
@@ -8799,30 +8799,14 @@ def init_users_table_migration():
                 cursor.execute("ALTER TABLE users ADD COLUMN subscription_expires_at TIMESTAMP NULL DEFAULT NULL;")
                 conn.commit()
                 print("[Subscription DB Guard] 成功自癒升級！已為 users 表新增 subscription_expires_at 欄位。")
-            except Exception:
-                pass
-            
-            # 嘗試新增 last_ad_rewarded_at 欄位
-            try:
-                cursor.execute("ALTER TABLE users ADD COLUMN last_ad_rewarded_at TIMESTAMP NULL DEFAULT NULL;")
-                conn.commit()
-                print("[Subscription DB Guard] 成功自癒升級！已為 users 表新增 last_ad_rewarded_at 欄位。")
-            except Exception:
-                pass
-                
-            # 嘗試新增 daily_ad_rewards_count 欄位
-            try:
-                cursor.execute("ALTER TABLE users ADD COLUMN daily_ad_rewards_count INT DEFAULT 0;")
-                conn.commit()
-                print("[Subscription DB Guard] 成功自癒升級！已為 users 表新增 daily_ad_rewards_count 欄位。")
-            except Exception:
+            except Exception as e:
+                # 欄位已存在會報錯，直接忽略
                 pass
     except Exception as e:
         print(f"[Subscription DB Guard Error] 欄位檢查與自癒程序發生異常: {e}")
     finally:
         if conn:
             conn.close()
-
 
 
 def init_stock_suggestions_table():
@@ -8977,202 +8961,6 @@ def sync_taiwan_stocks_to_db():
         print(f"[Stock Sync Error] 同步台灣股票時發生錯誤: {e}")
         return 0
 
-def init_shopee_links_table():
-    """初始化 TiDB 蝦皮分潤輪播連結表，並寫入 10 筆測試種子資料"""
-    print("[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...")
-    conn = None
-    try:
-        conn = get_db_connection()
-        with conn.cursor() as cursor:
-            # 1. 建立 table (如果不存在)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS shopee_links (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    name VARCHAR(100) NOT NULL,
-                    url VARCHAR(500) NOT NULL,
-                    image_url VARCHAR(500) DEFAULT NULL,
-                    click_count INT DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-            """)
-            
-            # 2. 檢查是否已經有資料，如果沒有則寫入預設的 10 筆商品連結
-            cursor.execute("SELECT COUNT(*) FROM shopee_links;")
-            res = cursor.fetchone()
-            count = res[0] if res else 0
-            if count == 0:
-                print("[Shopee DB Guard] 偵測到蝦皮連結表為空，開始寫入預設測試分潤商品...")
-                # 使用熱門蝦皮品類與 dummy/測試連結，以及 Unsplash 高清商品縮圖
-                seeds = [
-                    ("限時特惠 📱 3C智慧配件超值選", "https://shopee.tw/", "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=500&auto=format&fit=crop&q=60"),
-                    ("美妝保養 🌸 明星保濕補水精華", "https://shopee.tw/", "https://images.unsplash.com/photo-1526947425960-945c6e72858f?w=500&auto=format&fit=crop&q=60"),
-                    ("居家必備 ☕ 雙層防燙隔熱玻璃杯", "https://shopee.tw/", "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&auto=format&fit=crop&q=60"),
-                    ("時尚穿搭 👟 莫蘭迪Morandi運動慢跑鞋", "https://shopee.tw/", "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=500&auto=format&fit=crop&q=60"),
-                    ("質感生活 🕯️ 天然香氛大豆蠟燭", "https://shopee.tw/", "https://images.unsplash.com/photo-1603006905003-be475563bc59?w=500&auto=format&fit=crop&q=60"),
-                    ("日常辦公 💻 機械式鍵盤免運促銷", "https://shopee.tw/", "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=500&auto=format&fit=crop&q=60"),
-                    ("美味零食 🍪 團購熱銷海鹽餅乾", "https://shopee.tw/", "https://images.unsplash.com/photo-1559181567-c3190ca9959b?w=500&auto=format&fit=crop&q=60"),
-                    ("生理呵護 🌿 草本舒緩暖宮貼", "https://shopee.tw/", "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=500&auto=format&fit=crop&q=60"),
-                    ("智慧存股 📊 實戰投資組合手冊", "https://shopee.tw/", "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=500&auto=format&fit=crop&q=60"),
-                    ("手動好物 📝 簡約無印風子彈筆記本", "https://shopee.tw/", "https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=500&auto=format&fit=crop&q=60")
-                ]
-                cursor.executemany(
-                    "INSERT INTO shopee_links (name, url, image_url) VALUES (%s, %s, %s);",
-                    seeds
-                )
-                conn.commit()
-                print("[Shopee DB Guard] 10 筆預設測試商品已成功匯入 TiDB 資料庫！")
-    except Exception as e:
-        print(f"[Shopee DB Guard Error] 初始化蝦皮連結表失敗: {e}")
-    finally:
-        if conn:
-            conn.close()
-
-@app.route('/go/shopee')
-def shopee_redirect():
-    """
-    隨機或依序重導向至 10 筆蝦皮分潤商品網址，累加 click_count 後跳轉
-    """
-    conn = None
-    target_url = "https://shopee.tw/"
-    try:
-        conn = get_db_connection()
-        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
-            # 查詢所有蝦皮分潤連結
-            cursor.execute("SELECT id, name, url FROM shopee_links;")
-            links = cursor.fetchall()
-            if links:
-                # 這裡採用完全隨機輪播
-                import random
-                chosen = random.choice(links)
-                target_url = chosen['url']
-                link_id = chosen['id']
-                
-                # 累加點擊次數
-                cursor.execute("UPDATE shopee_links SET click_count = click_count + 1 WHERE id = %s;", (link_id,))
-                conn.commit()
-                print(f"[Shopee Redirect] 成功導向至 {chosen['name']} (ID: {link_id})，累加點擊次數。")
-    except Exception as e:
-        print(f"[Shopee Redirect Error] 重導向失敗: {e}")
-    finally:
-        if conn:
-            conn.close()
-            
-    return redirect(target_url)
-
-@app.route('/api/shopee/ads', methods=['GET'])
-def get_shopee_ads():
-    """
-    獲取目前所有的蝦皮分潤廣告資訊，供前端輪播看板使用
-    """
-    conn = None
-    try:
-        conn = get_db_connection()
-        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
-            cursor.execute("SELECT id, name, url, image_url FROM shopee_links LIMIT 10;")
-            links = cursor.fetchall()
-            return jsonify(links)
-    except Exception as e:
-        print(f"[Shopee Ads API Error] 獲取廣告失敗: {e}")
-        return jsonify([])
-    finally:
-        if conn:
-            conn.close()
-
-@app.route('/api/shopee/click', methods=['POST'])
-def record_shopee_click():
-    """
-    前端點擊看板廣告時發送 POST，累加 click_count 數據
-    """
-    data = request.json or {}
-    link_id = data.get('id')
-    if not link_id:
-        return jsonify({"status": "error", "message": "缺少廣告 ID"}), 400
-        
-    conn = None
-    try:
-        conn = get_db_connection()
-        with conn.cursor() as cursor:
-            cursor.execute("UPDATE shopee_links SET click_count = click_count + 1 WHERE id = %s;", (link_id,))
-            conn.commit()
-            return jsonify({"status": "success", "message": "已記錄點擊數據！"})
-    except Exception as e:
-        print(f"[Shopee Click API Error] 累加點擊次數失敗: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
-    finally:
-        if conn:
-            conn.close()
-
-@app.route('/api/user/ad_reward', methods=['POST'])
-def handle_ad_reward():
-    """
-    看廣告賺點數發放路由，限制每日最多加點 5 次，每次加 1 點
-    """
-    email = session.get('user_email', '')
-    if not email:
-        return jsonify({"status": "error", "message": "請先登入帳號"}), 401
-        
-    conn = None
-    try:
-        conn = get_db_connection()
-        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
-            cursor.execute("SELECT * FROM users WHERE email = %s;", (email,))
-            user = cursor.fetchone()
-            if not user:
-                return jsonify({"status": "error", "message": "找不到該使用者資料"}), 404
-                
-            current_points = user.get('ai_points', 0)
-            last_ad_rewarded_at = user.get('last_ad_rewarded_at')
-            daily_count = user.get('daily_ad_rewards_count', 0)
-            
-            # 檢查今日日期是否與 last_ad_rewarded_at 相同
-            from datetime import datetime
-            now = datetime.now()
-            today_str = now.strftime("%Y-%m-%d")
-            
-            is_same_day = False
-            if last_ad_rewarded_at:
-                if isinstance(last_ad_rewarded_at, str):
-                    is_same_day = last_ad_rewarded_at.startswith(today_str)
-                else:
-                    is_same_day = last_ad_rewarded_at.strftime("%Y-%m-%d") == today_str
-            
-            if is_same_day:
-                if daily_count >= 5:
-                    return jsonify({
-                        "status": "error", 
-                        "message": "🚨 您今日看廣告賺點數的次數已達上限 (5次)，請明天再來吧！"
-                    }), 400
-                new_daily_count = daily_count + 1
-            else:
-                # 跨日重設
-                new_daily_count = 1
-                
-            new_points = current_points + 1
-            session['ai_points'] = new_points
-            
-            # 更新資料庫
-            cursor.execute("""
-                UPDATE users 
-                SET ai_points = %s, last_ad_rewarded_at = NOW(), daily_ad_rewards_count = %s 
-                WHERE email = %s;
-            """, (new_points, new_daily_count, email))
-            conn.commit()
-            
-            print(f"[Ad Reward Success] 使用者 {email} 觀看廣告成功，今日次數: {new_daily_count}/5，點數增加為 {new_points}")
-            return jsonify({
-                "status": "success", 
-                "message": "恭喜獲得 1 點 AI 額度！💎",
-                "ai_points": new_points,
-                "daily_count": new_daily_count
-            })
-            
-    except Exception as e:
-        print(f"[Ad Reward API Error] 點數發放異常: {e}")
-        return jsonify({"status": "error", "message": "伺服器處理點數發放時出錯"}), 500
-    finally:
-        if conn:
-            conn.close()
-
 @app.route('/api/admin/sync_stocks', methods=['POST'])
 def force_sync_stocks_api():
     """
@@ -9188,12 +8976,9 @@ if __name__ == '__main__':
     init_stock_suggestions_table()
     # 確保 users 表訂閱過期欄位已初始化自癒
     init_users_table_migration()
-    # 確保蝦皮分潤連結表已初始化自癒
-    init_shopee_links_table()
 
     # 啟動背景執行緒，自動非同步與 TWSE/TPEx 同步全台灣股票與 ETF
     import threading
     threading.Thread(target=sync_taiwan_stocks_to_db, daemon=True).start()
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port, debug=True)
-
