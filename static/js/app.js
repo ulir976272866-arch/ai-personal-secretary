@@ -423,15 +423,58 @@ document.addEventListener('DOMContentLoaded', () => {
         // 連動資產帳戶展開/收合 (V3.8 Step 2)
         const assetGroup = document.getElementById('linked_asset_account_group');
         if (assetGroup) {
-            if (categoryName === '儲蓄/投資' || categoryName === '貸款') {
-                window.updateLinkedAssetAccountDropdown();
-                assetGroup.style.display = 'block';
+            assetGroup.style.display = 'none';
+            const assetSelect = document.getElementById('linked_asset_account_id');
+            if (assetSelect) assetSelect.value = '';
+        }
+
+        // 儲蓄/投資：切換 item 輸入框為資產帳戶快捷選單
+        const itemInput = document.getElementById('expense_item');
+        const assetSelector = document.getElementById('expense_item_asset_selector');
+        const isSavingsInvestment = (categoryName === '儲蓄/投資');
+
+        if (itemInput) itemInput.style.display = isSavingsInvestment ? 'none' : '';
+        if (assetSelector) {
+            if (isSavingsInvestment) {
+                // 填充資產帳戶清單
+                assetSelector.innerHTML = '<option value="">🏦 選擇資產帳戶…</option>';
+                if (window.assetAccountsList && window.assetAccountsList.length > 0) {
+                    const emojiMap = { '活儲': '🏦', '定存': '🔒', '緊急備用金': '🛡️', '現金': '💵', '證券': '📈', '貸款': '📉', '其他': '💼' };
+                    window.assetAccountsList.forEach(acct => {
+                        const opt = document.createElement('option');
+                        opt.value = acct.id;
+                        const emoji = emojiMap[acct.type] || '💰';
+                        opt.textContent = `${emoji} ${acct.name} (${acct.type})`;
+                        opt.dataset.name = acct.name;
+                        assetSelector.appendChild(opt);
+                    });
+                }
+                assetSelector.value = '';
+                assetSelector.style.display = '';
+                // 清空 expense_item，等使用者選擇
+                if (itemInput) itemInput.value = '';
             } else {
-                assetGroup.style.display = 'none';
-                const assetSelect = document.getElementById('linked_asset_account_id');
-                if (assetSelect) assetSelect.value = '';
+                assetSelector.style.display = 'none';
+                assetSelector.value = '';
+                // 還原 item input placeholder
+                if (itemInput) {
+                    itemInput.value = '';
+                }
             }
         }
+    };
+
+    // 當使用者在資產帳戶快捷選單選擇後，自動填入 expense_item 與設定連動 ID
+    window.onAssetItemSelectorChange = (accountId) => {
+        const itemInput = document.getElementById('expense_item');
+        const assetSelector = document.getElementById('expense_item_asset_selector');
+        if (!assetSelector) return;
+        const selectedOption = assetSelector.options[assetSelector.selectedIndex];
+        const accountName = selectedOption ? (selectedOption.dataset.name || selectedOption.textContent.replace(/^[^\s]+\s/, '').replace(/\s*\(.*\)$/, '')) : '';
+        // 把帳戶名稱帶入 expense_item（後端記帳用）
+        if (itemInput) itemInput.value = accountName || '';
+        // 同時存到自訂屬性供提交時讀取連動 ID
+        if (assetSelector) assetSelector.dataset.selectedId = accountId || '';
     };
 
     // 選取分類（含投資/公益特殊處理）
@@ -4016,9 +4059,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('submitExpense').onclick = async () => {
         window.calculateResult();
 
-        const item = document.getElementById('expense_item').value;
-        const amount = document.getElementById('expense_amount').value;
-        // ✅ V14.0：優先讀取自訂下拉選單的 hidden input；降級備援讀取原生 select
         const category = document.getElementById('expense_category_hidden')?.value || document.getElementById('manual_expense_category')?.value;
 
         // 強制檢查分類 (V14.6)
@@ -4027,156 +4067,196 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // 如果是儲蓄/投資，從快捷選單讀帳戶名稱；否則從文字框讀
+        let item = document.getElementById('expense_item').value;
+        if (category === '儲蓄/投資') {
+            const assetSelector = document.getElementById('expense_item_asset_selector');
+            if (assetSelector && assetSelector.value) {
+                const selectedOption = assetSelector.options[assetSelector.selectedIndex];
+                const accountName = selectedOption ? (selectedOption.dataset.name || '') : '';
+                item = accountName || item;
+            }
+        }
+
+        const amount = document.getElementById('expense_amount').value;
+
         if (!item || amount === '0' || !amount) {
-            showToast('請輸入項目與金額！');
+            if (category === '儲蓄/投資' && !item) {
+                showToast('請選擇要存入的資產帳戶！');
+            } else {
+                showToast('請輸入項目與金額！');
+            }
             return;
         }
 
-        const receiptInput = document.getElementById('charity_receipt_input');
-        
-        // 1. 防呆提醒：公益類別若未選取照片，詢問是否上傳
-        if ((category === '公益' || category === '宗教/公益') && window.checkFeatureAccess('tax')) {
-            const hasFile = receiptInput && receiptInput.files && receiptInput.files[0];
-            if (!hasFile) {
-                const confirmed = await window.customConfirm(
-                    '💖 公益收據雲端歸檔',
-                    '系統已將此筆交易標記為【年度報稅憑證】！是否要立即將發票/收據拍照存檔到個人的雲端硬碟「報稅宗教與公益收據管理」中？',
-                    '📸',
-                    '立即拍照上傳'
-                );
-                if (confirmed) {
-                    receiptInput.click();
-                    return;
-                }
-            }
-        }
-
-        const expenseType = document.getElementById('expense_type').value;
-        const emoji = expenseType === 'income' ? '💰' : '💸';
-
-        // 1.5. 固定支出重複記帳防呆偵測
-        if (expenseType === 'expense' && window.fixedExpensesList && window.fixedExpensesList.length > 0) {
-            const matched = window.fixedExpensesList.find(fe => fe.name && fe.name.trim() === item.trim());
-            if (matched) {
-                const confirmed = await window.customConfirm(
-                    '⚠️ 固定支出重複偵測',
-                    `偵測到此項目「${item}」已設定在每月固定支出中（金額 $${matched.amount}，每月 ${matched.execute_day} 日自動執行）。您確定要手動再記一筆嗎？`,
-                    '⚠️',
-                    '確定新增'
-                );
-                if (!confirmed) {
-                    return; // 終止記帳
-                }
-            }
-        }
-
-        // 鎖定確認按鈕防止重複提交
-        const submitBtn = document.getElementById('submitExpense');
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; margin: 0; border-width: 2px;"></span> 正在記帳中...';
-        }
-
-        let uploadedFileName = '';
-        let uploadedYear = '';
-
-        try {
-            // 2. 執行收據雲端上傳
-            if (receiptInput && receiptInput.files && receiptInput.files[0]) {
-                showToast('📸 正在將收據上傳至雲端硬碟...', 'info');
-                const file = receiptInput.files[0];
-                const compressedBlob = await window.compressImage(file);
-                const formData = new FormData();
-                formData.append('file', compressedBlob, 'receipt.jpg');
-                
-                try {
-                    const taxRes = await fetch('/api/tax/upload_receipt', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const taxData = await taxRes.json();
-                    if (taxData.status === 'success') {
-                        uploadedFileName = taxData.filename;
-                        uploadedYear = taxData.year;
-                        showToast('✅ 公益收據雲端歸檔成功！', 'success');
-                    } else {
-                        showToast(`❌ 收據備份失敗: ${taxData.message}`, 'error');
-                    }
-                } catch (err) {
-                    console.error(err);
-                    showToast('❌ 收據備份連線失敗', 'error');
-                }
-            }
-
-            closeModal('expenseModal');
-            const subHiddenInput = document.getElementById('expense_sub_category_hidden');
-            const subGroup = document.getElementById('manual_expense_sub_cat_group');
-            const sub_category = (subGroup && subGroup.style.display !== 'none' && subHiddenInput) ? subHiddenInput.value : '';
-            const displayCategory = sub_category ? `${category} > ${sub_category}` : category;
-            appendMessage(`${emoji} 記帳：${item} $${amount} [${displayCategory}]`, true);
+        // Helper function for actually executing the submission
+        const executeSubmission = async (selectedAssetId, forceRegisterStock = false) => {
+            const receiptInput = document.getElementById('charity_receipt_input');
             
-            const assetSelect = document.getElementById('linked_asset_account_id');
-            const asset_account_id = assetSelect ? assetSelect.value : '';
-
-            const res = await fetch('/api/manual_action', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'expense', expense_type: expenseType, item, amount: parseInt(amount), category, sub_category, asset_account_id })
-            });
-            const data = await res.json();
-            appendMessage(data.message);
-
-            if (uploadedFileName) {
-                appendMessage(`📸 系統已成功為您將該筆收據/發票照片以新檔名 <b>${uploadedFileName}</b> 年度歸檔至雲端空間的「報稅宗教與公益收據管理/${uploadedYear}」目錄！`);
-            }
-        } catch (e) {
-            console.error(e);
-            showToast('記帳失敗，請重試', 'error');
-        } finally {
-            // 解鎖按鈕
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerText = expenseType === 'income' ? '確認收入記帳 💰' : '確認支出記帳 💸';
-            }
-        }
-
-        // 3. 投資/投資獲利正向同步引導 (一鍵直接跳轉分頁並預填 Modal)
-        if ((category === '投資' || category === '儲蓄/投資' || category === '投資獲利') && window.checkFeatureAccess('stock')) {
-            const txType = (category === '投資' || category === '儲蓄/投資') ? '買進' : '賣出';
-            const isConfirmed = await window.customConfirm(
-                '📈 引導至存股紀錄',
-                `偵測到這筆支出屬於投資性質。是否一鍵跳轉至【📈 存股】模組，直接自動為您開啟【${txType}】持股交易登記表單並預填內容？`,
-                '📈',
-                '前往存股登記 🚀'
-            );
-            if (isConfirmed) {
-                window.switchTab('stock');
-                if (window.openAddStockTxModalWithValues) {
-                    window.openAddStockTxModalWithValues({
-                        name: item,
-                        total_budget: parseFloat(amount),
-                        tx_type: txType,
-                        date: new Date().toISOString().split('T')[0]
-                    });
+            // 1. 防呆提醒：公益類別若未選取照片，詢問是否上傳
+            if ((category === '公益' || category === '宗教/公益') && window.checkFeatureAccess('tax')) {
+                const hasFile = receiptInput && receiptInput.files && receiptInput.files[0];
+                if (!hasFile) {
+                    const confirmed = await window.customConfirm(
+                        '💖 公益收據雲端歸檔',
+                        '系統已將此筆交易標記為【年度報稅憑證】！是否要立即將發票/收據拍照存檔到個人的雲端硬碟「報稅宗教與公益收據管理」中？',
+                        '📸',
+                        '立即拍照上傳'
+                    );
+                    if (confirmed) {
+                        receiptInput.click();
+                        return;
+                    }
                 }
             }
-        }
 
-        // 清空輸入
-        document.getElementById('expense_item').value = '';
-        clearCalc();
-        window.clearReceiptFile();
-        const manualSubSelect = document.getElementById('manual_expense_sub_category');
-        if (manualSubSelect) {
-            manualSubSelect.value = '';
-            const subGroup = document.getElementById('manual_expense_sub_cat_group');
-            if (subGroup) subGroup.style.display = 'none';
-        }
-        const assetSelect = document.getElementById('linked_asset_account_id');
-        if (assetSelect) {
-            assetSelect.value = '';
-            const assetGroup = document.getElementById('linked_asset_account_group');
-            if (assetGroup) assetGroup.style.display = 'none';
+            const expenseType = document.getElementById('expense_type').value;
+            const emoji = expenseType === 'income' ? '💰' : '💸';
+
+            // 1.5. 固定支出重複記帳防呆偵測
+            if (expenseType === 'expense' && window.fixedExpensesList && window.fixedExpensesList.length > 0) {
+                const matched = window.fixedExpensesList.find(fe => fe.name && fe.name.trim() === item.trim());
+                if (matched) {
+                    const confirmed = await window.customConfirm(
+                        '⚠️ 固定支出重複偵測',
+                        `偵測到此項目「${item}」已設定在每月固定支出中（金額 $${matched.amount}，每月 ${matched.execute_day} 日自動執行）。您確定要手動再記一筆嗎？`,
+                        '⚠️',
+                        '確定新增'
+                    );
+                    if (!confirmed) {
+                        return; // 終止記帳
+                    }
+                }
+            }
+
+            // 鎖定確認按鈕防止重複提交
+            const submitBtn = document.getElementById('submitExpense');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; margin: 0; border-width: 2px;"></span> 正在記帳中...';
+            }
+
+            let uploadedFileName = '';
+            let uploadedYear = '';
+
+            try {
+                // 2. 執行收據雲端上傳
+                if (receiptInput && receiptInput.files && receiptInput.files[0]) {
+                    showToast('📸 正在將收據上傳至雲端硬碟...', 'info');
+                    const file = receiptInput.files[0];
+                    const compressedBlob = await window.compressImage(file);
+                    const formData = new FormData();
+                    formData.append('file', compressedBlob, 'receipt.jpg');
+                    
+                    try {
+                        const taxRes = await fetch('/api/tax/upload_receipt', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const taxData = await taxRes.json();
+                        if (taxData.status === 'success') {
+                            uploadedFileName = taxData.filename;
+                            uploadedYear = taxData.year;
+                            showToast('✅ 公益收據雲端歸檔成功！', 'success');
+                        } else {
+                            showToast(`❌ 收據備份失敗: ${taxData.message}`, 'error');
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        showToast('❌ 收據備份連線失敗', 'error');
+                    }
+                }
+
+                closeModal('expenseModal');
+                const subHiddenInput = document.getElementById('expense_sub_category_hidden');
+                const subGroup = document.getElementById('manual_expense_sub_cat_group');
+                const sub_category = (subGroup && subGroup.style.display !== 'none' && subHiddenInput) ? subHiddenInput.value : '';
+                const displayCategory = sub_category ? `${category} > ${sub_category}` : category;
+                appendMessage(`${emoji} 記帳：${item} $${amount} [${displayCategory}]`, true);
+                
+                const asset_account_id = selectedAssetId || '';
+
+                const res = await fetch('/api/manual_action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'expense', expense_type: expenseType, item, amount: parseInt(amount), category, sub_category, asset_account_id })
+                });
+                const data = await res.json();
+                appendMessage(data.message);
+
+                if (uploadedFileName) {
+                    appendMessage(`📸 系統已成功為您將該筆收據/發票照片以新檔名 <b>${uploadedFileName}</b> 年度歸檔至雲端空間的「報稅宗教與公益收據管理/${uploadedYear}」目錄！`);
+                }
+            } catch (e) {
+                console.error(e);
+                showToast('記帳失敗，請重試', 'error');
+            } finally {
+                // 解鎖按鈕
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = expenseType === 'income' ? '確認收入記帳 💰' : '確認支出記帳 💸';
+                }
+            }
+
+            // 3. 投資/投資獲利正向同步引導 (一鍵直接跳轉分頁並預填 Modal)
+            if (forceRegisterStock || ((category === '投資' || category === '儲蓄/投資' || category === '投資獲利') && window.checkFeatureAccess('stock'))) {
+                const txType = (category === '投資' || category === '儲蓄/投資') ? '買進' : '賣出';
+                let isConfirmed = forceRegisterStock;
+                if (!isConfirmed) {
+                    isConfirmed = await window.customConfirm(
+                        '📈 引導至存股紀錄',
+                        `偵測到這筆支出屬於投資性質。是否一鍵跳轉至【📈 存股】模組，直接自動為您開啟【${txType}】持股交易登記表單並預填內容？`,
+                        '📈',
+                        '前往存股登記 🚀'
+                    );
+                }
+                if (isConfirmed) {
+                    window.switchTab('stock');
+                    if (window.openAddStockTxModalWithValues) {
+                        window.openAddStockTxModalWithValues({
+                            name: item,
+                            total_budget: parseFloat(amount),
+                            tx_type: txType,
+                            date: new Date().toISOString().split('T')[0]
+                        });
+                    }
+                }
+            }
+
+            // 清空輸入
+            document.getElementById('expense_item').value = '';
+            clearCalc();
+            window.clearReceiptFile();
+            const manualSubSelect = document.getElementById('manual_expense_sub_category');
+            if (manualSubSelect) {
+                manualSubSelect.value = '';
+                const subGroup = document.getElementById('manual_expense_sub_cat_group');
+                if (subGroup) subGroup.style.display = 'none';
+            }
+            const assetSelect = document.getElementById('linked_asset_account_id');
+            if (assetSelect) {
+                assetSelect.value = '';
+                const assetGroup = document.getElementById('linked_asset_account_group');
+                if (assetGroup) assetGroup.style.display = 'none';
+            }
+            // 重置行內資產帳戶快捷選單
+            const assetItemSel = document.getElementById('expense_item_asset_selector');
+            if (assetItemSel) {
+                assetItemSel.value = '';
+                assetItemSel.dataset.selectedId = '';
+            }
+        };
+
+        // 儲蓄/投資 直接讀取行內資產帳戶選單
+        if (category === '儲蓄/投資') {
+            // 從行內快捷選單取得選定的帳戶 ID（已由 onAssetItemSelectorChange 寫入 dataset）
+            const assetSelector = document.getElementById('expense_item_asset_selector');
+            const selectedAssetId = (assetSelector && assetSelector.dataset.selectedId) ? assetSelector.dataset.selectedId : (assetSelector ? assetSelector.value : '');
+            // 直接執行記帳（存股登記提示依舊會在 executeSubmission 內觸發）
+            await executeSubmission(selectedAssetId, false);
+        } else {
+            // 一般類別直接執行
+            await executeSubmission('');
         }
     };
 
@@ -9205,9 +9285,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div style="text-align: right;">
                                     <div class="account-balance" style="color: ${item.balance >= 0 ? '#10b981' : '#f43f5e'};">$${item.balance.toLocaleString()}</div>
                                 </div>
-                                <div style="display: flex; gap: 4px;">
-                                    <button class="action-edit-btn" title="對帳/編輯">✏️</button>
-                                    <button class="action-delete-btn" title="刪除">🗑️</button>
+                                <div style="display: flex; gap: 4px; align-items: center;">
+                                    <button class="action-edit-btn" title="對帳/編輯" style="background: none; color: #3b82f6; border: none; padding: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; transition: transform 0.15s ease;">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                    </button>
+                                    <button class="action-delete-btn" title="刪除" style="background: none; border: none; color: #ef4444; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; transition: all 0.2s; outline: none;">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                                    </button>
                                 </div>
                             </div>
                         `;

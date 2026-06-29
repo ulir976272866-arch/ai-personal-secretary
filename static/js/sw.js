@@ -41,13 +41,23 @@ self.addEventListener('fetch', (event) => {
     // Only handle GET requests
     if (event.request.method !== 'GET') return;
 
-    // 1. For HTML/Document requests (root or page routes): Network-First
-    // If the network takes too long (e.g. Cloud Run is cold starting), fall back to cached shell instantly!
-    if (event.request.mode === 'navigate' || url.pathname === '/') {
+    // 🛡️ 繞過 OAuth 認證、登入、登出與 API 請求，避免 Service Worker 攔截造成無限導向循環
+    if (
+        url.pathname.startsWith('/login') || 
+        url.pathname.startsWith('/callback') || 
+        url.pathname.startsWith('/logout') || 
+        url.pathname.startsWith('/api')
+    ) {
+        return;
+    }
+
+    // 1. For HTML/Document requests (only for root page): Network-First
+    // If the network takes too long (e.g. database cold start lag > 1.8 seconds), serve cached root page instantly!
+    if (event.request.mode === 'navigate' && url.pathname === '/') {
         event.respondWith(
             new Promise((resolve) => {
                 const timeoutId = setTimeout(() => {
-                    // Timeout triggered (e.g. cold start lag > 1.8 seconds) -> serve cached root page instantly!
+                    // Timeout triggered -> serve cached root page instantly!
                     caches.match('/').then((cachedResponse) => {
                         if (cachedResponse) {
                             console.log('[Service Worker] Network slow (Cold Start). Serving cached shell.');

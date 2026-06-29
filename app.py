@@ -1,4 +1,12 @@
 import os
+import socket
+# 🛠️ macOS IPv6/IPv4 DNS 優先權優化：強制 Python socket 僅使用 AF_INET (IPv4)
+# 解決 macOS 環境下 socket 連線優先嘗試 IPv6 導致的 10 秒+ 網路請求逾時問題
+orig_getaddrinfo = socket.getaddrinfo
+def getaddrinfo_ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+    return orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+socket.getaddrinfo = getaddrinfo_ipv4_only
+
 # 本地開發允許使用 HTTP 進行 OAuth 驗證 (防止 InsecureTransportError)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 # 允許 OAuth Token 範圍變更 (防止 Scope has changed Warning 導致崩潰)
@@ -253,9 +261,14 @@ def get_user_info():
     if not creds:
         return None
     try:
-        oauth2_service = build('oauth2', 'v2', credentials=creds)
-        user_info = oauth2_service.userinfo().get().execute()
-        return user_info
+        import requests
+        headers = {'Authorization': f'Bearer {creds.token}'}
+        res = requests.get('https://www.googleapis.com/oauth2/v2/userinfo', headers=headers, timeout=10)
+        if res.status_code == 200:
+            return res.json()
+        else:
+            print(f"Error getting user info: HTTP {res.status_code} - {res.text}")
+            return None
     except Exception as e:
         print(f"Error getting user info: {e}")
         return None
@@ -685,6 +698,174 @@ def get_sheet_urls():
         "training_sheet_url": get_url_with_gid('AI_指令集', os.getenv('HEALTH_SHEET_ID')),
         "bill_split_sheet_url": get_url_with_gid('代墊待收款')
     }
+def bg_spreadsheet_self_healing(spreadsheet_id, user_email, creds):
+    """
+    背景執行主動式缺頁自癒與表頭保護鎖設定，不阻塞主登入執行緒。
+    """
+    try:
+        if creds:
+            sheets_service = build('sheets', 'v4', credentials=creds)
+        else:
+            sheets_service = build('sheets', 'v4')
+        if not sheets_service:
+            return
+            
+        sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        existing_titles = [s['properties']['title'] for s in sheet_meta.get('sheets', [])]
+        
+        # 1. 檢查是否存在「固定開銷」且不存在「固定支出」。若是，則自動重命名為「固定支出」。
+        if '固定開銷' in existing_titles and '固定支出' not in existing_titles:
+            print("[BG Self-Healing] Detected '固定開銷' tab, renaming to '固定支出'...")
+            fixed_expenses_sheet_id = None
+            for s in sheet_meta.get('sheets', []):
+                if s['properties']['title'] == '固定開銷':
+                    fixed_expenses_sheet_id = s['properties']['sheetId']
+                    break
+            if fixed_expenses_sheet_id is not None:
+                try:
+                    rename_request = {
+                        'updateSheetProperties': {
+                            'properties': {
+                                'sheetId': fixed_expenses_sheet_id,
+                                'title': '固定支出'
+                            },
+                            'fields': 'title'
+                        }
+                    }
+                    sheets_service.spreadsheets().batchUpdate(
+                        spreadsheetId=spreadsheet_id,
+                        body={'requests': [rename_request]}
+                    ).execute()
+                    print("[BG Self-Healing] Renamed '固定開銷' to '固定支出' successfully!")
+                    existing_titles = [t if t != '固定開銷' else '固定支出' for t in existing_titles]
+                    for s in sheet_meta.get('sheets', []):
+                        if s['properties']['title'] == '固定開銷':
+                            s['properties']['title'] = '固定支出'
+                except Exception as rename_err:
+                    print(f"[BG Self-Healing] Error renaming '固定開銷' to '固定支出': {rename_err}")
+
+        required_sheets = {
+            '記帳': [['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別', '子分類']],
+            '待辦': [['建立日期', '事項/內容', '分類', '狀態', '唯一 ID', '建立時間', '優先級']],
+            '日記': [['日期', '內容', '天氣', '心情', '時間']],
+            '願望': [['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間']],
+            '生理紀錄': [['年度', '月份', '日期', '動作', '症狀/心情', '週期', '備註']],
+            '口袋': [['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度', '常用']],
+            'AI_指令集': [['觸發語句', '執行動作']],
+            '💰股票投資組合': [['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']],
+            '生理症狀紀錄': [['日期', '症狀', '備註', '寫入時間']],
+            '固定支出': [['建立日期', '項目名稱', '類別設定', '子分類', '金額設定', '每月自動執行日', '最後執行月份', '唯一 ID', '開始日期', '結束日期']],
+            '代墊待收款': [['建立日期', '帳目描述', '總金額', '墊款人', '分攤人(逗號分隔)', '各分攤明細(JSON/描述)', '狀態', '唯一 ID', '建立時間']],
+            '資產帳戶': [['帳戶名稱', '帳戶類型', '當前餘額', '唯一 ID', '更新時間', '備註']]
+        }
+        
+        if '願望' in existing_titles or '願望清單' in existing_titles:
+            if '願望' in required_sheets:
+                del required_sheets['願望']
+        
+        if '口袋' in existing_titles or '口袋名單' in existing_titles:
+            if '口袋' in required_sheets:
+                del required_sheets['口袋']
+                
+        missing_sheets = [title for title in required_sheets.keys() if title not in existing_titles]
+        
+        if missing_sheets:
+            print(f"[BG Self-Healing] Missing sheets detected: {missing_sheets}. Repairing...")
+            add_requests = [{'addSheet': {'properties': {'title': title}}} for title in missing_sheets]
+            sheets_service.spreadsheets().batchUpdate(
+                spreadsheetId=spreadsheet_id,
+                body={'requests': add_requests}
+            ).execute()
+            
+            for title in missing_sheets:
+                header_values = required_sheets[title]
+                range_name = f"{title}!A1"
+                sheets_service.spreadsheets().values().update(
+                    spreadsheetId=spreadsheet_id,
+                    range=range_name,
+                    valueInputOption='USER_ENTERED',
+                    body={'values': header_values}
+                ).execute()
+                print(f"[BG Self-Healing] Successfully restored sheet '{title}' and headers!")
+                
+                if title == '資產帳戶':
+                    from datetime import datetime
+                    now_time = datetime.now(TW_TZ).strftime('%Y-%m-%d %H:%M:%S')
+                    default_rows = [
+                        ["國泰活儲", "活儲", "0", str(uuid.uuid4()), now_time, "預設帳戶"],
+                        ["郵局活儲", "活儲", "0", str(uuid.uuid4()), now_time, "預設帳戶"],
+                        ["玉山定存", "定存", "0", str(uuid.uuid4()), now_time, "預設帳戶"],
+                        ["緊急備用金", "緊急備用金", "0", str(uuid.uuid4()), now_time, "預設帳戶"],
+                        ["現金口袋", "現金", "0", str(uuid.uuid4()), now_time, "預設帳戶"],
+                        ["證券交割戶", "證券", "0", str(uuid.uuid4()), now_time, "預設帳戶"]
+                    ]
+                    sheets_service.spreadsheets().values().append(
+                        spreadsheetId=spreadsheet_id,
+                        range='資產帳戶!A2:F',
+                        valueInputOption='USER_ENTERED',
+                        body={'values': default_rows}
+                    ).execute()
+                    print("[BG Self-Healing] Successfully populated default asset accounts!")
+                    
+            sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+            
+        try:
+            record_header_res = sheets_service.spreadsheets().values().get(
+                spreadsheetId=spreadsheet_id,
+                range='記帳!A1:H1'
+            ).execute()
+            header_vals = record_header_res.get('values', [[]])[0]
+            if '子分類' not in header_vals:
+                print("[BG Self-Healing] '子分類' header not found in '記帳' sheet, adding to H1...")
+                sheets_service.spreadsheets().values().update(
+                    spreadsheetId=spreadsheet_id,
+                    range='記帳!H1',
+                    valueInputOption='USER_ENTERED',
+                    body={'values': [['子分類']]}
+                ).execute()
+        except Exception as header_err:
+            print(f"[BG Self-Healing] Error ensuring '子分類' header: {header_err}")
+            
+        protect_requests = []
+        for s in sheet_meta.get('sheets', []):
+            title = s['properties']['title']
+            s_id = s['properties']['sheetId']
+            has_protection = any(
+                p.get('range', {}).get('startRowIndex') == 0 and p.get('range', {}).get('endRowIndex') == 1
+                for p in s.get('protectedRanges', [])
+            )
+            if not has_protection:
+                col_count = 10
+                if title in required_sheets:
+                    col_count = len(required_sheets[title][0])
+                protect_requests.append({
+                    "addProtectedRange": {
+                        "protectedRange": {
+                            "range": {
+                                "sheetId": s_id,
+                                "startRowIndex": 0,
+                                "endRowIndex": 1,
+                                "startColumnIndex": 0,
+                                "endColumnIndex": col_count
+                            },
+                            "description": f"系統 {title} 核心表頭，請勿任意變動以防當機",
+                            "warningOnly": True
+                        }
+                    }
+                })
+        if protect_requests:
+            try:
+                sheets_service.spreadsheets().batchUpdate(
+                    spreadsheetId=spreadsheet_id,
+                    body={'requests': protect_requests}
+                ).execute()
+                print(f"[BG Self-Healing] Added protection locks to {len(protect_requests)} sheets.")
+            except Exception as protect_err:
+                print(f"[BG Self-Healing] Error adding protection locks: {protect_err}")
+        print(f"[BG Self-Healing] Completed successfully for {user_email}")
+    except Exception as ex:
+        print(f"[BG Self-Healing] Error in sheet self-healing bg thread: {ex}")
+
 def ensure_user_spreadsheet():
     """
     檢查使用者雲端硬碟是否有 AI_Personal_Secretary_Data。
@@ -726,202 +907,25 @@ def ensure_user_spreadsheet():
                     print(f"Found existing spreadsheet in user drive: {spreadsheet_id}")
                     if 'user_email' in session:
                         update_user_sheet_id(session['user_email'], spreadsheet_id)
-                else:
-                    # 找不到時，會在後續流程建立全新試算表
-                    pass
             except Exception as e:
                 print(f"Error checking user drive for spreadsheet: {e}")
                 spreadsheet_id = os.getenv("GOOGLE_SHEET_ID")
                 session['spreadsheet_id'] = spreadsheet_id
 
-    # 4. 🛡️ 若已有 resolved 的 spreadsheet_id，執行主動式缺頁自癒修復機制 (只在 session 無 self_healing_done 時執行一次)
+    # 4. 🛡️ 若已有 resolved 的 spreadsheet_id，非同步背景執行缺頁與表頭自癒
     if spreadsheet_id:
         if not session.get('self_healing_done'):
             try:
-                sheets_service = get_sheets_service()
-                sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
-                existing_titles = [s['properties']['title'] for s in sheet_meta.get('sheets', [])]
-                
-                # 1. 檢查是否存在「固定開銷」且不存在「固定支出」。若是，則自動重命名為「固定支出」以自癒相容。
-                if '固定開銷' in existing_titles and '固定支出' not in existing_titles:
-                    print("[Self-Healing] Detected '固定開銷' tab, renaming to '固定支出'...")
-                    fixed_expenses_sheet_id = None
-                    for s in sheet_meta.get('sheets', []):
-                        if s['properties']['title'] == '固定開銷':
-                            fixed_expenses_sheet_id = s['properties']['sheetId']
-                            break
-                    if fixed_expenses_sheet_id is not None:
-                        try:
-                            rename_request = {
-                                'updateSheetProperties': {
-                                    'properties': {
-                                        'sheetId': fixed_expenses_sheet_id,
-                                        'title': '固定支出'
-                                    },
-                                    'fields': 'title'
-                                }
-                            }
-                            sheets_service.spreadsheets().batchUpdate(
-                                spreadsheetId=spreadsheet_id,
-                                body={'requests': [rename_request]}
-                            ).execute()
-                            print("[Self-Healing] Renamed '固定開銷' to '固定支出' successfully!")
-                            existing_titles = [t if t != '固定開銷' else '固定支出' for t in existing_titles]
-                            # Update sheet_meta in memory to reflect the new title
-                            for s in sheet_meta.get('sheets', []):
-                                if s['properties']['title'] == '固定開銷':
-                                    s['properties']['title'] = '固定支出'
-                        except Exception as rename_err:
-                            print(f"[Self-Healing] Error renaming '固定開銷' to '固定支出': {rename_err}")
-
-                required_sheets = {
-                    '記帳': [['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別', '子分類']],
-                    '待辦': [['建立日期', '事項/內容', '分類', '狀態', '唯一 ID', '建立時間', '優先級']],
-                    '日記': [['日期', '內容', '天氣', '心情', '時間']],
-                    '願望': [['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間']],
-                    '生理紀錄': [['年度', '月份', '日期', '動作', '症狀/心情', '週期', '備註']],
-                    '口袋': [['ID', '分類', '店名', '地址', '地區', '備註', '建立時間', '緯度', '經度', '常用']],
-                    'AI_指令集': [['觸發語句', '執行動作']],
-                    '💰股票投資組合': [['交易日期', '股票代號', '股票名稱', '交易類型', '交易股數', '交易單價', '手續費', '即時市價', '即時損益', '備註']],
-                    '生理症狀紀錄': [['日期', '症狀', '備註', '寫入時間']],
-                    '固定支出': [['建立日期', '項目名稱', '類別設定', '子分類', '金額設定', '每月自動執行日', '最後執行月份', '唯一 ID', '開始日期', '結束日期']],
-                    '代墊待收款': [['建立日期', '帳目描述', '總金額', '墊款人', '分攤人(逗號分隔)', '各分攤明細(JSON/描述)', '狀態', '唯一 ID', '建立時間']],
-                    '資產帳戶': [['帳戶名稱', '帳戶類型', '當前餘額', '唯一 ID', '更新時間', '備註']]
-                }
-                
-                # 兼容「願望清單」或「願望」
-                if '願望' in existing_titles or '願望清單' in existing_titles:
-                    if '願望' in required_sheets:
-                        del required_sheets['願望']
-                
-                # 兼容「口袋」或「口袋名單」
-                if '口袋' in existing_titles or '口袋名單' in existing_titles:
-                    if '口袋' in required_sheets:
-                        del required_sheets['口袋']
-                
-                missing_sheets = [title for title in required_sheets.keys() if title not in existing_titles]
-                
-                if missing_sheets:
-                    print(f"[Self-Healing] Missing sheets detected: {missing_sheets}. Repairing...")
-                    add_requests = [{'addSheet': {'properties': {'title': title}}} for title in missing_sheets]
-                    sheets_service.spreadsheets().batchUpdate(
-                        spreadsheetId=spreadsheet_id,
-                        body={'requests': add_requests}
-                    ).execute()
-                    
-                    # 寫入修復頁的表頭
-                    for title in missing_sheets:
-                        header_values = required_sheets[title]
-                        range_name = f"{title}!A1"
-                        sheets_service.spreadsheets().values().update(
-                            spreadsheetId=spreadsheet_id,
-                            range=range_name,
-                            valueInputOption='USER_ENTERED',
-                            body={'values': header_values}
-                        ).execute()
-                        print(f"[Self-Healing] Successfully restored sheet '{title}' and headers!")
-                        
-                        if title == '資產帳戶':
-                            now_time = datetime.now(TW_TZ).strftime('%Y-%m-%d %H:%M:%S')
-                            default_rows = [
-                                ["國泰活儲", "活儲", "0", str(uuid.uuid4()), now_time, "預設帳戶"],
-                                ["郵局活儲", "活儲", "0", str(uuid.uuid4()), now_time, "預設帳戶"],
-                                ["玉山定存", "定存", "0", str(uuid.uuid4()), now_time, "預設帳戶"],
-                                ["緊急備用金", "緊急備用金", "0", str(uuid.uuid4()), now_time, "預設帳戶"],
-                                ["現金口袋", "現金", "0", str(uuid.uuid4()), now_time, "預設帳戶"],
-                                ["證券交割戶", "證券", "0", str(uuid.uuid4()), now_time, "預設帳戶"]
-                            ]
-                            sheets_service.spreadsheets().values().append(
-                                spreadsheetId=spreadsheet_id,
-                                range='資產帳戶!A2:F',
-                                valueInputOption='USER_ENTERED',
-                                body={'values': default_rows}
-                            ).execute()
-                            print("[Self-Healing] Successfully populated default asset accounts!")
-                    
-                    # 重新獲取最新的 sheet meta 以更新 GIDs
-                    sheet_meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
-                
-                # 靜默檢查「記帳」分頁表頭是否包含 子分類 欄，若無則自動補上
-                try:
-                    record_header_res = sheets_service.spreadsheets().values().get(
-                        spreadsheetId=spreadsheet_id,
-                        range='記帳!A1:H1'
-                    ).execute()
-                    header_vals = record_header_res.get('values', [[]])[0]
-                    if '子分類' not in header_vals:
-                        print("[Self-Healing] '子分類' header not found in '記帳' sheet, adding it to Column H...")
-                        sheets_service.spreadsheets().values().update(
-                            spreadsheetId=spreadsheet_id,
-                            range='記帳!H1',
-                            valueInputOption='USER_ENTERED',
-                            body={'values': [['子分類']]}
-                        ).execute()
-                        print("[Self-Healing] Successfully added '子分類' header to '記帳' sheet!")
-                except Exception as header_err:
-                    print(f"[Self-Healing] Error ensuring '子分類' header in '記帳': {header_err}")
-                
-                # 確保 session 中有最新、完整的 GIDs
-                gids = {}
-                for s in sheet_meta.get('sheets', []):
-                    title = s['properties']['title']
-                    gids[title] = s['properties']['sheetId']
-                session['sheet_gids'] = gids
-                
-                # -------------------------------------------------------------
-                # 🛡️ 全面巡檢並補上缺失的表頭保護鎖 (Warning Only)
-                # -------------------------------------------------------------
-                protect_requests = []
-                for s in sheet_meta.get('sheets', []):
-                    title = s['properties']['title']
-                    s_id = s['properties']['sheetId']
-                    
-                    # 檢查第一列 (Row 1) 是否已設有警告保護鎖
-                    has_protection = any(
-                        p.get('range', {}).get('startRowIndex') == 0 and p.get('range', {}).get('endRowIndex') == 1
-                        for p in s.get('protectedRanges', [])
-                    )
-                    
-                    if not has_protection:
-                        # 取得該分頁的正確欄數
-                        col_count = 10  # 預設給一個涵蓋範圍
-                        if title in required_sheets:
-                            col_count = len(required_sheets[title][0])
-                            
-                        protect_requests.append({
-                            "addProtectedRange": {
-                                "protectedRange": {
-                                    "range": {
-                                        "sheetId": s_id,
-                                        "startRowIndex": 0,
-                                        "endRowIndex": 1,
-                                        "startColumnIndex": 0,
-                                        "endColumnIndex": col_count
-                                    },
-                                    "description": f"系統 {title} 核心表頭，請勿任意變動以防當機",
-                                    "warningOnly": True
-                                }
-                            }
-                        })
-                        
-                if protect_requests:
-                    try:
-                        sheets_service.spreadsheets().batchUpdate(
-                            spreadsheetId=spreadsheet_id,
-                            body={'requests': protect_requests}
-                        ).execute()
-                        print(f"[Self-Healing] Successfully added protection locks to {len(protect_requests)} sheets!")
-                    except Exception as protect_err:
-                        print(f"[Self-Healing] Error adding protection locks: {protect_err}")
-                # -------------------------------------------------------------
-
+                creds = get_valid_credentials()
+                import threading
+                threading.Thread(
+                    target=bg_spreadsheet_self_healing,
+                    args=(spreadsheet_id, session.get('user_email'), creds)
+                ).start()
                 session['self_healing_done'] = True
                 session.modified = True
-                print(f"Restored and verified all GIDs in session: {gids}")
-                
-            except Exception as ex:
-                print(f"Error in sheet self-healing mechanism: {ex}")
-                
+            except Exception as bg_err:
+                print(f"Error starting background sheet self-healing: {bg_err}")
         return spreadsheet_id
 
     # 5. 若仍無 spreadsheet_id，則代表需要新建並初始化一個全新試算表
@@ -1710,6 +1714,7 @@ def index():
 def login():
     # 請求 offline 權限以取得 refresh_token，並強制要求 consent 彈窗確認
     flow = get_flow()
+    print(f"[DEBUG LOGIN] generated redirect_uri: {flow.redirect_uri}")
     authorization_url, state = flow.authorization_url(
         access_type='offline',
         include_granted_scopes='true',
@@ -1718,6 +1723,7 @@ def login():
     session['state'] = state
     # 將 PKCE code_verifier 存入 session，以便在 callback 路由中跨請求還原驗證
     session['code_verifier'] = flow.code_verifier
+    print(f"[DEBUG LOGIN] authorization_url: {authorization_url}")
     return redirect(authorization_url)
 
 @app.route('/callback')
@@ -3570,7 +3576,7 @@ def execute_single_intent_internal(parsed_data, email, now, ai_response_message=
             msg = f"{ai_response_message}\n\n{msg}"
             
         # 連動資產餘額邏輯 (V3.8 Step 3)
-        if category in ['儲蓄/投資', '貸款'] and row_num:
+        if category == '儲蓄/投資' and row_num:
             try:
                 ensure_user_spreadsheet()
                 res_accts = service.spreadsheets().values().get(
@@ -4462,6 +4468,7 @@ def manual_action():
     接收來自前端 Modal 的手動輸入，直接執行動作，完全不經過 AI。
     """
     data = request.get_json()
+    print("[DEBUG MANUAL ACTION] Incoming payload:", data)
     action_type = data.get('type')
     now = datetime.now(TW_TZ)
 
@@ -4564,7 +4571,7 @@ def manual_action():
             
             # 連動資產餘額邏輯 (V3.8 Step 3)
             asset_log = ""
-            if category in ['儲蓄/投資', '貸款'] and asset_account_id:
+            if category == '儲蓄/投資' and asset_account_id:
                 try:
                     amount_change = -amount if is_income else amount
                     current_time = datetime.now(TW_TZ).strftime('%Y-%m-%d %H:%M:%S')
