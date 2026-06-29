@@ -9358,11 +9358,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.hideAssetAccountForm();
                 window.loadAssetAccounts();
             } else {
+                console.error('[saveAssetAccount Error]', data.message);
                 window.showToast(data.message || '儲存失敗', 'error');
             }
         } catch (err) {
             console.error(err);
-            window.showToast('連線失敗，請重試', 'error');
+            window.showToast(`連線失敗：${err.message || '請重試'}`, 'error');
         }
     };
 

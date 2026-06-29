@@ -5641,6 +5641,28 @@ def handle_asset_accounts():
         
     service = get_sheets_service()
     
+    # 🛡️ 同步確保「資產帳戶」工作表存在（老帳號自癒補全）
+    try:
+        meta = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        existing_titles = [s['properties']['title'] for s in meta.get('sheets', [])]
+        if '資產帳戶' not in existing_titles:
+            print(f"[handle_asset_accounts] '資產帳戶' sheet missing in {spreadsheet_id}, creating...")
+            service.spreadsheets().batchUpdate(
+                spreadsheetId=spreadsheet_id,
+                body={'requests': [{'addSheet': {'properties': {'title': '資產帳戶'}}}]}
+            ).execute()
+            # 寫入表頭
+            service.spreadsheets().values().update(
+                spreadsheetId=spreadsheet_id,
+                range='資產帳戶!A1:F1',
+                valueInputOption='USER_ENTERED',
+                body={'values': [['帳戶名稱', '帳戶類型', '當前餘額', '唯一 ID', '更新時間', '備註']]}
+            ).execute()
+            print(f"[handle_asset_accounts] '資產帳戶' sheet created successfully!")
+    except Exception as sheet_err:
+        print(f"[handle_asset_accounts] Error checking/creating '資產帳戶' sheet: {sheet_err}")
+    
+
     if request.method == 'GET':
         try:
             res = service.spreadsheets().values().get(
@@ -5728,6 +5750,10 @@ def handle_asset_accounts():
             
             return jsonify({"status": "success", "message": "已成功新增資產帳戶"})
         except Exception as e:
+            import traceback
+            print(f"[Asset Account POST Error] spreadsheet_id={spreadsheet_id}, name={name}, type={acct_type}")
+            print(f"[Asset Account POST Error] Detail: {str(e)}")
+            print(traceback.format_exc())
             return jsonify({"status": "error", "message": f"新增失敗: {str(e)}"}), 500
 
 @app.route('/api/asset_accounts/update', methods=['POST'])
