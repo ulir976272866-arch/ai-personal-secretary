@@ -4250,8 +4250,8 @@ def get_schedule_response(days):
         
         current_cal_id = session.get('calendar_id', 'primary')
 
-        # 動態計算 maxResults 限制，防止大量行程被截斷（例如 30 天內行程超過 50 個）
-        max_results_limit = min(2500, max(250, days * 10))
+        # 動態計算 maxResults 限制，防止大量行程被截斷（例如 1天限30筆，30天限300筆）
+        max_results_limit = max(30, days * 10)
         events_result = service.events().list(
             calendarId=current_cal_id, timeMin=today_start, timeMax=today_end,
             maxResults=max_results_limit, singleEvents=True, orderBy='startTime'
