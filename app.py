@@ -879,11 +879,22 @@ def ensure_user_spreadsheet():
     else:
         # 2. 如果是創作者本人的 Email 登入，直接回傳最原始的歷史資料表，避免新建空白表！
         try:
-            user_info = get_user_info()
-            if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
+            email = session.get('user_email')
+            if not email:
+                user_info = get_user_info()
+                if user_info:
+                    email = user_info.get('email')
+            
+            # Developer emails
+            developer_emails = {'ulir976272866@gmail.com', 'mina.chen.xstar.sg@gmail.com'}
+            owner_email = os.getenv("GOOGLE_CALENDAR_ID")
+            if owner_email:
+                developer_emails.add(owner_email.lower())
+                
+            if email and email.lower() in developer_emails:
                 spreadsheet_id = os.getenv("GOOGLE_SHEET_ID")
                 session['spreadsheet_id'] = spreadsheet_id
-                print(f"Owner logged in. Reusing existing original spreadsheet: {spreadsheet_id}")
+                print(f"Owner/Developer ({email}) logged in. Reusing existing original spreadsheet: {spreadsheet_id}")
         except Exception as e:
             print(f"Error checking owner email in ensure_user_spreadsheet: {e}")
 
@@ -1119,7 +1130,7 @@ def self_heal_missing_sheet_values(range_name, spreadsheet_id, service, original
     # 核心通用自癒對照表
     standard_headers_map = {
         '生理紀錄': ['年度', '月份', '日期', '動作', '症狀/心情', '週期', '備註'],
-        '記帳': ['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別'],
+        '記帳': ['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別', '子分類'],
         '待辦': ['建立日期', '事項/內容', '分類', '狀態', '唯一 ID', '建立時間', '優先級'],
         '日記': ['日期', '內容', '天氣', '心情', '時間'],
         '願望': ['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間'],
@@ -1246,7 +1257,7 @@ def get_sheet_values(range_name, spreadsheet_id=None):
             
             standard_headers_map = {
                 '生理紀錄': ['年度', '月份', '日期', '動作', '症狀/心情', '週期', '備註'],
-                '記帳': ['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別'],
+                '記帳': ['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別', '子分類'],
                 '待辦': ['建立日期', '事項/內容', '分類', '狀態', '唯一 ID', '建立時間', '優先級'],
                 '日記': ['日期', '內容', '天氣', '心情', '時間'],
                 '願望': ['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間'],
@@ -7307,7 +7318,7 @@ def ensure_all_sheets_warning_protected(spreadsheet_id, service=None):
         
         standard_headers_map = {
             '生理紀錄': ['年度', '月份', '日期', '動作', '症狀/心情', '週期', '備註'],
-            '記帳': ['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別'],
+            '記帳': ['年度', '月份', '日期', '收入項目', '支出項目', '金額', '類別', '子分類'],
             '待辦': ['建立日期', '事項/內容', '分類', '狀態', '唯一 ID', '建立時間', '優先級'],
             '日記': ['日期', '內容', '天氣', '心情', '時間'],
             '願望': ['建立日期', '商品名稱', '預估價格', '備註/連結', '狀態', '分類', '實際價格', '唯一 ID', '儲存時間'],
