@@ -2225,7 +2225,9 @@
                 <span class="query-label">查詢月份：</span>
                 <select id="report_year_select" class="query-select"></select>
                 <select id="report_month_select" class="query-select"></select>
-                <button id="report_query_btn" class="sub-btn query-btn-report" onclick="fetchFinanceReport()">查詢</button>
+                <span id="report_sync_status" style="margin-left: 10px; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); display: none; align-items: center; gap: 6px; padding: 6px 12px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 12px; vertical-align: middle;">
+                    <span class="btn-spinner" style="border-top-color: var(--text-color);"></span> <span id="report_sync_text">同步中...</span>
+                </span>
             </div>
 
             <!-- 收支結餘卡片 -->
@@ -2248,20 +2250,53 @@
             </div>
 
 
-            <!-- 圓餅圖 -->
-            <div class="chart-container-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 18px; margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; min-height: 250px; justify-content: center;">
-                <h3 style="font-size: 0.88rem; font-weight: 800; color: var(--text-color); margin-top: 0; margin-bottom: 12px; align-self: flex-start;">🥧 支出分類分佈</h3>
-                <div style="width: 100%; max-width: 220px; position: relative; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;">
-                    <canvas id="financeReportPieChart" style="max-height: 220px; max-width: 220px;"></canvas>
-                    <div id="report_chart_loading_placeholder" class="skeleton-shimmer" style="display: none; width: 140px; height: 140px; border-radius: 50%;"></div>
+            <!-- 📊 收支分頁 Tab 切換器 -->
+            <div id="report_tab_switcher" style="display: flex; gap: 8px; margin-bottom: 16px; background: var(--bg-input); border-radius: 14px; padding: 4px;">
+                <button id="report_tab_expense_btn" onclick="window.switchReportTab('expense')" style="flex: 1; padding: 9px 0; border: none; border-radius: 10px; font-size: 0.82rem; font-weight: 800; cursor: pointer; transition: all 0.2s ease; background: #ef4444; color: white; box-shadow: 0 2px 8px rgba(239,68,68,0.3);">
+                    💸 支出分析
+                </button>
+                <button id="report_tab_income_btn" onclick="window.switchReportTab('income')" style="flex: 1; padding: 9px 0; border: none; border-radius: 10px; font-size: 0.82rem; font-weight: 800; cursor: pointer; transition: all 0.2s ease; background: transparent; color: var(--text-muted);">
+                    💰 收入分析
+                </button>
+            </div>
+
+            <!-- 支出 Tab 內容 -->
+            <div id="report_tab_expense_content">
+                <!-- 支出圓餅圖 -->
+                <div class="chart-container-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 18px; margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; min-height: 250px; justify-content: center;">
+                    <h3 style="font-size: 0.88rem; font-weight: 800; color: var(--text-color); margin-top: 0; margin-bottom: 12px; align-self: flex-start;">🥧 支出分類分佈</h3>
+                    <div style="width: 100%; max-width: 220px; position: relative; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;">
+                        <canvas id="financeReportPieChart" style="max-height: 220px; max-width: 220px;"></canvas>
+                        <div id="report_chart_loading_placeholder" class="skeleton-shimmer" style="display: none; width: 140px; height: 140px; border-radius: 50%;"></div>
+                    </div>
+                </div>
+
+                <!-- 支出分類明細 -->
+                <div class="detail-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 18px; margin-bottom: 20px;">
+                    <h3 style="font-size: 0.88rem; font-weight: 800; color: var(--text-color); margin-top: 0; margin-bottom: 14px;">📋 支出分類明細</h3>
+                    <div id="report_category_list" style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- 動態生成分類列 -->
+                    </div>
                 </div>
             </div>
 
-            <!-- 分類明細 -->
-            <div class="detail-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 18px; margin-bottom: 20px;">
-                <h3 style="font-size: 0.88rem; font-weight: 800; color: var(--text-color); margin-top: 0; margin-bottom: 14px;">📋 分類明細</h3>
-                <div id="report_category_list" style="display: flex; flex-direction: column; gap: 12px;">
-                    <!-- 動態生成分類列 -->
+            <!-- 收入 Tab 內容 -->
+            <div id="report_tab_income_content" style="display: none;">
+                <!-- 收入圓餅圖 -->
+                <div class="chart-container-card" style="background: var(--bg-card); border: 1px solid rgba(16,185,129,0.2); border-radius: 18px; padding: 18px; margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; min-height: 250px; justify-content: center;">
+                    <h3 style="font-size: 0.88rem; font-weight: 800; color: var(--text-color); margin-top: 0; margin-bottom: 12px; align-self: flex-start;">🍩 收入來源分佈</h3>
+                    <div style="width: 100%; max-width: 220px; position: relative; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;">
+                        <canvas id="financeIncomeReportPieChart" style="max-height: 220px; max-width: 220px;"></canvas>
+                        <div id="report_income_chart_loading_placeholder" class="skeleton-shimmer" style="display: none; width: 140px; height: 140px; border-radius: 50%;"></div>
+                    </div>
+                </div>
+
+                <!-- 收入分類明細 -->
+                <div class="detail-card" style="background: var(--bg-card); border: 1px solid rgba(16,185,129,0.2); border-radius: 18px; padding: 18px; margin-bottom: 20px;">
+                    <h3 style="font-size: 0.88rem; font-weight: 800; color: var(--text-color); margin-top: 0; margin-bottom: 14px;">📋 收入來源明細</h3>
+                    <div id="report_income_category_list" style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- 動態生成收入分類列 -->
+                    </div>
                 </div>
             </div>
 

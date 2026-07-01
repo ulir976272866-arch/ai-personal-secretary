@@ -8848,6 +8848,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.financeReportChart.destroy();
                 window.financeReportChart = null;
             }
+            if (window.financeIncomeReportChart) {
+                window.financeIncomeReportChart.destroy();
+                window.financeIncomeReportChart = null;
+            }
+            const incomeCatListEl = document.getElementById('report_income_category_list');
+            if (incomeCatListEl) {
+                incomeCatListEl.innerHTML = `<div style="text-align:center; padding: 30px 20px; color: var(--text-muted); font-size: 0.82rem;">⚠️ 該月份尚無記賬資料</div>`;
+            }
             
             const premSection = document.getElementById('report_premium_stock_section');
             const lockSection = document.getElementById('report_locked_stock_section');
@@ -8873,6 +8881,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.financeReportChart) {
                 window.financeReportChart.destroy();
                 window.financeReportChart = null;
+            }
+            if (window.financeIncomeReportChart) {
+                window.financeIncomeReportChart.destroy();
+                window.financeIncomeReportChart = null;
+            }
+            const incomeCatErrEl = document.getElementById('report_income_category_list');
+            if (incomeCatErrEl) {
+                incomeCatErrEl.innerHTML = `<div style="text-align:center; padding: 20px; color: #ef4444; font-size: 0.8rem; font-weight: 700;">❌ ${data.message}</div>`;
             }
             return;
         }
@@ -8936,8 +8952,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 legend: {
                                     position: 'bottom',
                                     labels: {
-                                        boxWidth: 10,
-                                        font: { size: 9 },
+                                        boxWidth: 14,
+                                        font: { size: 13, weight: 'bold' },
                                         color: textColor
                                     }
                                 },
@@ -9040,7 +9056,179 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (premSection) premSection.style.display = 'none';
                 if (lockSection) lockSection.style.display = 'block';
             }
+
+            // 渲染收入分析
+            const incomeCategories = data.income_categories || {};
+            window.renderIncomeReportData(incomeCategories, data.total_income || 0);
         }
+    };
+
+    // =================================================================
+    // 💰 收入分析分頁：圖表實例追蹤
+    // =================================================================
+    window.financeIncomeReportChart = null;
+
+    // =================================================================
+    // 📊 Tab 切換：支出分析 / 收入分析
+    // =================================================================
+    window.switchReportTab = (tab) => {
+        const expenseContent = document.getElementById('report_tab_expense_content');
+        const incomeContent = document.getElementById('report_tab_income_content');
+        const expenseBtn = document.getElementById('report_tab_expense_btn');
+        const incomeBtn = document.getElementById('report_tab_income_btn');
+
+        if (tab === 'expense') {
+            if (expenseContent) expenseContent.style.display = 'block';
+            if (incomeContent) incomeContent.style.display = 'none';
+            if (expenseBtn) {
+                expenseBtn.classList.add('active-tab');
+                expenseBtn.style.background = '#ef4444';
+                expenseBtn.style.color = 'white';
+                expenseBtn.style.boxShadow = '0 2px 8px rgba(239,68,68,0.3)';
+            }
+            if (incomeBtn) {
+                incomeBtn.classList.remove('active-tab');
+                incomeBtn.style.background = 'transparent';
+                incomeBtn.style.color = 'var(--text-muted)';
+                incomeBtn.style.boxShadow = 'none';
+            }
+        } else {
+            if (expenseContent) expenseContent.style.display = 'none';
+            if (incomeContent) incomeContent.style.display = 'block';
+            if (incomeBtn) {
+                incomeBtn.classList.add('active-tab');
+                incomeBtn.style.background = '#10b981';
+                incomeBtn.style.color = 'white';
+                incomeBtn.style.boxShadow = '0 2px 8px rgba(16,185,129,0.3)';
+            }
+            if (expenseBtn) {
+                expenseBtn.classList.remove('active-tab');
+                expenseBtn.style.background = 'transparent';
+                expenseBtn.style.color = 'var(--text-muted)';
+                expenseBtn.style.boxShadow = 'none';
+            }
+        }
+    };
+
+    // =================================================================
+    // 💰 收入來源分析渲染
+    // =================================================================
+    window.renderIncomeReportData = (incomeCategories, totalIncome) => {
+        const incomeCatListEl = document.getElementById('report_income_category_list');
+        const incomeChartCanvas = document.getElementById('financeIncomeReportPieChart');
+
+        const sortedIncome = Object.entries(incomeCategories).sort((a, b) => b[1] - a[1]);
+
+        // 圓餅圖
+        let incomeChartLabels = [];
+        let incomeChartData = [];
+        let incomeOtherSum = 0;
+
+        for (let i = 0; i < sortedIncome.length; i++) {
+            if (i < 5) {
+                incomeChartLabels.push(sortedIncome[i][0]);
+                incomeChartData.push(Math.round(sortedIncome[i][1]));
+            } else {
+                incomeOtherSum += sortedIncome[i][1];
+            }
+        }
+        if (incomeOtherSum > 0) {
+            incomeChartLabels.push('其他');
+            incomeChartData.push(Math.round(incomeOtherSum));
+        }
+
+        if (window.financeIncomeReportChart) {
+            window.financeIncomeReportChart.destroy();
+            window.financeIncomeReportChart = null;
+        }
+
+        if (incomeChartData.length > 0 && incomeChartCanvas) {
+            const ctx = incomeChartCanvas.getContext('2d');
+            if (ctx) {
+                const textColor = window.getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim() || '#1e293b';
+                const borderColor = window.getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim() || '#e2e8f0';
+                window.financeIncomeReportChart = new Chart(ctx, {
+                    type: 'pie',
+                    plugins: [ChartDataLabels],
+                    data: {
+                        labels: incomeChartLabels,
+                        datasets: [{
+                            data: incomeChartData,
+                            backgroundColor: ['#6ee7b7', '#34d399', '#a7f3d0', '#10b981', '#059669', '#d1fae5', '#6d28d9', '#a3e635'],
+                            borderWidth: 1,
+                            borderColor: borderColor
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    boxWidth: 14,
+                                    font: { size: 13, weight: 'bold' },
+                                    color: textColor
+                                }
+                            },
+                            datalabels: {
+                                color: '#064e3b',
+                                font: { weight: '800', size: 10 },
+                                formatter: (value, ctx) => {
+                                    const sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    if (sum === 0) return '';
+                                    const pct = Math.round((value / sum) * 100);
+                                    return pct + '%';
+                                },
+                                display: (ctx) => {
+                                    const value = ctx.dataset.data[ctx.dataIndex];
+                                    const sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    if (sum === 0) return false;
+                                    return (value / sum) >= 0.05;
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        } else if (incomeChartCanvas) {
+            const ctx = incomeChartCanvas.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, 220, 220);
+        }
+
+        // 收入明細列表
+        if (!incomeCatListEl) return;
+
+        if (sortedIncome.length === 0) {
+            incomeCatListEl.innerHTML = `<div style="text-align:center; padding: 30px 20px; color: var(--text-muted); font-size: 0.82rem;">💡 本月無收入記錄</div>`;
+            return;
+        }
+
+        const totalBase = totalIncome || 1;
+        let incomeListHtml = '';
+
+        for (const [incName, incAmt] of sortedIncome) {
+            const pct = Math.round((incAmt / totalBase) * 100);
+            incomeListHtml += `
+                <div class="report-income-cat-row">
+                    <div class="report-cat-header">
+                        <div class="report-cat-title-group">
+                            <span style="font-size: 0.75rem;">💰</span>
+                            <span>${incName}</span>
+                        </div>
+                        <div class="report-cat-amount-group">
+                            <span class="report-income-amount">$${Math.round(incAmt).toLocaleString()}</span>
+                            <small style="color: var(--text-muted); font-size: 0.72rem;">${pct}%</small>
+                        </div>
+                    </div>
+                    <div class="report-cat-progress-wrapper">
+                        <div class="report-income-cat-progress" style="width: ${pct}%"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        incomeCatListEl.innerHTML = incomeListHtml;
     };
 
     window.fetchFinanceReport = async () => {
@@ -9052,7 +9240,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const month = monthSelect.value;
 
         // 取得相關 DOM 元素
-        const queryBtn = document.getElementById('report_query_btn');
+        const syncStatusEl = document.getElementById('report_sync_status');
+        const syncTextEl = document.getElementById('report_sync_text');
         const totalExpenseEl = document.getElementById('report_total_expense');
         const totalIncomeEl = document.getElementById('report_total_income');
         const totalBalanceEl = document.getElementById('report_total_balance');
@@ -9073,10 +9262,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 1. 設定按鈕為載入狀態
-        if (queryBtn) {
-            queryBtn.disabled = true;
-            queryBtn.innerHTML = hasCache ? '<span class="btn-spinner"></span> 同步中...' : '<span class="btn-spinner"></span> 查詢中...';
+        // 1. 顯示同步狀態，禁用選單
+        if (yearSelect) yearSelect.disabled = true;
+        if (monthSelect) monthSelect.disabled = true;
+        if (syncStatusEl) {
+            syncStatusEl.style.display = 'inline-flex';
+            if (syncTextEl) {
+                syncTextEl.innerText = hasCache ? '同步中...' : '查詢中...';
+            }
         }
 
         if (!hasCache) {
@@ -9159,10 +9352,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             }
         } finally {
-            if (queryBtn) {
-                queryBtn.disabled = false;
-                queryBtn.innerHTML = '查詢';
-            }
+            if (yearSelect) yearSelect.disabled = false;
+            if (monthSelect) monthSelect.disabled = false;
+            if (syncStatusEl) syncStatusEl.style.display = 'none';
             if (pieChartCanvas) pieChartCanvas.style.display = 'block';
             if (chartPlaceholder) chartPlaceholder.style.display = 'none';
         }

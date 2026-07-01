@@ -4060,6 +4060,7 @@ def get_finance_report():
         total_income = 0.0
         category_totals = {}
         subcategory_breakdowns = {}
+        income_categories = {}  # 收入項目彙總
         has_matched_data = False
         
         for row in rows[1:]:
@@ -4098,6 +4099,11 @@ def get_finance_report():
                 
                 if is_income:
                     total_income += amt
+                    # 收入項目名稱彙總
+                    inc_name = str(row[inc_item_idx]).strip() if len(row) > inc_item_idx else "其他收入"
+                    if not inc_name:
+                        inc_name = "其他收入"
+                    income_categories[inc_name] = income_categories.get(inc_name, 0.0) + amt
                 else:
                     total_expense += amt
                     cat = str(row[cat_idx]).strip() if len(row) > cat_idx else "未分類"
@@ -4223,6 +4229,7 @@ def get_finance_report():
             "balance": round(total_income - total_expense, 2),
             "categories": {k: round(v, 2) for k, v in category_totals.items()},
             "subcategories": {cat: {sub: round(val, 2) for sub, val in subs.items()} for cat, subs in subcategory_breakdowns.items()},
+            "income_categories": {k: round(v, 2) for k, v in income_categories.items()},
             "is_premium": is_premium,
             "stock_expense": round(stock_expense, 2),
             "stock_unrealized_roi": round(stock_unrealized_roi, 2),
@@ -4243,9 +4250,11 @@ def get_schedule_response(days):
         
         current_cal_id = session.get('calendar_id', 'primary')
 
+        # 動態計算 maxResults 限制，防止大量行程被截斷（例如 30 天內行程超過 50 個）
+        max_results_limit = min(2500, max(250, days * 10))
         events_result = service.events().list(
             calendarId=current_cal_id, timeMin=today_start, timeMax=today_end,
-            maxResults=50, singleEvents=True, orderBy='startTime'
+            maxResults=max_results_limit, singleEvents=True, orderBy='startTime'
         ).execute()
         events = events_result.get('items', [])
     except Exception as e:

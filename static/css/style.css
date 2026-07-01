@@ -3823,6 +3823,55 @@ select.form-input {
     color: var(--text-color) !important;
 }
 
+/* ============================================================
+   💰 收入分析分頁相關樣式
+   ============================================================ */
+
+/* 收入分類列 - 綠色版 */
+.report-income-cat-row {
+    background: var(--bg-card);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 14px;
+    padding: 12px 16px;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.report-income-cat-row:hover {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.03);
+}
+
+/* 收入進度條 - 綠色 */
+.report-income-cat-progress {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    border-radius: 3px;
+}
+
+/* 收入金額文字 */
+.report-income-amount {
+    font-weight: 800;
+    font-size: 0.9rem;
+    color: #10b981;
+}
+
+/* Tab 切換按鈕動態狀態 */
+#report_tab_expense_btn.active-tab {
+    background: #ef4444 !important;
+    color: white !important;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3) !important;
+}
+
+#report_tab_income_btn.active-tab {
+    background: #10b981 !important;
+    color: white !important;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
+}
+
+
 /* 深色模式變數覆蓋與相容 */
 [data-theme="dark"] .finance-report-panel {
     border-left: 1px solid var(--input-border);
