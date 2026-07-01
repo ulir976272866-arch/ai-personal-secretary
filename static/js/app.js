@@ -665,17 +665,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ✅ 電腦版防呆：滑鼠移開自動收合所有下拉選單 (V6.6 Feature)
-    const customSelects = document.querySelectorAll('.custom-select');
-    customSelects.forEach(select => {
-        select.addEventListener('mouseleave', () => {
-            // 找到該容器內所有具有 show 樣式的下拉選單並關閉
-            const openDropdowns = select.querySelectorAll('.show');
-            openDropdowns.forEach(dropdown => {
-                dropdown.classList.remove('show');
-            });
-        });
-    });
+    // 移除滑鼠移開自動收合所有下拉選單的機制，防止在 H5 模擬器或觸控裝置下，點擊後立刻觸發 mouseleave 導致選單秒關閉。
+    // 改為完全依賴點擊外部關閉或選擇後關閉的標準行為。
 
     window.suggestExpenseEmoji = (text) => {
         const suggestions = {
