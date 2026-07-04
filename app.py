@@ -549,60 +549,47 @@ from werkzeug.local import LocalProxy
 SPREADSHEET_ID = LocalProxy(lambda: get_spreadsheet_id())
 CALENDAR_ID = LocalProxy(lambda: get_calendar_id())
 
-def get_diary_sheet_id():
+def _is_admin_context():
+    """判斷目前請求是否為管理者（SINGLE_USER_MODE 或 開發者信箱）"""
     if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
-        return os.getenv("DIARY_SHEET_ID")
+        return True
     try:
         user_info = get_user_info()
         if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
-            return os.getenv("DIARY_SHEET_ID")
+            return True
     except Exception:
         pass
-    return session.get('spreadsheet_id') or os.getenv("DIARY_SHEET_ID")
+    return False
+
+def get_diary_sheet_id():
+    """日記分頁所在試算表 ID：管理者使用統一的 GOOGLE_SHEET_ID，一般用戶使用其個人試算表"""
+    if _is_admin_context():
+        return os.getenv("GOOGLE_SHEET_ID")
+    return session.get('spreadsheet_id') or os.getenv("GOOGLE_SHEET_ID")
 
 def get_todo_sheet_id():
-    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
-        return os.getenv("TODO_SHEET_ID")
-    try:
-        user_info = get_user_info()
-        if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
-            return os.getenv("TODO_SHEET_ID")
-    except Exception:
-        pass
-    return session.get('spreadsheet_id') or os.getenv("TODO_SHEET_ID")
+    """待辦分頁所在試算表 ID：管理者使用統一的 GOOGLE_SHEET_ID，一般用戶使用其個人試算表"""
+    if _is_admin_context():
+        return os.getenv("GOOGLE_SHEET_ID")
+    return session.get('spreadsheet_id') or os.getenv("GOOGLE_SHEET_ID")
 
 def get_wish_sheet_id():
-    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
-        return os.getenv("WISH_SHEET_ID")
-    try:
-        user_info = get_user_info()
-        if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
-            return os.getenv("WISH_SHEET_ID")
-    except Exception:
-        pass
-    return session.get('spreadsheet_id') or os.getenv("WISH_SHEET_ID")
+    """願望分頁所在試算表 ID：管理者使用統一的 GOOGLE_SHEET_ID，一般用戶使用其個人試算表"""
+    if _is_admin_context():
+        return os.getenv("GOOGLE_SHEET_ID")
+    return session.get('spreadsheet_id') or os.getenv("GOOGLE_SHEET_ID")
 
 def get_pocket_sheet_id():
-    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
-        return os.getenv("POCKET_SHEET_ID")
-    try:
-        user_info = get_user_info()
-        if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
-            return os.getenv("POCKET_SHEET_ID")
-    except Exception:
-        pass
-    return session.get('spreadsheet_id') or os.getenv("POCKET_SHEET_ID")
+    """口袋名單分頁所在試算表 ID：管理者使用統一的 GOOGLE_SHEET_ID，一般用戶使用其個人試算表"""
+    if _is_admin_context():
+        return os.getenv("GOOGLE_SHEET_ID")
+    return session.get('spreadsheet_id') or os.getenv("GOOGLE_SHEET_ID")
 
 def get_health_sheet_id():
-    if os.getenv("SINGLE_USER_MODE", "false").lower() == "true":
-        return os.getenv("HEALTH_SHEET_ID")
-    try:
-        user_info = get_user_info()
-        if user_info and user_info.get('email') == os.getenv("GOOGLE_CALENDAR_ID"):
-            return os.getenv("HEALTH_SHEET_ID")
-    except Exception:
-        pass
-    return session.get('spreadsheet_id') or os.getenv("HEALTH_SHEET_ID")
+    """生理紀錄分頁所在試算表 ID：管理者使用統一的 GOOGLE_SHEET_ID，一般用戶使用其個人試算表"""
+    if _is_admin_context():
+        return os.getenv("GOOGLE_SHEET_ID")
+    return session.get('spreadsheet_id') or os.getenv("GOOGLE_SHEET_ID")
 
 def get_sheet_urls():
     is_owner = False
@@ -686,16 +673,18 @@ def get_sheet_urls():
             return f"https://docs.google.com/spreadsheets/d/{current_sheet_id}/edit#gid={gid}"
         return f"https://docs.google.com/spreadsheets/d/{current_sheet_id}/edit"
         
+    # 所有分頁皆使用統一的 spreadsheet_id（管理者：GOOGLE_SHEET_ID；一般用戶：個人試算表）
+    # 不再傳入舊的獨立 Sheet ID 作為 default_sheet_id，避免正式環境誤抓廢棄的雲端檔案
     return {
         "finance_sheet_url": get_url_with_gid('記帳'),
         "stock_sheet_url": get_url_with_gid('💰股票投資組合'),
-        "diary_sheet_url": get_url_with_gid('日記', os.getenv('DIARY_SHEET_ID')),
-        "todo_sheet_url": get_url_with_gid('待辦', os.getenv('TODO_SHEET_ID')),
-        "wish_sheet_url": get_url_with_gid('願望', os.getenv('WISH_SHEET_ID')),
-        "pocket_sheet_url": get_url_with_gid('口袋', os.getenv('POCKET_SHEET_ID')),
-        "health_sheet_url": get_url_with_gid('生理紀錄', os.getenv('HEALTH_SHEET_ID')),
-        "symptom_sheet_url": get_url_with_gid('生理症狀紀錄', os.getenv('HEALTH_SHEET_ID')),
-        "training_sheet_url": get_url_with_gid('AI_指令集', os.getenv('HEALTH_SHEET_ID')),
+        "diary_sheet_url": get_url_with_gid('日記'),
+        "todo_sheet_url": get_url_with_gid('待辦'),
+        "wish_sheet_url": get_url_with_gid('願望'),
+        "pocket_sheet_url": get_url_with_gid('口袋'),
+        "health_sheet_url": get_url_with_gid('生理紀錄'),
+        "symptom_sheet_url": get_url_with_gid('生理症狀紀錄'),
+        "training_sheet_url": get_url_with_gid('AI_指令集'),
         "bill_split_sheet_url": get_url_with_gid('代墊待收款')
     }
 def bg_spreadsheet_self_healing(spreadsheet_id, user_email, creds):
