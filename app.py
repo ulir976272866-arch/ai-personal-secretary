@@ -187,6 +187,15 @@ def get_valid_credentials():
         else:
             return None
     creds_data = session['credentials']
+    # 解析 expiry 字串回 datetime 物件，讓 creds.expired 能正確判斷過期狀態
+    expiry_dt = None
+    expiry_str = creds_data.get('expiry')
+    if expiry_str:
+        try:
+            from datetime import datetime as _dt
+            expiry_dt = _dt.fromisoformat(expiry_str)
+        except Exception:
+            pass
     creds = OAuthCredentials(
         token=creds_data.get('token'),
         refresh_token=creds_data.get('refresh_token'),
@@ -195,6 +204,8 @@ def get_valid_credentials():
         client_secret=creds_data.get('client_secret'),
         scopes=creds_data.get('scopes')
     )
+    if expiry_dt:
+        creds.expiry = expiry_dt
     # 如果 credentials 中缺少 refresh_token，但 session 中有記錄 user_email，則動態從 TiDB Cloud 還原修復它
     if not creds.refresh_token and 'user_email' in session:
         try:
@@ -207,7 +218,13 @@ def get_valid_credentials():
         except Exception as ex:
             print(f"Failed to restore refresh_token from TiDB: {ex}")
 
-    if creds.expired and creds.refresh_token:
+    # 強制刷新條件：token 已過期、token 為 None（session 重建後沒有有效 token），或偵測到明確過期
+    needs_refresh = (
+        (creds.expired) or
+        (not creds.token) or
+        (creds_data.get('token') is None)
+    )
+    if needs_refresh and creds.refresh_token:
         try:
             creds.refresh(Request())
             session['credentials'] = {
@@ -216,10 +233,15 @@ def get_valid_credentials():
                 'token_uri': creds.token_uri,
                 'client_id': creds.client_id,
                 'client_secret': creds.client_secret,
-                'scopes': creds.scopes
+                'scopes': creds.scopes,
+                'expiry': creds.expiry.isoformat() if creds.expiry else None
             }
+            session.modified = True
+            print(f"[OAuth] Token refreshed successfully for {session.get('user_email', 'unknown')}")
         except Exception as e:
             print(f"Error refreshing OAuth credentials: {e}")
+            # 刷新失敗時清除過期憑證，避免帶著失效 token 繼續執行
+            session.pop('credentials', None)
             return None
     return creds
 
@@ -1746,7 +1768,7 @@ def callback():
     
     # 啟用長效永久 Cookie 以在裝置上記憶使用者狀態，直到按登出按鈕才清除
     session.permanent = True
-    # 將 OAuth 金鑰資料保存至 Session 中
+    # 將 OAuth 金鑰資料保存至 Session 中（含 expiry，讓 creds.expired 能正確判斷）
     creds = flow.credentials
     session['credentials'] = {
         'token': creds.token,
@@ -1754,7 +1776,8 @@ def callback():
         'token_uri': creds.token_uri,
         'client_id': creds.client_id,
         'client_secret': creds.client_secret,
-        'scopes': creds.scopes
+        'scopes': creds.scopes,
+        'expiry': creds.expiry.isoformat() if creds.expiry else None
     }
     
     # 提取使用者資料並進行多用戶註冊比對
@@ -6741,11 +6764,17 @@ def get_current_cycle_status():
                 days_in_cycle = (now.date() - last_dt.date()).days + 1
                 if days_in_cycle < 1: days_in_cycle = 1
                 
-                # 預估下次經期日期
+                # 預估下次經期日期（從最後一次開始日加一個平均週期）
                 next_dt = last_dt + timedelta(days=avg_cycle)
+                
+                # 🐛 BUG FIX: 若預測日已是過去日期，持續往後滾動加一個週期，
+                # 直到找到未來的下次預測日，避免顯示「0 天」
+                while next_dt.date() < now.date():
+                    next_dt = next_dt + timedelta(days=avg_cycle)
+                
                 next_date_str = next_dt.strftime("%Y/%m/%d")
                 
-                # 預算排卵日 (下次月經來潮前 14 天)
+                # 依更新後的 next_dt 重新計算排卵日 (下次月經來潮前 14 天)
                 ovulation_dt = next_dt - timedelta(days=14)
                 ovulation_start_dt = ovulation_dt - timedelta(days=5)
                 ovulation_end_dt = ovulation_dt + timedelta(days=1)
@@ -6761,9 +6790,9 @@ def get_current_cycle_status():
                     phase_desc = "身體最脆弱，容易疲憊、經痛。建議溫熱呵護，多喝溫水，避免劇烈運動及生冷食物。"
                     phase_icon = "🩸"
                 else:
-                    # 非進行中
+                    # 非進行中 —— next_dt 已確保為未來日期，diff 一定 >= 0
                     diff = (next_dt.date() - now.date()).days
-                    days_until_next = diff if diff >= 0 else 0
+                    days_until_next = diff
                     status_title = "距離下次預測"
                     is_ongoing = False
                     
@@ -8204,29 +8233,19 @@ def record_health_start():
         except Exception as sort_err:
             print(f"Auto-sorting error in record_health_start: {sort_err}")
         
-        # 3. 日曆操作
-        service_cal = get_calendar_service()
-        
-        # 刪除未來所有的 🌸 (預測) 行程
-        time_min = now.isoformat()
-        events_result = service_cal.events().list(calendarId=CALENDAR_ID, timeMin=time_min, q="🌸 (預測)").execute()
-        for event in events_result.get('items', []):
-            if "🌸 (預測)" in event.get('summary', ''):
-                service_cal.events().delete(calendarId=CALENDAR_ID, eventId=event['id']).execute()
-                
-        # 排入本次生理期
-        for i in range(avg_length):
-            day_dt = now + timedelta(days=i)
-            event_body = {
-                'summary': f'🌸 生理期 (第{i+1}天)',
-                'start': {'date': day_dt.strftime("%Y-%m-%d")},
-                'end': {'date': (day_dt + timedelta(days=1)).strftime("%Y-%m-%d")}
-            }
-            service_cal.events().insert(calendarId=CALENDAR_ID, body=event_body).execute()
+        # 3. 日曆清理：刪除未來所有殘留的 🌸 (預測) 行程
+        # [已移除] 不再自動將生理期排入 Google 行事曆
+        try:
+            service_cal = get_calendar_service()
+            time_min = now.isoformat()
+            events_result = service_cal.events().list(calendarId=CALENDAR_ID, timeMin=time_min, q="🌸 (預測)").execute()
+            for event in events_result.get('items', []):
+                if "🌸 (預測)" in event.get('summary', ''):
+                    service_cal.events().delete(calendarId=CALENDAR_ID, eventId=event['id']).execute()
+        except Exception as cal_err:
+            print(f"Calendar cleanup error in record_start: {cal_err}")
             
-        # [V15.2 UX Fix] 不再排入下次預測到 Google 日曆中
-            
-        return jsonify({"status": "success", "message": "已記錄開始，並排入日曆！🌸"})
+        return jsonify({"status": "success", "message": "已記錄開始！🌸"})
         
     except Exception as e:
         print(f"Record start error: {e}")
@@ -8379,50 +8398,28 @@ def edit_current_health_record():
         except Exception as sort_err:
             print(f"Auto-sorting error in edit_current: {sort_err}")
             
-        # 更新日曆事件
+        # 日曆清理：刪除原本的生理期事件與所有殘留預測事件
+        # [已移除] 不再自動將生理期重新排入 Google 行事曆
         try:
             service_cal = get_calendar_service()
-            # 1. 刪除原本的生理期事件 (在 original_start 上下 14 天內尋找並刪除 🌸 相關事件)
+            # 刪除原本的生理期事件 (在 original_start 上下 14 天內尋找並刪除 🌸 相關事件)
             orig_start_dt = datetime.strptime(original_start, "%Y/%m/%d")
             time_min = (orig_start_dt - timedelta(days=5)).isoformat() + "Z"
             time_max = (orig_start_dt + timedelta(days=20)).isoformat() + "Z"
-            
             events_result = service_cal.events().list(
                 calendarId=CALENDAR_ID, timeMin=time_min, timeMax=time_max, q="🌸"
             ).execute()
-            
             for event in events_result.get('items', []):
-                summary = event.get('summary', '')
-                if "🌸 生理期" in summary:
+                if "🌸 生理期" in event.get('summary', ''):
                     service_cal.events().delete(calendarId=CALENDAR_ID, eventId=event['id']).execute()
-            
-            # 2. 刪除未來所有的 🌸 (預測) 行程
+            # 也清除未來所有的 🌸 (預測) 行程
             now_time_min = datetime.now(TW_TZ).isoformat()
             pred_events = service_cal.events().list(calendarId=CALENDAR_ID, timeMin=now_time_min, q="🌸 (預測)").execute()
             for event in pred_events.get('items', []):
                 if "🌸 (預測)" in event.get('summary', ''):
                     service_cal.events().delete(calendarId=CALENDAR_ID, eventId=event['id']).execute()
-                    
-            # 3. 取得平均週期與平均長度以利計算下次預測
-            status = get_current_cycle_status() or {"avg_length": 7, "avg_cycle": 31}
-            avg_length = status.get("avg_length", 7)
-            avg_cycle = status.get("avg_cycle", 31)
-            
-            # 4. 重新排入本次生理期
-            cal_length = int(length_days) if length_days else avg_length
-            for i in range(cal_length):
-                day_dt = new_start_dt + timedelta(days=i)
-                event_body = {
-                    'summary': f'🌸 生理期 (第{i+1}天)',
-                    'start': {'date': day_dt.strftime("%Y-%m-%d")},
-                    'end': {'date': (day_dt + timedelta(days=1)).strftime("%Y-%m-%d")}
-                }
-                service_cal.events().insert(calendarId=CALENDAR_ID, body=event_body).execute()
-                
-            # [V15.2 UX Fix] 不再重新排入下次預測到 Google 日曆中
-                
         except Exception as cal_err:
-            print(f"Calendar sync error in edit_current: {cal_err}")
+            print(f"Calendar cleanup error in edit_current: {cal_err}")
             
         return jsonify({"status": "success", "message": "生理期時間已成功更新！🌸"})
         
