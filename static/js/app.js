@@ -495,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 特殊分類：公益 → paywall + 顯示上傳區
+        // 特殊分類：公益 → paywall（不在表單內顯示拍照區，改為送出後彈窗詢問）
         if (name === '公益' || name === '宗教/公益') {
             if (!window.checkFeatureAccess('tax')) {
                 const confirmed = await window.customConfirm(
@@ -506,8 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (confirmed) window.openModal('upgradePaywallModal');
                 return;
             }
-            const uploadWrapper = document.getElementById('charity_receipt_upload_wrapper');
-            if (uploadWrapper) uploadWrapper.style.display = 'block';
+            // 不在表單內顯示拍照區，改成送出後彈窗詢問
         } else {
             const uploadWrapper = document.getElementById('charity_receipt_upload_wrapper');
             if (uploadWrapper) uploadWrapper.style.display = 'none';
@@ -4082,24 +4081,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Helper function for actually executing the submission
         const executeSubmission = async (selectedAssetId, forceRegisterStock = false) => {
-            const receiptInput = document.getElementById('charity_receipt_input');
-            
-            // 1. 防呆提醒：公益類別若未選取照片，詢問是否上傳
-            if ((category === '公益' || category === '宗教/公益') && window.checkFeatureAccess('tax')) {
-                const hasFile = receiptInput && receiptInput.files && receiptInput.files[0];
-                if (!hasFile) {
-                    const confirmed = await window.customConfirm(
-                        '💖 公益收據雲端歸檔',
-                        '系統已將此筆交易標記為【年度報稅憑證】！是否要立即將發票/收據拍照存檔到個人的雲端硬碟「報稅宗教與公益收據管理」中？',
-                        '📸',
-                        '立即拍照上傳'
-                    );
-                    if (confirmed) {
-                        receiptInput.click();
-                        return;
-                    }
-                }
-            }
+            // 公益收據邏輯改為送出成功後再彈窗詢問，不在這裡提前中斷流程
 
             const expenseType = document.getElementById('expense_type').value;
             const emoji = expenseType === 'income' ? '💰' : '💸';
@@ -4127,37 +4109,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitBtn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; margin: 0; border-width: 2px;"></span> 正在記帳中...';
             }
 
+            // 新流程：表單內不再有拍照區，uploadedFileName 留空，統一在記帳成功後彈窗處理
             let uploadedFileName = '';
             let uploadedYear = '';
 
             try {
-                // 2. 執行收據雲端上傳
-                if (receiptInput && receiptInput.files && receiptInput.files[0]) {
-                    showToast('📸 正在將收據上傳至雲端硬碟...', 'info');
-                    const file = receiptInput.files[0];
-                    const compressedBlob = await window.compressImage(file);
-                    const formData = new FormData();
-                    formData.append('file', compressedBlob, 'receipt.jpg');
-                    
-                    try {
-                        const taxRes = await fetch('/api/tax/upload_receipt', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        const taxData = await taxRes.json();
-                        if (taxData.status === 'success') {
-                            uploadedFileName = taxData.filename;
-                            uploadedYear = taxData.year;
-                            showToast('✅ 公益收據雲端歸檔成功！', 'success');
-                        } else {
-                            showToast(`❌ 收據備份失敗: ${taxData.message}`, 'error');
-                        }
-                    } catch (err) {
-                        console.error(err);
-                        showToast('❌ 收據備份連線失敗', 'error');
-                    }
-                }
-
                 closeModal('expenseModal');
                 const subHiddenInput = document.getElementById('expense_sub_category_hidden');
                 const subGroup = document.getElementById('manual_expense_sub_cat_group');
@@ -4177,6 +4133,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (uploadedFileName) {
                     appendMessage(`📸 系統已成功為您將該筆收據/發票照片以新檔名 <b>${uploadedFileName}</b> 年度歸檔至雲端空間的「報稅宗教與公益收據管理/${uploadedYear}」目錄！`);
+                }
+
+                // ✅ 記帳成功後：若為公益分類且有 tax 權限，彈窗詢問是否上傳收據
+                if ((category === '公益' || category === '宗教/公益') && window.checkFeatureAccess('tax') && !uploadedFileName) {
+                    const wantUpload = await window.customConfirm(
+                        '💖 公益收據雲端歸檔',
+                        '系統已將此筆交易標記為【年度報稅憑證】！是否要立即將發票/收據拍照存檔到個人的雲端硬碟「報稅宗教與公益收據管理」中？',
+                        '📸',
+                        '立即拍照上傳'
+                    );
+                    if (wantUpload) {
+                        window.triggerChatReceiptUpload();
+                    }
                 }
             } catch (e) {
                 console.error(e);
