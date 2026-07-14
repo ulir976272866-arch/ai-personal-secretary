@@ -322,22 +322,7 @@ def get_db_connection():
     )
 
 def is_payment_allowed():
-    """從 system_config 查詢是否開放全網點數儲值與訂閱"""
-    conn = None
-    try:
-        conn = get_db_connection()
-        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
-            cursor.execute("SELECT config_value FROM system_config WHERE config_key = 'allow_payment';")
-            row = cursor.fetchone()
-            if row:
-                val = str(row['config_value']).strip()
-                return val == '1'
-    except Exception as e:
-        print(f"[DB Error] 查詢 system_config 失敗: {e}")
-    finally:
-        if conn:
-            conn.close()
-    # 預設為 True，確保資料庫故障時能降級運行
+    """強制開放全網點數儲值與訂閱功能，便於統一金流測試"""
     return True
 
 def get_user_by_email(email):
