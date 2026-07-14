@@ -1,31 +1,55 @@
-const CACHE_NAME = 'ai-secretary-v2.0';
+// ================================================================
+// AI 小秘書 Service Worker  v2.1
+// 新增：🎴 會員卡包 CDN 條碼函式庫離線快取（P5）
+// ================================================================
+const CACHE_NAME = 'ai-secretary-v2.1';
+
+// 核心 Shell 資源（必要）
 const ASSETS_TO_CACHE = [
     '/',
     '/static/manifest.json',
-    '/static/css/style.css?v=6.3',
-    '/static/js/app.js?v=6.9',
+    '/static/css/style.css?v=11.0',
+    '/static/js/app.js?v=12.0',
     '/static/icons/icon.png',
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
 ];
 
-// Installation Event: Pre-cache core shell assets
+// 🎴 P5：條碼函式庫 CDN 離線快取（讓超商地下室也能顯示條碼）
+const MEMBER_CDN_ASSETS = [
+    'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js',
+    'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js'
+];
+
+// ── Installation：預快取所有核心 + 條碼函式庫 ─────────────────────
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            console.log('[Service Worker] Pre-caching core shell assets...');
-            return cache.addAll(ASSETS_TO_CACHE);
+            console.log('[SW] Pre-caching core shell + 🎴 條碼函式庫...');
+            // 核心資源：任一失敗即中止安裝
+            return cache.addAll(ASSETS_TO_CACHE).then(() => {
+                // 條碼 CDN：個別嘗試，失敗不影響 SW 安裝
+                return Promise.allSettled(
+                    MEMBER_CDN_ASSETS.map(url =>
+                        fetch(url).then(res => {
+                            if (res.ok) cache.put(url, res);
+                        }).catch(() => {
+                            console.warn('[SW] 條碼函式庫快取失敗（離線安裝）：', url);
+                        })
+                    )
+                );
+            });
         }).then(() => self.skipWaiting())
     );
 });
 
-// Activation Event: Clean up old caches
+// ── Activation：清除舊版快取 ──────────────────────────────────────
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME) {
-                        console.log('[Service Worker] Removing old cache:', cacheName);
+                        console.log('[SW] 清除舊版快取：', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
@@ -34,51 +58,45 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Fetch Event with Stale-While-Revalidate and Network-First combo
+// ── Fetch：多層級快取策略 ─────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Only handle GET requests
+    // 只處理 GET 請求
     if (event.request.method !== 'GET') return;
 
-    // 🛡️ 繞過 OAuth 認證、登入、登出與 API 請求，避免 Service Worker 攔截造成無限導向循環
+    // 🛡️ 繞過 OAuth / 登入 / 登出，避免 Service Worker 造成無限導向
     if (
-        url.pathname.startsWith('/login') || 
-        url.pathname.startsWith('/callback') || 
-        url.pathname.startsWith('/logout') || 
+        url.pathname.startsWith('/login') ||
+        url.pathname.startsWith('/callback') ||
+        url.pathname.startsWith('/logout') ||
         url.pathname.startsWith('/api')
     ) {
         return;
     }
 
-    // 1. For HTML/Document requests (only for root page): Network-First
-    // If the network takes too long (e.g. database cold start lag > 1.8 seconds), serve cached root page instantly!
+    // ① 首頁（HTML 文件）：Network-First，逾時 1.8s 降級為快取
     if (event.request.mode === 'navigate' && url.pathname === '/') {
         event.respondWith(
             new Promise((resolve) => {
                 const timeoutId = setTimeout(() => {
-                    // Timeout triggered -> serve cached root page instantly!
                     caches.match('/').then((cachedResponse) => {
                         if (cachedResponse) {
-                            console.log('[Service Worker] Network slow (Cold Start). Serving cached shell.');
+                            console.log('[SW] 冷啟動逾時，回傳快取首頁');
                             resolve(cachedResponse);
                         }
                     });
-                }, 1800); // 1.8 seconds threshold
+                }, 1800);
 
                 fetch(event.request)
                     .then((networkResponse) => {
                         clearTimeout(timeoutId);
-                        // Save a copy of the fresh page to the cache
                         const cacheCopy = networkResponse.clone();
-                        caches.open(CACHE_NAME).then((cache) => {
-                            cache.put('/', cacheCopy);
-                        });
+                        caches.open(CACHE_NAME).then((cache) => cache.put('/', cacheCopy));
                         resolve(networkResponse);
                     })
                     .catch(() => {
                         clearTimeout(timeoutId);
-                        // Network error / offline -> serve cached root page
                         caches.match('/').then((cachedResponse) => {
                             resolve(cachedResponse || fetch(event.request));
                         });
@@ -88,15 +106,46 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 2. For Static Assets (CSS, JS, Fonts, Images): Cache-First / Stale-While-Revalidate
-    if (ASSETS_TO_CACHE.some(asset => url.pathname.includes(asset.split('?')[0])) || url.host === 'fonts.gstatic.com' || url.host === 'fonts.googleapis.com') {
+    // ② 🎴 條碼函式庫 CDN：Cache-First（離線可用）
+    if (MEMBER_CDN_ASSETS.includes(event.request.url)) {
         event.respondWith(
             caches.match(event.request).then((cachedResponse) => {
                 if (cachedResponse) {
-                    // Fetch and update cache in background (Stale-While-Revalidate)
+                    console.log('[SW] 🎴 條碼函式庫從快取回傳（離線可用）');
+                    return cachedResponse;
+                }
+                // 沒快取才去網路抓，並存入快取
+                return fetch(event.request).then((networkResponse) => {
+                    if (networkResponse.ok) {
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, networkResponse.clone());
+                        });
+                    }
+                    return networkResponse;
+                });
+            })
+        );
+        return;
+    }
+
+    // ③ 靜態資源（CSS、JS、字型、圖示）：Stale-While-Revalidate
+    const isStaticAsset = (
+        ASSETS_TO_CACHE.some(asset => url.pathname.includes(asset.split('?')[0])) ||
+        url.host === 'fonts.gstatic.com' ||
+        url.host === 'fonts.googleapis.com' ||
+        url.host === 'cdn.jsdelivr.net'
+    );
+
+    if (isStaticAsset) {
+        event.respondWith(
+            caches.match(event.request).then((cachedResponse) => {
+                if (cachedResponse) {
+                    // 背景更新快取，立即回傳舊版（Stale-While-Revalidate）
                     fetch(event.request).then((networkResponse) => {
-                        if (networkResponse.status === 200) {
-                            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
+                        if (networkResponse && networkResponse.status === 200) {
+                            caches.open(CACHE_NAME).then((cache) => {
+                                cache.put(event.request, networkResponse);
+                            });
                         }
                     }).catch(() => {});
                     return cachedResponse;
@@ -106,3 +155,92 @@ self.addEventListener('fetch', (event) => {
         );
     }
 });
+
+// ── Background Sync：🎴 離線寫入佇列重播 ───────────────────────────
+// 當使用者在無網路環境（如超商地下室）新增/修改/刪除卡片時，
+// 操作會存入 IndexedDB 佇列；網路恢復後此事件自動觸發重播。
+self.addEventListener('sync', (event) => {
+    if (event.tag === 'member-card-sync') {
+        console.log('[SW] 🔄 Background Sync 觸發：會員卡佇列重播...');
+        event.waitUntil(replayMemberQueue());
+    }
+});
+
+async function replayMemberQueue() {
+    try {
+        // 開啟 IndexedDB member-queue 資料庫
+        const db = await openMemberQueueDB();
+        const queue = await getAllQueueItems(db);
+
+        if (queue.length === 0) {
+            console.log('[SW] 🎴 佇列為空，無需重播');
+            return;
+        }
+
+        console.log(`[SW] 🎴 開始重播 ${queue.length} 筆離線佇列操作`);
+
+        for (const item of queue) {
+            try {
+                const res = await fetch(item.url, {
+                    method: item.method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: item.body || null
+                });
+
+                if (res.ok) {
+                    // 成功後從佇列移除
+                    await deleteQueueItem(db, item.id);
+                    console.log(`[SW] 🎴 重播成功：${item.method} ${item.url}`);
+
+                    // 通知前端重新整理卡片列表
+                    const clients = await self.clients.matchAll({ type: 'window' });
+                    clients.forEach(client => client.postMessage({
+                        type: 'MEMBER_SYNC_DONE',
+                        payload: { method: item.method, url: item.url }
+                    }));
+                } else {
+                    console.warn(`[SW] 🎴 重播失敗（伺服器錯誤）：${res.status} ${item.url}`);
+                }
+            } catch (err) {
+                console.warn(`[SW] 🎴 重播失敗（網路錯誤）：${item.url}`, err);
+                // 保留在佇列，等下次 sync 再試
+            }
+        }
+    } catch (err) {
+        console.error('[SW] 🎴 replayMemberQueue 發生例外：', err);
+    }
+}
+
+// ── IndexedDB 輔助函式（最小化實作）────────────────────────────────
+function openMemberQueueDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open('member-queue-db', 1);
+        req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('queue')) {
+                db.createObjectStore('queue', { keyPath: 'id', autoIncrement: true });
+            }
+        };
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function getAllQueueItems(db) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('queue', 'readonly');
+        const req = tx.objectStore('queue').getAll();
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function deleteQueueItem(db, id) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('queue', 'readwrite');
+        const req = tx.objectStore('queue').delete(id);
+        req.onsuccess = () => resolve();
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+

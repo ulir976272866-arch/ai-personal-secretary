@@ -20,6 +20,9 @@
     <!-- Chart.js (v4.4.3 pinned, bundled build - no sourceMappingURL to avoid 404 DevTools warnings) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <!-- 🎴 會員卡包一維/二維條碼渲染引擎 -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
     <script>
         // ☀️🌙 初始化深色模式 (立即執行以防止畫面閃爍 FOUC)
@@ -502,6 +505,7 @@
             <button class="tab-btn" id="tab_btn_memo" onclick="switchTab('memo', event)">📝 備忘 {% if session.get('subscription_type') == 'NONE' %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
             <button class="tab-btn tab-health" id="tab_btn_health" onclick="switchTab('health', event)">🌸 女性 {% if session.get('subscription_type') == 'NONE' %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
             <button class="tab-btn" id="tab_btn_stock" onclick="switchTab('stock', event)">📈 存股 {% if not session.get('subscription_type') or session.get('subscription_type') in ['NONE', 'MONTHLY_AI'] %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
+            <button class="tab-btn" id="tab_btn_member" onclick="memberOpenModal()">🎴 卡包</button>
         </div>
     </div>
 
@@ -2854,5 +2858,1249 @@
         });
     </script>
     {% endif %}
+
+    <!-- ================================================================ -->
+    <!-- 🎴  MEMBER CARD MODAL (卡包主彈窗)                            -->
+    <!-- ================================================================ -->
+    <div id="memberModal" class="modal-backdrop full-screen-panel">
+        <div class="modal-content" style="max-width:480px; max-height:85vh; display:flex; flex-direction:column; overflow:hidden;">
+            <div class="modal-header" style="flex-shrink:0;">
+                <h2 class="modal-title">🎴 我的卡包</h2>
+                <button class="close-modal" onclick="memberCloseModal()">✕</button>
+            </div>
+
+            <!-- 搜尋列 + 分類選單 + 圓形新增按鈕 -->
+            <div style="padding:12px 20px 0; display:flex; gap:8px; align-items:center; flex-shrink:0;">
+                <!-- 搜尋框 -->
+                <input id="member-search-input" type="text" class="form-input"
+                    placeholder="🔍 搜尋名稱..."
+                    oninput="memberFilterCards()"
+                    style="flex:1.2; margin:0; font-size:0.85rem; height:38px;">
+                
+                <!-- 分類篩選選單 -->
+                <select id="member-filter-category" class="form-input" 
+                    onchange="memberFilterCards()"
+                    style="flex:0.8; margin:0; font-size:0.85rem; height:38px; padding:0 8px; cursor:pointer;">
+                    <option value="ALL">全部分類</option>
+                    <option value="超商">🏪 超商</option>
+                    <option value="百貨">🛍️ 百貨</option>
+                    <option value="藥妝">💄 藥妝</option>
+                    <option value="餐飲">☕ 餐飲</option>
+                    <option value="其他">🏷️ 其他</option>
+                </select>
+
+                <!-- 圓形新增加號按鈕 -->
+                <button id="member-add-btn" class="submit-btn btn-schedule"
+                    onclick="memberShowForm(null)"
+                    style="width:38px; height:38px; min-width:38px; border-radius:50%; padding:0; display:flex; align-items:center; justify-content:center; font-size:1.4rem; font-weight:normal; margin:0; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                    ＋
+                </button>
+            </div>
+
+            <!-- 同步狀態列 -->
+            <div id="member-sync-bar" style="padding:6px 20px 0; min-height:22px; flex-shrink:0;">
+                <span id="member-sync-label" style="font-size:0.72rem; color:#94a3b8;"></span>
+            </div>
+
+            <!-- 卡包列表 -->
+            <div class="modal-body" id="member-list-body" style="padding:10px 16px 16px; flex:1; overflow-y:auto;">
+
+                <!-- 推薦品牌快速帶入區（已加入的自動隱藏）-->
+                <div id="member-preset-section">
+                    <div style="font-size:0.75rem; font-weight:700; color:#94a3b8; letter-spacing:0.5px; margin-bottom:8px; text-transform:uppercase;">✨ 快速加入常用品牌</div>
+                    <div id="member-preset-grid" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
+                        <!-- 由 JS 動態渲染 -->
+                    </div>
+                </div>
+
+                <div id="member-list-container">
+                    <div style="text-align:center; padding:40px 0; color:#bbb;">
+                        <div style="font-size:2.5rem;">🎴</div>
+                        <div style="margin-top:8px; font-size:0.88rem;">載入中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 新增 / 編輯表單（預設隱藏） -->
+            <div id="member-form-panel" style="display:none; padding:0 20px 20px; flex:1; overflow-y:auto;">
+                <div style="border-top:1px solid var(--border-color, #f0e8ec); padding-top:16px; margin-bottom:4px;">
+                    <h3 id="member-form-title" style="margin:0 0 14px; font-size:1rem; font-weight:700; color:var(--text-primary,#1e293b);">➕ 新增會員卡</h3>
+
+                    <!-- 實時卡片外觀預覽區 -->
+                    <div id="member-card-preview-area" style="margin-bottom:18px;">
+                        <label style="display:block; margin-bottom:8px; font-size:0.8rem; font-weight:700; color:#475569;">🎴 卡片外觀即時預覽</label>
+                        <div id="member-card-preview" class="member-card-item" style="margin:0; pointer-events:none; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+                            <!-- 由 JS 動態更新內容 -->
+                        </div>
+                    </div>
+
+                    <!-- 第一橫排：卡片分類 與 條碼類型 並排 -->
+                    <div style="display:flex; gap:12px; margin-bottom:12px;">
+                        <div class="form-group" style="flex:1; margin-bottom:0;">
+                            <label>卡片分類</label>
+                            <select id="mf-category" class="form-input" onchange="memberUpdateFormPreview()" style="cursor:pointer; height:38px; padding:0 8px; margin:0;">
+                                <option value="超商">🏪 超商</option>
+                                <option value="百貨">🛍️ 百貨</option>
+                                <option value="藥妝">💄 藥妝</option>
+                                <option value="餐飲">☕ 餐飲</option>
+                                <option value="其他" selected>🏷️ 其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex:1; margin-bottom:0;">
+                            <label>條碼類型</label>
+                            <select id="mf-barcode-type" class="form-input" style="cursor:pointer; height:38px; padding:0 8px; margin:0;">
+                                <option value="CODE128">CODE128（超商萬用型）</option>
+                                <option value="EAN13">EAN-13（藥妝/量販）</option>
+                                <option value="CODE39">CODE39（百貨舊型掃描槍）</option>
+                                <option value="QR_CODE">QR Code（星巴克 / 行動條碼）</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 第二橫排：商家名稱 與 卡號/會員編號 並排 -->
+                    <div style="display:flex; gap:12px; margin-bottom:12px;">
+                        <div class="form-group" style="flex:1; margin-bottom:0;">
+                            <label>商家名稱 <span style="color:#f43f5e;">*</span></label>
+                            <input type="text" id="mf-store" class="form-input"
+                                placeholder="例：全家、7-11"
+                                oninput="memberAutoFill(this.value); memberUpdateFormPreview();"
+                                maxlength="50"
+                                style="height:38px; margin:0;">
+                        </div>
+                        <div class="form-group" style="flex:1; margin-bottom:0;">
+                            <label>卡號 / 會員編號 <span style="color:#f43f5e;">*</span></label>
+                            <input type="text" id="mf-card-number" class="form-input"
+                                placeholder="請輸入卡號"
+                                oninput="memberUpdateFormPreview()"
+                                maxlength="100"
+                                style="height:38px; margin:0;">
+                        </div>
+                    </div>
+
+                    <!-- 卡片顏色選擇器 (自訂顏色) -->
+                    <div class="form-group">
+                        <label>卡片風格顏色</label>
+                        <div id="member-color-presets" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; align-items:center;">
+                            <!-- 預設莫蘭迪色票 -->
+                            <span class="color-dot active" data-color="#C9B8A8" style="background:#C9B8A8; width:28px; height:28px; border-radius:50%; cursor:pointer; display:inline-block; border:2px solid #fff; box-shadow:0 0 0 1px #cbd5e1; transition:transform 0.15s;" onclick="memberSelectPresetColor('#C9B8A8', this)"></span>
+                            <span class="color-dot" data-color="#00813A" style="background:#00813A; width:28px; height:28px; border-radius:50%; cursor:pointer; display:inline-block; border:2px solid #fff; box-shadow:0 0 0 1px #e2e8f0; transition:transform 0.15s;" onclick="memberSelectPresetColor('#00813A', this)"></span>
+                            <span class="color-dot" data-color="#1B4799" style="background:#1B4799; width:28px; height:28px; border-radius:50%; cursor:pointer; display:inline-block; border:2px solid #fff; box-shadow:0 0 0 1px #e2e8f0; transition:transform 0.15s;" onclick="memberSelectPresetColor('#1B4799', this)"></span>
+                            <span class="color-dot" data-color="#E5171B" style="background:#E5171B; width:28px; height:28px; border-radius:50%; cursor:pointer; display:inline-block; border:2px solid #fff; box-shadow:0 0 0 1px #e2e8f0; transition:transform 0.15s;" onclick="memberSelectPresetColor('#E5171B', this)"></span>
+                            <span class="color-dot" data-color="#00ADEF" style="background:#00ADEF; width:28px; height:28px; border-radius:50%; cursor:pointer; display:inline-block; border:2px solid #fff; box-shadow:0 0 0 1px #e2e8f0; transition:transform 0.15s;" onclick="memberSelectPresetColor('#00ADEF', this)"></span>
+                            <span class="color-dot" data-color="#D71920" style="background:#D71920; width:28px; height:28px; border-radius:50%; cursor:pointer; display:inline-block; border:2px solid #fff; box-shadow:0 0 0 1px #e2e8f0; transition:transform 0.15s;" onclick="memberSelectPresetColor('#D71920', this)"></span>
+                            <span class="color-dot" data-color="#00704A" style="background:#00704A; width:28px; height:28px; border-radius:50%; cursor:pointer; display:inline-block; border:2px solid #fff; box-shadow:0 0 0 1px #e2e8f0; transition:transform 0.15s;" onclick="memberSelectPresetColor('#00704A', this)"></span>
+                            <span class="color-dot" data-color="#1A1A1A" style="background:#1A1A1A; width:28px; height:28px; border-radius:50%; cursor:pointer; display:inline-block; border:2px solid #fff; box-shadow:0 0 0 1px #e2e8f0; transition:transform 0.15s;" onclick="memberSelectPresetColor('#1A1A1A', this)"></span>
+                            <span class="color-dot" data-color="#6B3A2A" style="background:#6B3A2A; width:28px; height:28px; border-radius:50%; cursor:pointer; display:inline-block; border:2px solid #fff; box-shadow:0 0 0 1px #e2e8f0; transition:transform 0.15s;" onclick="memberSelectPresetColor('#6B3A2A', this)"></span>
+                            
+                            <!-- 自訂調色盤按鈕 -->
+                            <div style="position:relative; display:inline-flex; align-items:center; margin-left:4px;">
+                                <button type="button" id="mf-custom-color-btn" onclick="document.getElementById('mf-custom-color').click()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:4px 8px; font-size:0.75rem; cursor:pointer; font-weight:600; color:#475569; display:flex; align-items:center; gap:4px; transition:all 0.2s;">🎨 自訂</button>
+                                <input type="color" id="mf-custom-color" value="#C9B8A8" style="position:absolute; width:0; height:0; opacity:0; pointer-events:auto;" onchange="memberSelectCustomColor(this.value)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 隱藏欄：編輯時記錄 card_id + brand_color -->
+                    <input type="hidden" id="mf-card-id">
+                    <input type="hidden" id="mf-brand-color" value="#C9B8A8">
+
+                    <!-- 操作按鈕 -->
+                    <div style="display:flex; gap:10px; margin-top:18px;">
+                        <button class="submit-btn btn-schedule" onclick="memberSubmitForm()"
+                            id="mf-submit-btn"
+                            style="flex:1;">💾 儲存卡片</button>
+                        <button onclick="memberHideForm()"
+                            style="flex:0.4; padding:12px; border:1.5px solid #e2e8f0; border-radius:12px; background:transparent; color:var(--text-secondary,#64748b); font-size:0.85rem; cursor:pointer; font-weight:600;">取消</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- 🎴  BARCODE FULLSCREEN OVERLAY (條碼全螢幕遮罩)               -->
+    <!-- ================================================================ -->
+    <div id="member-barcode-overlay"
+        style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh;
+               background:#fff; z-index:99999; flex-direction:column;
+               align-items:center; justify-content:center; padding:20px; box-sizing:border-box;">
+        <!-- 關閉按鈕 -->
+        <button onclick="memberCloseBarcodeOverlay()"
+            style="position:absolute; top:20px; right:20px; background:rgba(0,0,0,0.08);
+                   border:none; border-radius:50%; width:40px; height:40px; font-size:1.2rem;
+                   cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;">
+            ✕
+        </button>
+        <!-- 商家名稱 -->
+        <div id="barcode-store-name"
+            style="font-size:1.3rem; font-weight:800; color:#1e293b;
+                   margin-bottom:24px; text-align:center;"></div>
+        <!-- 條碼 / QR Code 渲染容器 -->
+        <div id="barcode-render-container"
+            style="background:#fff; padding:20px 24px; border-radius:16px;
+                   box-shadow:0 4px 24px rgba(0,0,0,0.10); max-width:100%; overflow:auto; text-align:center;">
+        </div>
+        <!-- 卡號文字備援 -->
+        <div id="barcode-number-text"
+            style="margin-top:20px; font-size:1.2rem; font-weight:700; color:#374151;
+                   letter-spacing:2px; text-align:center; font-family:monospace;"></div>
+        <div style="margin-top:14px; font-size:0.75rem; color:#94a3b8; text-align:center; line-height:1.4;">
+            <div>💡 若掃描失敗，請手動調高螢幕亮度</div>
+            <div id="barcode-wake-lock-hint" style="opacity:0.8; font-size:0.68rem; margin-top:4px; color:#ef4444; font-weight:600;"></div>
+        </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- 🎴  MEMBER CARD STYLES & SCRIPT                              -->
+    <!-- ================================================================ -->
+    <style>
+    .member-card-item {
+        background: linear-gradient(135deg,
+            var(--mc-brand, #C9B8A8) 0%,
+            color-mix(in srgb, var(--mc-brand, #C9B8A8) 80%, #000 20%) 100%);
+        border-radius: 18px;
+        padding: 16px 20px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        position: relative;
+        border: 1px solid rgba(255,255,255,0.25);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+        display: flex;
+        flex-direction: row; /* 左右分欄 */
+        align-items: center;
+        gap: 16px; /* 增加與右側文字的間距 */
+        overflow: hidden;
+    }
+    .member-card-item::before {
+        content: '';
+        position: absolute;
+        top: -30%; right: -10%;
+        width: 120px; height: 120px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.12);
+        pointer-events: none;
+    }
+    .member-card-item:active {
+        transform: scale(0.98);
+    }
+    /* 🎨 iOS 風格品牌 icon 容器 */
+    .member-card-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.22);
+        position: relative;
+    }
+    .member-card-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 7px;
+        box-sizing: border-box;
+    }
+    /* 白底 logo（深色 logo 用白底） */
+    .member-card-icon.logo-white-bg {
+        background: #fff;
+    }
+    /* 品牌色底 + 白色文字 */
+    .member-card-icon.logo-color-bg {
+        /* background set inline */
+    }
+    .member-card-icon .icon-text {
+        color: #fff;
+        font-weight: 900;
+        font-size: 0.8rem;
+        letter-spacing: -0.5px;
+        text-align: center;
+        line-height: 1.15;
+        padding: 4px;
+        font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .member-card-icon .icon-emoji {
+        font-size: 1.65rem;
+        line-height: 1;
+    }
+    .member-card-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 3.5px;
+        min-width: 0;
+    }
+    .member-card-store {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #ffffff;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .member-card-number {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: rgba(255,255,255,0.85);
+        text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-family: monospace;
+    }
+    .member-card-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 2px;
+        z-index: 2;
+    }
+    .member-card-badge {
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 2.5px 8px;
+        border-radius: 6px;
+        background: rgba(255,255,255,0.22);
+        color: #ffffff;
+        backdrop-filter: blur(2px);
+        white-space: nowrap;
+    }
+    .member-card-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    .member-card-action-btn {
+        background: rgba(255, 255, 255, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: #ffffff;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        padding: 0;
+    }
+    .member-card-action-btn:hover {
+        background: #ffffff;
+        transform: scale(1.08);
+        color: #1e293b;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .member-card-action-btn.delete:hover {
+        background: #f43f5e;
+        color: #ffffff;
+        border-color: #f43f5e;
+    }
+    .member-card-action-btn:active {
+        transform: scale(0.95);
+    }
+    /* ── Slide Fade-in 轉場淡入動畫 ────────────────────────── */
+    .member-panel-fade {
+        animation: memberSlideUpFade 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes memberSlideUpFade {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    /* ── 推薦品牌快速帶入 chip 樣式 ────────────────────────── */
+    .member-preset-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 10px 5px 5px;
+        border-radius: 20px;
+        border: 1.5px solid rgba(0,0,0,0.06);
+        background: rgba(255,255,255,0.75);
+        backdrop-filter: blur(4px);
+        cursor: pointer;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #334155;
+        transition: all 0.18s ease;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    [data-theme='dark'] .member-preset-chip {
+        background: rgba(255,255,255,0.08);
+        color: #e2e8f0;
+        border-color: rgba(255,255,255,0.12);
+    }
+    .member-preset-chip:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        background: #fff;
+    }
+    .member-preset-chip .chip-icon {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        font-size: 0.65rem;
+        font-weight: 900;
+        color: #fff;
+    }
+    .member-preset-chip .chip-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 4px;
+        box-sizing: border-box;
+    }
+    /* ⏳ 離線待同步標籤的閃爍動畫 */
+    @keyframes pulse-sync {
+        0% { opacity: 0.6; }
+        50% { opacity: 1; }
+        100% { opacity: 0.6; }
+    }
+    .sync-pending-badge {
+        font-size: 0.65rem;
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: #fef3c7;
+        color: #d97706;
+        border: 1px solid #fcd34d;
+        font-weight: 700;
+        animation: pulse-sync 1.5s infinite;
+        white-space: nowrap;
+    }
+    .member-empty-state {
+        text-align: center;
+        padding: 40px 0;
+        color: #bbb;
+    }
+    </style>
+
+    <script>
+    // ── 狀態變數 ─────────────────────────────────────────────────────────
+    let _memberCards     = [];   // 完整卡片列表（用於搜尋過濾）
+    let _memberBrandColors  = {};
+    let _memberBarcodeTypes = {};
+    let _memberWakeLock  = null; // Screen Wake Lock 物件
+
+    // ── P5：IndexedDB 離線佇列輔助函式 ──────────────────────────────────
+    function _memberOpenIDB() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open('member-queue-db', 1);
+            req.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('queue')) {
+                    db.createObjectStore('queue', { keyPath: 'id', autoIncrement: true });
+                }
+            };
+            req.onsuccess = (e) => resolve(e.target.result);
+            req.onerror  = (e) => reject(e.target.error);
+        });
+    }
+
+    async function _memberEnqueue(url, method, body) {
+        try {
+            const db = await _memberOpenIDB();
+            const tx = db.transaction('queue', 'readwrite');
+            tx.objectStore('queue').add({ url, method, body: body ? JSON.stringify(body) : null });
+            await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+            // 要求 Background Sync：網路復原後自動重播
+            if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                const reg = await navigator.serviceWorker.ready;
+                await reg.sync.register('member-card-sync');
+                console.log('[Member] 已登錄離線佇列，網路復原後將自動同步');
+            }
+            return true;
+        } catch (e) {
+            console.warn('[Member] 離線佇列寫入失敗：', e);
+            return false;
+        }
+    }
+
+    // ── P5：Service Worker 訊息監聽（Background Sync 完成後自動重整）──
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'MEMBER_SYNC_DONE') {
+                console.log('[Member] Background Sync 完成，重整卡片列表...');
+                localStorage.removeItem('member_cards_cache');
+                const modal = document.getElementById('memberModal');
+                if (modal && modal.classList.contains('show')) {
+                    memberLoadCards();
+                }
+            }
+        });
+    }
+
+    // ── 開啟 / 關閉主 Modal ──────────────────────────────────────────────
+    function memberOpenModal() {
+        const el = document.getElementById('memberModal');
+        if (!el) { console.error('[Member] memberModal 元素不存在'); return; }
+        el.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        memberHideForm();
+        memberLoadCards();
+    }
+    function memberCloseModal() {
+        const el = document.getElementById('memberModal');
+        if (el) el.classList.remove('show');
+        document.body.style.overflow = '';
+        memberHideForm();
+    }
+
+    // ── 品牌 SVG Icon 定義（內嵌，100% 可靠，無需網路）────────────────────
+    const BRAND_SVG_MAP = {
+        // 7-11：綠色上半 / 橘色下半，白色大「7」與 ELEVEn
+        '7-11': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><rect width="52" height="35" fill="#00813A"/><rect y="35" width="52" height="17" fill="#F15A24"/><text x="26" y="32" text-anchor="middle" fill="white" font-size="26" font-weight="900" font-family="Arial Black,Impact,sans-serif">7</text><text x="26" y="48" text-anchor="middle" fill="white" font-size="9.5" font-weight="700" font-family="Arial,sans-serif" letter-spacing="0.2">ELEVEn</text></svg>`,
+        // 全家：藍底，白色屋頂形狀 + 全家文字
+        '全家': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><rect width="52" height="52" fill="#0079C1"/><polygon points="26,7 8,20 44,20" fill="white"/><rect x="19" y="19" width="14" height="10" fill="white"/><rect x="23" y="24" width="6" height="5" fill="#0079C1"/><text x="26" y="42" text-anchor="middle" fill="white" font-size="13" font-weight="900" font-family="Arial,sans-serif">全家</text><text x="26" y="51" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="7" font-family="Arial,sans-serif">FamilyMart</text></svg>`,
+        // 萊爾富：紅底，Hi-Life 橫排 + 萊爾富文字
+        '萊爾富': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><rect width="52" height="52" fill="#E5171B"/><text x="26" y="24" text-anchor="middle" fill="white" font-size="12.5" font-weight="900" font-family="Arial,sans-serif" letter-spacing="0.5">Hi-Life</text><line x1="10" y1="27" x2="42" y2="27" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/><text x="26" y="40" text-anchor="middle" fill="white" font-size="12" font-weight="700" font-family="Arial,sans-serif">萊爾富</text></svg>`,
+        // 屈臣氏：藍底，W 大字 + Watsons
+        '屈臣氏': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><rect width="52" height="52" fill="#00AEEF"/><text x="26" y="36" text-anchor="middle" fill="white" font-size="30" font-weight="900" font-family="Arial Black,sans-serif">W</text><text x="26" y="49" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="7.5" font-family="Arial,sans-serif" letter-spacing="0.3">Watsons</text></svg>`,
+        // 康是美：紅底，品牌文字設計
+        '康是美': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><rect width="52" height="52" fill="#E5171B"/><text x="26" y="28" text-anchor="middle" fill="white" font-size="13.5" font-weight="900" font-family="Arial,sans-serif">康是美</text><text x="26" y="42" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="8" font-family="Arial,sans-serif" letter-spacing="0.5">Cosmed</text></svg>`,
+        // 星巴克：深綠底，星 + Starbucks
+        '星巴克': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><rect width="52" height="52" fill="#00704A"/><circle cx="26" cy="23" r="13" fill="none" stroke="white" stroke-width="1.5"/><text x="26" y="28" text-anchor="middle" fill="white" font-size="16" font-family="serif">★</text><text x="26" y="43" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="7" font-family="Arial,sans-serif" letter-spacing="0.3">Starbucks</text></svg>`,
+        // 麥當勞：黃底，M 拱門
+        '麥當勞': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><rect width="52" height="52" fill="#FFC72C"/><path d="M14,36 L14,18 Q14,10 20,10 Q26,10 26,18 L26,18 Q26,10 32,10 Q38,10 38,18 L38,36" fill="none" stroke="#DA291C" stroke-width="5" stroke-linecap="round"/></svg>`,
+        // 全聯：紅底，全聯
+        '全聯': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><rect width="52" height="52" fill="#C62828"/><text x="26" y="34" text-anchor="middle" fill="white" font-size="20" font-weight="900" font-family="Arial,sans-serif">全聯</text></svg>`,
+    };
+
+    // ── 品牌 Icon 渲染輔助函式 ────────────────────────────────────────────
+    function getBrandIconHtml(storeName, category) {
+        const name = (storeName || '').trim();
+
+        // ── 先查 SVG 品牌表（最高優先，精確 logo）────────────────────────
+        const svgKeys = Object.keys(BRAND_SVG_MAP);
+        const svgMatch = svgKeys.find(k => name.toLowerCase().includes(k.toLowerCase())
+            || k.toLowerCase().includes(name.toLowerCase()));
+
+        if (svgMatch || /7-11|7-ELEVEN|7eleven/i.test(name)) {
+            const key = svgMatch || '7-11';
+            const svgStr = BRAND_SVG_MAP[key] || BRAND_SVG_MAP['7-11'];
+            // 查對應背景色（從 CSS brandMap）
+            const bgColors = {
+                '7-11': '#00813A', '全家': '#0079C1', '萊爾富': '#E5171B',
+                '屈臣氏': '#00AEEF', '康是美': '#E5171B', '星巴克': '#00704A',
+                '麥當勞': '#FFC72C', '全聯': '#C62828',
+            };
+            const bg = bgColors[key] || '#888';
+            return `<div class="member-card-icon logo-color-bg" style="background:${bg};padding:0;overflow:hidden;">${svgStr}</div>`;
+        }
+
+        // ── CSS 漸層色塊品牌表（其餘品牌）────────────────────────────────
+        const brandMap = [
+            { pattern: /OK超商|OK mart|okmart/i,
+              bg: 'linear-gradient(135deg,#E65C00,#FF6B00)',
+              lines: ['OK'], size: '1.1rem', bold: true, color: '#fff' },
+            { pattern: /屈臣氏|Watsons/i,
+              bg: 'linear-gradient(135deg,#007BB5,#00AEEF)',
+              lines: ['W'], size: '1.5rem', bold: true, color: '#fff' },
+            { pattern: /寶雅|POYA/i,
+              bg: 'linear-gradient(135deg,#A0006B,#D4006E)',
+              lines: ['POYA'], size: '0.75rem', bold: true, color: '#fff' },
+            { pattern: /新光三越|SKM/i,
+              bg: 'linear-gradient(135deg,#111,#333)',
+              lines: ['新光', '三越'], size: '0.65rem', bold: true, color: '#fff' },
+            { pattern: /SOGO|太平洋SOGO/i,
+              bg: 'linear-gradient(135deg,#700000,#8B0000)',
+              lines: ['SOGO'], size: '0.78rem', bold: true, color: '#fff' },
+            { pattern: /遠東|Far Eastern/i,
+              bg: 'linear-gradient(135deg,#002266,#003087)',
+              lines: ['遠東'], size: '0.85rem', bold: true, color: '#fff' },
+            { pattern: /微風|BREEZE/i,
+              bg: 'linear-gradient(135deg,#4A3227,#5D4037)',
+              lines: ['微風'], size: '0.85rem', bold: true, color: '#fff' },
+            { pattern: /統一時代|統一阪急/i,
+              bg: 'linear-gradient(135deg,#C44C00,#E65100)',
+              lines: ['統一', '時代'], size: '0.65rem', bold: true, color: '#fff' },
+            { pattern: /路易莎|Louisa/i,
+              bg: 'linear-gradient(135deg,#8C3015,#B5451B)',
+              lines: ['Lo'], size: '1.0rem', bold: true, color: '#fff' },
+            { pattern: /家樂福|Carrefour/i,
+              bg: 'linear-gradient(135deg,#003DA5,#0066CC)',
+              lines: ['家樂', '福'], size: '0.7rem', bold: true, color: '#fff' },
+            { pattern: /Nike/i,
+              bg: 'linear-gradient(135deg,#111,#333)',
+              lines: ['✓'], size: '1.6rem', bold: true, color: '#fff' },
+            { pattern: /adidas/i,
+              bg: 'linear-gradient(135deg,#222,#000)',
+              lines: ['adi'], size: '0.85rem', bold: true, color: '#fff' },
+        ];
+
+        const matched = brandMap.find(b => b.pattern.test(name));
+        if (matched) {
+            const lineHtml = matched.lines.map(l =>
+                `<span style="display:block;line-height:1.25;letter-spacing:-0.3px;">${l}</span>`
+            ).join('');
+            return `<div class="member-card-icon logo-color-bg" style="background:${matched.bg};">
+                <span class="icon-text" style="font-size:${matched.size};font-weight:${matched.bold?'900':'700'};color:${matched.color};text-shadow:0 1px 3px rgba(0,0,0,0.25);">${lineHtml}</span>
+            </div>`;
+        }
+
+        // ── 無對應品牌：分類 emoji 或首字 ────────────────────────────────
+        const categoryMap = {
+            '超商': { emoji: '🏪', bg: 'linear-gradient(135deg,#00813A,#2ecc71)' },
+            '百貨': { emoji: '🏬', bg: 'linear-gradient(135deg,#B8860B,#DAA520)' },
+            '藥妝': { emoji: '💊', bg: 'linear-gradient(135deg,#E5171B,#ff4757)' },
+            '美妝': { emoji: '💄', bg: 'linear-gradient(135deg,#D4006E,#e91e8c)' },
+            '餐飲': { emoji: '☕', bg: 'linear-gradient(135deg,#6F4E37,#8B5E3C)' },
+            '運動': { emoji: '🏋️', bg: 'linear-gradient(135deg,#1565C0,#1976D2)' },
+            '書店': { emoji: '📚', bg: 'linear-gradient(135deg,#4527A0,#7B1FA2)' },
+            '超市': { emoji: '🛒', bg: 'linear-gradient(135deg,#2E7D32,#43A047)' },
+            '其他': { emoji: '🎴', bg: 'linear-gradient(135deg,#546E7A,#78909C)' }
+        };
+        const catInfo = categoryMap[category] || categoryMap['其他'];
+        if (name.length <= 2 && name.length > 0) {
+            return `<div class="member-card-icon logo-color-bg" style="background:${catInfo.bg};">
+                <span class="icon-text" style="font-size:1.0rem;">${name}</span>
+            </div>`;
+        }
+        return `<div class="member-card-icon logo-color-bg" style="background:${catInfo.bg};">
+            <span class="icon-emoji">${catInfo.emoji}</span>
+        </div>`;
+    }
+
+    // ── 卡片列表渲染 ─────────────────────────────────────────────────────
+    function memberRenderList(cards) {
+        const container = document.getElementById('member-list-container');
+        if (!container) return;
+
+        // 同步更新預設品牌推薦區（已加入的自動隱藏）
+        memberRenderPresets();
+
+        // 取得搜尋字串與篩選分類
+        const searchVal  = (document.getElementById('member-search-input')?.value || '').toLowerCase();
+        const filterCat  = document.getElementById('member-filter-category')?.value || 'ALL';
+
+
+        // 過濾
+        let filtered = cards.filter(c => {
+            const matchSearch = !searchVal
+                || (c.store_name || '').toLowerCase().includes(searchVal)
+                || (c.card_number || '').toLowerCase().includes(searchVal);
+            const matchCat = filterCat === 'ALL' || filterCat === '全部分類' || c.category === filterCat;
+            return matchSearch && matchCat;
+        });
+
+        if (filtered.length === 0) {
+            container.innerHTML = `
+                <div class="member-empty-state">
+                    <div class="member-empty-icon">🃏</div>
+                    <p>${cards.length === 0 ? '還沒有會員卡，點擊 + 新增！' : '找不到符合的卡片'}</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = filtered.map(card => {
+            const rawNum  = card.card_number || '';
+            const dispNum = rawNum.startsWith("'") ? rawNum.slice(1) : rawNum;
+            const isPending = card.card_id?.startsWith('pending_');
+            const brandColor = card.brand_color || '#C9B8A8';
+            const iconHtml = getBrandIconHtml(card.store_name, card.category);
+
+            return `
+            <div class="member-card-item" style="--mc-brand:${brandColor};" onclick="memberOpenBarcode('${card.card_id}')">
+                ${iconHtml}
+                <div class="member-card-info">
+                    <div class="member-card-store">${card.store_name || '未命名'}${isPending ? ' <span style="font-size:0.65rem;opacity:.6;">（同步中）</span>' : ''}</div>
+                    <div class="member-card-number">${dispNum}</div>
+                    <div class="member-card-meta">
+                        <span class="member-card-badge">${card.category || '其他'}</span>
+                    </div>
+                </div>
+                <div class="member-card-actions" onclick="event.stopPropagation()">
+                    <button class="member-card-action-btn" onclick="memberShowForm('${card.card_id}')" title="編輯">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                    <button class="member-card-action-btn delete" onclick="memberDeleteCard('${card.card_id}','${(card.store_name||'').replace(/'/g,"\\'")}')" title="刪除">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // ── 搜尋 / 篩選（由搜尋框和分類 select 的事件觸發）──────────────────
+    function memberFilterCards() {
+        memberRenderList(_memberCards);
+    }
+
+    // ── 載入卡片列表 ─────────────────────────────────────────────────────
+    async function memberLoadCards() {
+        const syncLabel = document.getElementById('member-sync-label');
+        syncLabel.textContent = '⏳ 讀取中...';
+
+        // Local-First：優先讀取 LocalStorage 快取，秒速顯示
+        const cached = localStorage.getItem('member_cards_cache');
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                _memberCards = parsed.data || [];
+                _memberBrandColors  = parsed.brand_colors  || {};
+                _memberBarcodeTypes = parsed.barcode_types || {};
+                if (parsed.preset_brands) {
+                    MEMBER_PRESET_BRANDS = parsed.preset_brands;
+                }
+                memberRenderList(_memberCards);
+                syncLabel.textContent = '📴 離線模式（顯示本機快取）';
+            } catch(e) {}
+        }
+
+        // 背景從 API 同步最新資料
+        try {
+            const res = await fetch('/api/members');
+            const data = await res.json();
+            if (data.success) {
+                _memberCards     = data.data || [];
+                _memberBrandColors  = data.brand_colors  || {};
+                _memberBarcodeTypes = data.barcode_types || {};
+                if (data.preset_brands) {
+                    MEMBER_PRESET_BRANDS = data.preset_brands;
+                }
+                // 更新本地快取
+                localStorage.setItem('member_cards_cache', JSON.stringify({
+                    data: _memberCards,
+                    brand_colors: _memberBrandColors,
+                    barcode_types: _memberBarcodeTypes,
+                    preset_brands: MEMBER_PRESET_BRANDS,
+                    ts: Date.now()
+                }));
+                memberRenderList(_memberCards);
+                syncLabel.textContent = data.from_cache
+                    ? '✅ 已同步（伺服器快取）'
+                    : '✅ 已從雲端同步';
+            } else {
+                syncLabel.textContent = '⚠️ ' + (data.message || '讀取失敗');
+            }
+        } catch(e) {
+            if (!cached) {
+                document.getElementById('member-list-container').innerHTML =
+                    '<div class="member-empty-state"><div class="member-empty-icon">📴</div><p>無網路，且無本機快取</p></div>';
+            }
+            syncLabel.textContent = '📴 離線模式';
+        }
+    }
+
+    // ── 顯示新增 / 編輯表單 ──────────────────────────────────────────────
+    function memberShowForm(cardId) {
+        const formPanel = document.getElementById('member-form-panel');
+        formPanel.style.display = 'block';
+        formPanel.classList.remove('member-panel-fade');
+        void formPanel.offsetWidth; // 強制瀏覽器重繪 (reflow)
+        formPanel.classList.add('member-panel-fade');
+
+        document.getElementById('member-list-body').style.display  = 'none';
+
+        // 重置表單，智慧讀取上次自訂偏好
+        document.getElementById('mf-store').value       = '';
+        document.getElementById('mf-card-number').value = '';
+        document.getElementById('mf-card-id').value     = '';
+        document.getElementById('mf-brand-color').value = '#C9B8A8';
+        document.getElementById('mf-barcode-type').value = localStorage.getItem('member_last_barcode_type') || 'CODE128';
+        document.getElementById('mf-category').value = localStorage.getItem('member_last_category') || '其他';
+        memberSelectPresetColor('#C9B8A8', document.querySelector('#member-color-presets .color-dot[data-color="#C9B8A8"]'));
+
+        if (cardId) {
+            // 編輯模式：填入現有資料
+            const card = _memberCards.find(c => c.card_id === cardId);
+            if (!card) return;
+            document.getElementById('member-form-title').textContent = '✏️ 編輯會員卡';
+            document.getElementById('mf-submit-btn').textContent     = '💾 更新卡片';
+            document.getElementById('mf-store').value       = card.store_name || '';
+            const rawNum = card.card_number || '';
+            document.getElementById('mf-card-number').value = rawNum.startsWith("'") ? rawNum.slice(1) : rawNum;
+            document.getElementById('mf-card-id').value     = card.card_id;
+            document.getElementById('mf-category').value   = card.category || '其他';
+            
+            const cardColor = card.brand_color || '#C9B8A8';
+            document.getElementById('mf-brand-color').value = cardColor;
+            document.getElementById('mf-barcode-type').value = card.barcode_type || 'CODE128';
+            
+            // 嘗試尋找並選取現有顏色的色票
+            const matchedDot = document.querySelector(`#member-color-presets .color-dot[data-color="${cardColor}"]`);
+            if (matchedDot) {
+                memberSelectPresetColor(cardColor, matchedDot);
+            } else {
+                memberSelectCustomColor(cardColor);
+            }
+        } else {
+            // 新增模式
+            document.getElementById('member-form-title').textContent = '➕ 新增會員卡';
+            document.getElementById('mf-submit-btn').textContent     = '💾 儲存卡片';
+        }
+
+        // 初始化/更新表單實時預覽
+        memberUpdateFormPreview();
+    }
+    function memberHideForm() {
+        document.getElementById('member-form-panel').style.display = 'none';
+        const listBody = document.getElementById('member-list-body');
+        listBody.style.display  = 'block';
+        listBody.classList.remove('member-panel-fade');
+        void listBody.offsetWidth; // 強制瀏覽器重繪 (reflow)
+        listBody.classList.add('member-panel-fade');
+    }
+
+    // ── 實時表單預覽功能 ───────────────────────────────────────────────
+    function memberUpdateFormPreview() {
+        const storeName = document.getElementById('mf-store').value.trim() || '商家名稱';
+        const cardNum   = document.getElementById('mf-card-number').value.trim() || '會員卡號';
+        const category  = document.getElementById('mf-category').value;
+        const brandColor = document.getElementById('mf-brand-color').value || '#C9B8A8';
+        const barcodeType = document.getElementById('mf-barcode-type').value;
+
+        const badgeType = {
+            'CODE128':'超商', 'EAN13':'藥妝/量販', 'CODE39':'百貨', 'QR_CODE':'QR Code'
+        }[barcodeType] || barcodeType;
+
+        const previewContainer = document.getElementById('member-card-preview');
+        if (!previewContainer) return;
+
+        const iconHtml = getBrandIconHtml(storeName, category);
+
+        previewContainer.style.setProperty('--mc-brand', brandColor);
+        previewContainer.innerHTML = `
+            ${iconHtml}
+            <div class="member-card-info">
+                <div class="member-card-store">${storeName}</div>
+                <div class="member-card-number">${cardNum}</div>
+                <div class="member-card-meta">
+                    <span class="member-card-badge">${category}</span>
+                    <span class="member-card-badge">${badgeType}</span>
+                </div>
+            </div>`;
+    }
+
+    // ── 所有預設知名品牌清單（集中管理，純 CSS 設計，與卡片圖示完全一致）──
+    let MEMBER_PRESET_BRANDS = [
+        // 超商
+        { key: '7-11',  store: '7-11',  category: '超商', color: 'linear-gradient(135deg,#007236 0%,#00813A 60%,#F15A24 60%,#F15A24 100%)', brandColor: '#00813A', type: 'CODE128',
+          chipLines: ['7'], chipSize: '1.1rem' },
+        { key: '全家',  store: '全家',  category: '超商', color: 'linear-gradient(135deg,#0062A8,#0079C1)', brandColor: '#0079C1', type: 'CODE128',
+          chipLines: ['全家'], chipSize: '0.62rem' },
+        { key: '萊爾富', store: '萊爾富', category: '超商', color: 'linear-gradient(135deg,#C0171C,#E5171B)', brandColor: '#E5171B', type: 'CODE128',
+          chipLines: ['萊爾', '富'], chipSize: '0.55rem' },
+        { key: 'OK超商', store: 'OK超商', category: '超商', color: 'linear-gradient(135deg,#E65C00,#FF6B00)', brandColor: '#FF6B00', type: 'CODE128',
+          chipLines: ['OK'], chipSize: '0.85rem' },
+        // 藥妝
+        { key: '屈臣氏', store: '屈臣氏', category: '藥妝', color: 'linear-gradient(135deg,#007BB5,#00AEEF)', brandColor: '#00AEEF', type: 'EAN13',
+          chipLines: ['W'], chipSize: '1.1rem' },
+        { key: '康是美', store: '康是美', category: '藥妝', color: 'linear-gradient(135deg,#C0171C,#E5171B)', brandColor: '#E5171B', type: 'EAN13',
+          chipLines: ['康是', '美'], chipSize: '0.5rem' },
+        { key: '寶雅',  store: '寶雅',  category: '藥妝', color: 'linear-gradient(135deg,#A0006B,#D4006E)', brandColor: '#D4006E', type: 'EAN13',
+          chipLines: ['PO', 'YA'], chipSize: '0.55rem' },
+        // 百貨
+        { key: 'SOGO', store: 'SOGO', category: '百貨', color: 'linear-gradient(135deg,#700000,#8B0000)', brandColor: '#8B0000', type: 'CODE39',
+          chipLines: ['SO', 'GO'], chipSize: '0.55rem' },
+        { key: '新光三越', store: '新光三越', category: '百貨', color: 'linear-gradient(135deg,#111,#333)', brandColor: '#222222', type: 'CODE39',
+          chipLines: ['新光', '三越'], chipSize: '0.45rem' },
+        { key: '遠東百貨', store: '遠東百貨', category: '百貨', color: 'linear-gradient(135deg,#002266,#003087)', brandColor: '#003087', type: 'CODE39',
+          chipLines: ['遠東'], chipSize: '0.62rem' },
+        { key: '微風廣場', store: '微風廣場', category: '百貨', color: 'linear-gradient(135deg,#4A3227,#5D4037)', brandColor: '#5D4037', type: 'CODE39',
+          chipLines: ['微風'], chipSize: '0.62rem' },
+        // 餐飲
+        { key: '星巴克', store: '星巴克', category: '餐飲', color: 'linear-gradient(135deg,#005C39,#00704A)', brandColor: '#00704A', type: 'QR_CODE',
+          chipLines: ['★'], chipSize: '1.0rem' },
+        { key: '路易莎', store: '路易莎', category: '餐飲', color: 'linear-gradient(135deg,#8C3015,#B5451B)', brandColor: '#B5451B', type: 'QR_CODE',
+          chipLines: ['Lo'], chipSize: '0.75rem' },
+        { key: '全聯',  store: '全聯',  category: '超市', color: 'linear-gradient(135deg,#9E0000,#C62828)', brandColor: '#C62828', type: 'EAN13',
+          chipLines: ['全聯'], chipSize: '0.62rem' },
+    ];
+
+    // ── 渲染推薦品牌 chip 區（已加入的自動隱藏，圖示與卡片清單完全一致）──
+    function memberRenderPresets() {
+        const grid = document.getElementById('member-preset-grid');
+        const section = document.getElementById('member-preset-section');
+        if (!grid) return;
+
+        // 收集已加入的商家名稱（不分大小寫）
+        const existingStores = new Set(
+            _memberCards.map(c => (c.store_name || '').trim().toLowerCase())
+        );
+
+        // 找出尚未加入的品牌
+        const missing = MEMBER_PRESET_BRANDS.filter(
+            b => !existingStores.has(b.store.toLowerCase())
+        );
+
+        // 全部都加了就隱藏整區
+        if (missing.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+        section.style.display = 'block';
+
+        grid.innerHTML = missing.map(b => {
+            // 使用與卡片清單完全相同的 CSS 漸層色塊設計
+            // 優先使用 SVG（與卡片清單完全一致）
+            const svgStr = BRAND_SVG_MAP[b.key] || BRAND_SVG_MAP[b.store];
+            let iconHtml;
+            if (svgStr) {
+                iconHtml = `<div class="chip-icon" style="background:${b.brandColor || '#888'};padding:0;overflow:hidden;">${svgStr}</div>`;
+            } else {
+                const lineHtml = b.chipLines.map(l =>
+                    `<span style="display:block;line-height:1.2;">${l}</span>`
+                ).join('');
+                iconHtml = `<div class="chip-icon" style="background:${b.color};">
+                    <span style="font-size:${b.chipSize};font-weight:900;color:#fff;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,0.3);line-height:1;">${lineHtml}</span>
+                </div>`;
+            }
+            return `<button class="member-preset-chip" onclick="memberApplyQuickStart('${b.key}')">
+                ${iconHtml}
+                <span>${b.store}</span>
+            </button>`;
+        }).join('');
+    }
+
+
+    // ── 常用品牌一鍵快速選擇帶入（點擊推薦 chip 觸發） ──
+    function memberApplyQuickStart(brandKey) {
+        const preset = MEMBER_PRESET_BRANDS.find(b => b.key === brandKey);
+        if (!preset) return;
+
+        // 打開新增表單
+        memberShowForm(null);
+
+        // 填入推薦值（使用 brandColor 純色值，而非漸層字串）
+        const applyColor = preset.brandColor || preset.color;
+        document.getElementById('mf-store').value = preset.store;
+        document.getElementById('mf-category').value = preset.category;
+        document.getElementById('mf-barcode-type').value = preset.type;
+        document.getElementById('mf-brand-color').value = applyColor;
+
+        // 觸發色彩選取器 active
+        const matchedDot = document.querySelector(`#member-color-presets .color-dot[data-color="${applyColor}"]`);
+        if (matchedDot) {
+            memberSelectPresetColor(applyColor, matchedDot);
+        } else {
+            memberSelectCustomColor(applyColor);
+        }
+
+        // 刷新表單即時預覽外觀
+        memberUpdateFormPreview();
+
+        // 焦點自動對準「卡號」輸入框
+        setTimeout(() => {
+            const cardNumInput = document.getElementById('mf-card-number');
+            if (cardNumInput) cardNumInput.focus();
+        }, 100);
+    }
+
+    // ── 顏色挑選器互動 ──────────────────────────────────────────────────
+    function memberSelectPresetColor(color, element) {
+        // 設定隱藏欄位的值
+        document.getElementById('mf-brand-color').value = color;
+        document.getElementById('mf-custom-color').value = color;
+        
+        // 重置自訂按鈕的樣式
+        const customBtn = document.getElementById('mf-custom-color-btn');
+        if (customBtn) {
+            customBtn.style.background = '#f1f5f9';
+            customBtn.style.color = '#475569';
+            customBtn.style.borderColor = '#cbd5e1';
+            customBtn.textContent = '🎨 自訂';
+        }
+
+        // 更新 UI 圓點的選取狀態
+        document.querySelectorAll('#member-color-presets .color-dot').forEach(dot => {
+            dot.classList.remove('active');
+            dot.style.transform = 'scale(1)';
+            dot.style.boxShadow = '0 0 0 1px #e2e8f0';
+        });
+        if (element) {
+            element.classList.add('active');
+            element.style.transform = 'scale(1.15)';
+            element.style.boxShadow = '0 0 0 2px #475569';
+        }
+    }
+
+    // ── 自訂調色盤選取 ──
+    function memberSelectCustomColor(color) {
+        document.getElementById('mf-brand-color').value = color;
+        
+        // 更新自訂按鈕的外觀，給予明確套用反饋
+        const customBtn = document.getElementById('mf-custom-color-btn');
+        if (customBtn) {
+            customBtn.style.background = color;
+            customBtn.style.color = '#ffffff';
+            customBtn.style.borderColor = color;
+            customBtn.style.textShadow = '0 1px 2px rgba(0,0,0,0.3)';
+            customBtn.textContent = '✓ 已選';
+        }
+
+        // 取消所有預設圓點的 active 狀態
+        document.querySelectorAll('#member-color-presets .color-dot').forEach(dot => {
+            dot.classList.remove('active');
+            dot.style.transform = 'scale(1)';
+            dot.style.boxShadow = '0 0 0 1px #e2e8f0';
+        });
+        
+        // 如果自訂的顏色剛好跟某個預設色票相同，就選取它
+        const matchedDot = document.querySelector(`#member-color-presets .color-dot[data-color="${color.toUpperCase()}"]`) || 
+                           document.querySelector(`#member-color-presets .color-dot[data-color="${color.toLowerCase()}"]`);
+        if (matchedDot) {
+            memberSelectPresetColor(color, matchedDot);
+        }
+    }
+
+    // ── 商家名稱自動填入條碼類型 + 品牌色 + 分類 ────────────────────────
+    function memberAutoFill(storeName) {
+        const bt   = _memberBarcodeTypes[storeName];
+        const bc   = _memberBrandColors[storeName];
+        if (bt) document.getElementById('mf-barcode-type').value = bt;
+        
+        // 根據常見商家名稱推薦分類
+        const categorySelect = document.getElementById('mf-category');
+        if (/7-11|7-ELEVEN|全家|萊爾富|OK/i.test(storeName)) {
+            categorySelect.value = '超商';
+        } else if (/新光三越|SOGO|遠東|微風|時代/i.test(storeName)) {
+            categorySelect.value = '百貨';
+        } else if (/屈臣氏|康是美|寶雅/i.test(storeName)) {
+            categorySelect.value = '藥妝';
+        } else if (/路易莎|Louisa|咖啡|星巴克|Starbucks|85/i.test(storeName)) {
+            categorySelect.value = '餐飲';
+        }
+
+        if (bc) {
+            document.getElementById('mf-brand-color').value  = bc;
+            const matchedDot = document.querySelector(`#member-color-presets .color-dot[data-color="${bc}"]`);
+            if (matchedDot) {
+                memberSelectPresetColor(bc, matchedDot);
+            } else {
+                memberSelectCustomColor(bc);
+            }
+        }
+        // 即時刷新卡片預覽
+        memberUpdateFormPreview();
+    }
+
+    // ── 前端欄位驗證 ─────────────────────────────────────────────────────
+    function memberValidate() {
+        const store = document.getElementById('mf-store').value.trim();
+        const number = document.getElementById('mf-card-number').value.trim();
+
+        if (!store) { alert('❌ 請輸入商家名稱'); return false; }
+        if (!number) { alert('❌ 請輸入會員卡號'); return false; }
+
+        if (!/^[A-Za-z0-9\-]+$/.test(number)) {
+            alert('❌ 卡號只能包含英數字與連字號，不可含特殊字元或空格');
+            return false;
+        }
+        return true;
+    }
+
+    // ── 送出表單（新增 or 更新）── P5：離線時寫入 IndexedDB 佇列 ─────────
+    async function memberSubmitForm() {
+        if (!memberValidate()) return;
+
+        const cardId = document.getElementById('mf-card-id').value;
+        const isEdit = !!cardId;
+        const body = {
+            store_name:   document.getElementById('mf-store').value.trim(),
+            card_number:  document.getElementById('mf-card-number').value.trim(),
+            barcode_type: document.getElementById('mf-barcode-type').value,
+            brand_color:  document.getElementById('mf-brand-color').value.trim(),
+            category:     document.getElementById('mf-category').value
+        };
+
+        const btn = document.getElementById('mf-submit-btn');
+        btn.disabled = true;
+        btn.textContent = '⏳ 儲存中...';
+
+        const url    = isEdit ? `/api/members/${cardId}` : '/api/members';
+        const method = isEdit ? 'PUT' : 'POST';
+
+        try {
+            const res  = await fetch(url, {
+                method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (data.success) {
+                // 智慧記憶偏好
+                localStorage.setItem('member_last_category', body.category);
+                localStorage.setItem('member_last_barcode_type', body.barcode_type);
+                localStorage.removeItem('member_cards_cache');
+                memberHideForm();
+                memberLoadCards();
+                document.getElementById('member-sync-label').textContent =
+                    isEdit ? '✅ 卡片已更新！' : '✅ 卡片已新增！';
+            } else {
+                alert('❌ ' + (data.message || '操作失敗'));
+            }
+        } catch(e) {
+            // 智慧記憶偏好（離線同步排程時亦進行記憶）
+            localStorage.setItem('member_last_category', body.category);
+            localStorage.setItem('member_last_barcode_type', body.barcode_type);
+            // ✨ P5 離線降級：寫入 IndexedDB 佇列，網路復原後自動同步
+            const queued = await _memberEnqueue(url, method, body);
+            if (queued) {
+                if (!isEdit) {
+                    // Local-First：新增暫時卡片讓使用者立刻看到
+                    const tempCard = {
+                        card_id: 'pending_' + Date.now(),
+                        user_id: '',
+                        store_name: body.store_name,
+                        card_number: "'" + body.card_number,
+                        barcode_type: body.barcode_type,
+                        brand_color: body.brand_color || _memberBrandColors[body.store_name] || '#C9B8A8',
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        category: body.category
+                    };
+                    _memberCards.push(tempCard);
+                    localStorage.setItem('member_cards_cache', JSON.stringify({
+                        data: _memberCards,
+                        brand_colors: _memberBrandColors,
+                        barcode_types: _memberBarcodeTypes,
+                        ts: Date.now()
+                    }));
+                    memberRenderList(_memberCards);
+                }
+                memberHideForm();
+                document.getElementById('member-sync-label').textContent =
+                    '📴 離線模式：卡片已存到本機，網路復原後自動同步';
+            } else {
+                alert('❌ 網路錯誤，請稍後再試');
+            }
+        } finally {
+            btn.disabled = false;
+            btn.textContent = isEdit ? '💾 更新卡片' : '💾 儲存卡片';
+        }
+    }
+
+    // ── 刪除卡片 ── P5：離線時寫入 IndexedDB 佇列 ───────────────────────
+    async function memberDeleteCard(cardId, storeName) {
+        if (!confirm(`確定要刪除「${storeName}」的會員卡嗎？\n此動作無法復原。`)) return;
+        try {
+            const res  = await fetch(`/api/members/${cardId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                localStorage.removeItem('member_cards_cache');
+                memberLoadCards();
+            } else {
+                alert('❌ ' + (data.message || '刪除失敗'));
+            }
+        } catch(e) {
+            // ✨ P5 離線降級：寫入刪除佇列，Local-First 即時移除顯示
+            const queued = await _memberEnqueue(`/api/members/${cardId}`, 'DELETE', null);
+            if (queued) {
+                _memberCards = _memberCards.filter(c => c.card_id !== cardId);
+                localStorage.setItem('member_cards_cache', JSON.stringify({
+                    data: _memberCards,
+                    brand_colors: _memberBrandColors,
+                    barcode_types: _memberBarcodeTypes,
+                    ts: Date.now()
+                }));
+                memberRenderList(_memberCards);
+                document.getElementById('member-sync-label').textContent =
+                    '📴 離線模式：刪除已排程，網路復原後自動同步';
+            } else {
+                alert('❌ 網路錯誤');
+            }
+        }
+    }
+
+    // ── 開啟條碼全螢幕顯示（P4）────────────────────────────────────────
+    async function memberOpenBarcode(cardId) {
+        const card = _memberCards.find(c => c.card_id === cardId);
+        if (!card) return;
+
+        const overlay = document.getElementById('member-barcode-overlay');
+        overlay.style.display = 'flex';
+
+        // 填入商家名稱
+        document.getElementById('barcode-store-name').textContent = '🎴 ' + card.store_name;
+
+        // 取出純卡號（引號前綴過濾）
+        const rawNum = card.card_number || '';
+        const cardNum = rawNum.startsWith("'") ? rawNum.slice(1) : rawNum;
+        document.getElementById('barcode-number-text').textContent = cardNum;
+
+        // 清除舊的條碼
+        const container = document.getElementById('barcode-render-container');
+        container.innerHTML = '';
+
+        // 渲染條碼 / QR Code
+        try {
+            if (card.barcode_type === 'QR_CODE') {
+                if (typeof QRCode !== 'undefined') {
+                    new QRCode(container, {
+                        text: cardNum,
+                        width: 220, height: 220,
+                        colorDark: '#000000', colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                } else {
+                    container.textContent = '⚠️ QR Code 函式庫未載入';
+                }
+            } else {
+                if (typeof JsBarcode !== 'undefined') {
+                    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                    container.appendChild(svg);
+                    JsBarcode(svg, cardNum, {
+                        format:       card.barcode_type,
+                        width:        2.4,
+                        height:       110,
+                        displayValue: true,
+                        fontSize:     15,
+                        margin:       20,
+                        background:   '#ffffff',
+                        lineColor:    '#000000'
+                    });
+                } else {
+                    container.textContent = '⚠️ JsBarcode 函式庫未載入';
+                }
+            }
+        } catch(e) {
+            container.innerHTML = `<div style="color:#f43f5e; padding:12px;">⚠️ 條碼渲染失敗：${e.message}</div>`;
+        }
+
+        // ✨ Wake Lock：防止螢幕自動熄滅
+        const hintEl = document.getElementById('barcode-wake-lock-hint');
+        if (hintEl) hintEl.textContent = ''; // 重置提示
+        try {
+            if ('wakeLock' in navigator) {
+                _memberWakeLock = await navigator.wakeLock.request('screen');
+                console.log('[Member] Wake Lock 已啟動，螢幕將保持常亮');
+            } else {
+                if (hintEl) hintEl.textContent = '⚠️ 提示：您的瀏覽器未支援螢幕常亮';
+            }
+        } catch(e) {
+            console.log('[Member] Wake Lock 不支援:', e.message);
+            if (hintEl) hintEl.textContent = '⚠️ 提示：無法鎖定螢幕常亮，請手動調整手機休眠時間';
+        }
+    }
+
+    // ── 關閉條碼全螢幕（P4）─────────────────────────────────────────────
+    async function memberCloseBarcodeOverlay() {
+        document.getElementById('member-barcode-overlay').style.display = 'none';
+        const hintEl = document.getElementById('barcode-wake-lock-hint');
+        if (hintEl) hintEl.textContent = '';
+        try {
+            if (_memberWakeLock) {
+                await _memberWakeLock.release();
+                _memberWakeLock = null;
+                console.log('[Member] Wake Lock 已釋放');
+            }
+        } catch(e) { /* ignore */ }
+    }
+    </script>
 </body>
 </html>

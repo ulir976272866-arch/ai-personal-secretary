@@ -767,7 +767,8 @@ def bg_spreadsheet_self_healing(spreadsheet_id, user_email, creds):
             '生理症狀紀錄': [['日期', '症狀', '備註', '寫入時間']],
             '固定支出': [['建立日期', '項目名稱', '類別設定', '子分類', '金額設定', '每月自動執行日', '最後執行月份', '唯一 ID', '開始日期', '結束日期']],
             '代墊待收款': [['建立日期', '帳目描述', '總金額', '墊款人', '分攤人(逗號分隔)', '各分攤明細(JSON/描述)', '狀態', '唯一 ID', '建立時間']],
-            '資產帳戶': [['帳戶名稱', '帳戶類型', '當前餘額', '唯一 ID', '更新時間', '備註']]
+            '資產帳戶': [['帳戶名稱', '帳戶類型', '當前餘額', '唯一 ID', '更新時間', '備註']],
+            '會員卡包': [['卡片ID', '使用者ID', '商家名稱', '卡號', '條碼類型', '備註', '品牌顏色', '建立時間', '更新時間', '卡片分類']]
         }
         
         if '願望' in existing_titles or '願望清單' in existing_titles:
@@ -1035,6 +1036,7 @@ def ensure_user_spreadsheet():
             elif title == '代墊待收款': col_count = 9
             elif title == '💰股票投資組合': col_count = 10
             elif title == '資產帳戶': col_count = 6
+            elif title == '會員卡包': col_count = 10
             
             protect_requests.append({
                 "addProtectedRange": {
@@ -9211,6 +9213,596 @@ def handle_ad_reward():
     finally:
         if conn:
             conn.close()
+
+# ================================================================
+# ===          MEMBER CARD MODULE - 會員卡包功能模組            ===
+# ===  新增時間: 2026-07-10  |  架構: 內嵌單體路由區塊         ===
+# ===  依賴: googleapiclient (已存在), uuid, re, time           ===
+# ================================================================
+
+MEMBER_SHEET_NAME = '會員卡包'
+MEMBER_HEADERS = ['卡片ID', '使用者ID', '商家名稱', '卡號',
+                   '條碼類型', '備註', '品牌顏色', '建立時間', '更新時間', '卡片分類']
+
+# 統一品牌配置資料庫（用於前後端一致的推薦、顏色與分類判定）
+MEMBER_PRESET_BRANDS = [
+    {
+        'key': '7-11', 'store': '7-11', 'category': '超商',
+        'color': 'linear-gradient(135deg,#007236 0%,#00813A 60%,#F15A24 60%,#F15A24 100%)',
+        'brandColor': '#00813A', 'type': 'CODE128',
+        'chipLines': ['7'], 'chipSize': '1.1rem'
+    },
+    {
+        'key': '全家', 'store': '全家', 'category': '超商',
+        'color': 'linear-gradient(135deg,#0062A8,#0079C1)',
+        'brandColor': '#0079C1', 'type': 'CODE128',
+        'chipLines': ['全家'], 'chipSize': '0.62rem'
+    },
+    {
+        'key': '萊爾富', 'store': '萊爾富', 'category': '超商',
+        'color': 'linear-gradient(135deg,#C0171C,#E5171B)',
+        'brandColor': '#E5171B', 'type': 'CODE128',
+        'chipLines': ['萊爾', '富'], 'chipSize': '0.55rem'
+    },
+    {
+        'key': 'OK超商', 'store': 'OK超商', 'category': '超商',
+        'color': 'linear-gradient(135deg,#E65C00,#FF6B00)',
+        'brandColor': '#FF6B00', 'type': 'CODE128',
+        'chipLines': ['OK'], 'chipSize': '0.85rem'
+    },
+    {
+        'key': '屈臣氏', 'store': '屈臣氏', 'category': '藥妝',
+        'color': 'linear-gradient(135deg,#007BB5,#00AEEF)',
+        'brandColor': '#00AEEF', 'type': 'EAN13',
+        'chipLines': ['W'], 'chipSize': '1.1rem'
+    },
+    {
+        'key': '康是美', 'store': '康是美', 'category': '藥妝',
+        'color': 'linear-gradient(135deg,#C0171C,#E5171B)',
+        'brandColor': '#E5171B', 'type': 'EAN13',
+        'chipLines': ['康是', '美'], 'chipSize': '0.5rem'
+    },
+    {
+        'key': '寶雅', 'store': '寶雅', 'category': '藥妝',
+        'color': 'linear-gradient(135deg,#A0006B,#D4006E)',
+        'brandColor': '#D4006E', 'type': 'EAN13',
+        'chipLines': ['PO', 'YA'], 'chipSize': '0.55rem'
+    },
+    {
+        'key': 'SOGO', 'store': 'SOGO', 'category': '百貨',
+        'color': 'linear-gradient(135deg,#700000,#8B0000)',
+        'brandColor': '#8B0000', 'type': 'CODE39',
+        'chipLines': ['SO', 'GO'], 'chipSize': '0.55rem'
+    },
+    {
+        'key': '新光三越', 'store': '新光三越', 'category': '百貨',
+        'color': 'linear-gradient(135deg,#111,#333)',
+        'brandColor': '#222222', 'type': 'CODE39',
+        'chipLines': ['新光', '三越'], 'chipSize': '0.45rem'
+    },
+    {
+        'key': '遠東百貨', 'store': '遠東百貨', 'category': '百貨',
+        'color': 'linear-gradient(135deg,#002266,#003087)',
+        'brandColor': '#003087', 'type': 'CODE39',
+        'chipLines': ['遠東'], 'chipSize': '0.62rem'
+    },
+    {
+        'key': '微風廣場', 'store': '微風廣場', 'category': '百貨',
+        'color': 'linear-gradient(135deg,#4A3227,#5D4037)',
+        'brandColor': '#5D4037', 'type': 'CODE39',
+        'chipLines': ['微風'], 'chipSize': '0.62rem'
+    },
+    {
+        'key': '星巴克', 'store': '星巴克', 'category': '餐飲',
+        'color': 'linear-gradient(135deg,#005C39,#00704A)',
+        'brandColor': '#00704A', 'type': 'QR_CODE',
+        'chipLines': ['★'], 'chipSize': '1.0rem'
+    },
+    {
+        'key': '路易莎', 'store': '路易莎', 'category': '餐飲',
+        'color': 'linear-gradient(135deg,#8C3015,#B5451B)',
+        'brandColor': '#B5451B', 'type': 'QR_CODE',
+        'chipLines': ['Lo'], 'chipSize': '0.75rem'
+    },
+    {
+        'key': '全聯', 'store': '全聯', 'category': '超市',
+        'color': 'linear-gradient(135deg,#9E0000,#C62828)',
+        'brandColor': '#C62828', 'type': 'EAN13',
+        'chipLines': ['全聯'], 'chipSize': '0.62rem'
+    }
+]
+
+def _member_infer_category(store_name: str) -> str:
+    """根據商家名稱自動推測分類，優先比對預設品牌列表，否則做關鍵字比對"""
+    import re
+    n = (store_name or '').strip().lower()
+
+    # 1. 優先比對統一品牌配置
+    for brand in MEMBER_PRESET_BRANDS:
+        if brand['store'].lower() in n or n in brand['store'].lower() or brand['key'].lower() in n:
+            return brand['category']
+
+    # 2. 備用的關鍵字模糊比對（容錯）
+    if re.search(r'7-11|7-eleven|全家|萊爾富|ok超商|ok mart|便利商店', n):
+        return '超商'
+    if re.search(r'屈臣氏|watsons|康是美|cosmed|寶雅|poya|美妝|藥妝', n):
+        return '藥妝'
+    if re.search(r'新光三越|sogo|遠東|微風|統一時代|漢神|大遠百|百貨|購物中心|mall', n):
+        return '百貨'
+    if re.search(r'星巴克|starbucks|路易莎|louisa|麥當勞|mcdonald|肯德基|kfc|85度c|咖啡|餐飲|餐廳', n):
+        return '餐飲'
+    if re.search(r'全聯|家樂福|carrefour|大潤發|愛買|超市|量販', n):
+        return '超市'
+    if re.search(r'nike|adidas|under armour|迪卡儂|decathlon|運動|健身', n):
+        return '運動'
+    return '其他'
+
+
+# 商家品牌色對照表（前端卡片配色用）
+MEMBER_BRAND_COLORS = {
+    '7-ELEVEN': '#00813A', '7-11': '#00813A',
+    '全家': '#1B4799', '全家 FamilyMart': '#1B4799', 'FamilyMart': '#1B4799',
+    '萊爾富': '#E5171B', '萊爾富 Hi-Life': '#E5171B',
+    'OK超商': '#E8B21A',
+    '新光三越': '#C8002D',
+    '遠東百貨': '#003087',
+    'SOGO': '#B02224',
+    '微風': '#003865',
+    '誠品': '#1A1A1A', '誠品書店': '#1A1A1A',
+    '屈臣氏': '#00ADEF', "屈臣氏 Watson's": '#00ADEF',
+    '康是美': '#D71920',
+    '寶雅': '#E2001A', '寶雅 POYA': '#E2001A',
+    '家樂福': '#003C8F',
+    '好市多': '#E31837', '好市多 Costco': '#E31837',
+    '路易莎': '#6B3A2A', '路易莎 Louisa': '#6B3A2A',
+    '85度C': '#C8102E',
+    '星巴克': '#00704A', '星巴克 Starbucks': '#00704A'
+}
+
+# 商家建議條碼類型對照表
+MEMBER_BARCODE_TYPES = {
+    '7-ELEVEN': 'CODE128', '7-11': 'CODE128',
+    '全家': 'CODE128', '全家 FamilyMart': 'CODE128',
+    '萊爾富': 'CODE128',
+    'OK超商': 'CODE128',
+    '新光三越': 'CODE39',
+    '遠東百貨': 'CODE39',
+    'SOGO': 'CODE39',
+    '屈臣氏': 'EAN13',
+    '康是美': 'EAN13',
+    '寶雅': 'EAN13',
+    '星巴克': 'QR_CODE', '星巴克 Starbucks': 'QR_CODE',
+    '85度C': 'QR_CODE'
+}
+
+# 5分鐘 TTL 讀取快取（防止 Google Sheets API Rate Limit 429）
+_members_cache = {}
+_MEMBERS_CACHE_TTL = 300  # 秒
+
+
+def _member_get_spreadsheet_id():
+    """取得會員卡包所在的試算表 ID（沿用現有邏輯）"""
+    return get_spreadsheet_id()
+
+
+def _member_ensure_sheet(sheets_service, spreadsheet_id):
+    """
+    確保「會員卡包」工作表存在，若不存在則自動建立並寫入表頭。
+    整合現有自癒守衛機制的設計模式。
+    """
+    try:
+        sheet_meta = sheets_service.spreadsheets().get(
+            spreadsheetId=spreadsheet_id
+        ).execute()
+        existing_titles = [s['properties']['title'] for s in sheet_meta.get('sheets', [])]
+
+        if MEMBER_SHEET_NAME not in existing_titles:
+            print(f"[Member Module] '{MEMBER_SHEET_NAME}' 工作表不存在，正在自動建立...")
+            sheets_service.spreadsheets().batchUpdate(
+                spreadsheetId=spreadsheet_id,
+                body={'requests': [{'addSheet': {'properties': {'title': MEMBER_SHEET_NAME}}}]}
+            ).execute()
+            # 寫入表頭
+            sheets_service.spreadsheets().values().update(
+                spreadsheetId=spreadsheet_id,
+                range=f"{MEMBER_SHEET_NAME}!A1",
+                valueInputOption='RAW',
+                body={'values': [MEMBER_HEADERS]}
+            ).execute()
+            # 為表頭加上警告保護鎖（與現有模組一致）
+            updated_meta = sheets_service.spreadsheets().get(
+                spreadsheetId=spreadsheet_id
+            ).execute()
+            member_sheet_id = None
+            for s in updated_meta.get('sheets', []):
+                if s['properties']['title'] == MEMBER_SHEET_NAME:
+                    member_sheet_id = s['properties']['sheetId']
+                    break
+            if member_sheet_id is not None:
+                sheets_service.spreadsheets().batchUpdate(
+                    spreadsheetId=spreadsheet_id,
+                    body={'requests': [{
+                        'addProtectedRange': {
+                            'protectedRange': {
+                                'range': {
+                                    'sheetId': member_sheet_id,
+                                    'startRowIndex': 0, 'endRowIndex': 1,
+                                    'startColumnIndex': 0, 'endColumnIndex': len(MEMBER_HEADERS)
+                                },
+                                'description': '系統 會員卡包 核心表頭，請勿任意變動以防當機',
+                                'warningOnly': True
+                            }
+                        }
+                    }]}
+                ).execute()
+            print(f"[Member Module] '{MEMBER_SHEET_NAME}' 工作表建立完成，表頭與保護鎖已設定。")
+    except Exception as e:
+        print(f"[Member Module] _member_ensure_sheet error: {e}")
+
+
+def _member_sanitize_card_number(card_number: str) -> str:
+    """
+    後端卡號二次防禦過濾（前端正則已驗，後端再確認）。
+    只允許英數字與連字號，長度上限 100 字元。
+    """
+    import re as _re
+    if not _re.match(r'^[A-Za-z0-9\-]+$', str(card_number).strip()):
+        raise ValueError('無效的卡號格式，只允許英數字與連字號')
+    if len(card_number) > 100:
+        raise ValueError('卡號長度超過 100 字元上限')
+    return str(card_number).strip()
+
+
+def _member_get_user_id():
+    """取得目前 Session 的使用者識別碼（IDOR 防護核心）"""
+    return session.get('user_email', session.get('user_id', 'default_user'))
+
+
+def _member_read_all_from_sheet(sheets_service, spreadsheet_id, user_id):
+    """
+    從 Google Sheets 讀取指定 user_id 的所有會員卡記錄。
+    使用 5 分鐘快取機制防止 API Rate Limit。
+    Returns: (list, from_cache: bool)
+    """
+    import time as _time
+    cache_key = f"{spreadsheet_id}:{user_id}"
+    now = _time.time()
+    cached = _members_cache.get(cache_key)
+    if cached and (now - cached['ts']) < _MEMBERS_CACHE_TTL:
+        return cached['data'], True
+
+    try:
+        result = sheets_service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id,
+            range=f"{MEMBER_SHEET_NAME}!A2:J"
+        ).execute()
+        rows = result.get('values', [])
+        records = []
+        for row in rows:
+            # 補齊短行（防止欄位缺失）
+            while len(row) < len(MEMBER_HEADERS):
+                row.append('')
+            record = dict(zip(MEMBER_HEADERS, row))
+            
+            # 對應前端所需的英文 key 回傳，避免改動前端程式碼
+            mapped_record = {
+                'card_id': record.get('卡片ID'),
+                'user_id': record.get('使用者ID'),
+                'store_name': record.get('商家名稱'),
+                'card_number': record.get('卡號'),
+                'barcode_type': record.get('條碼類型'),
+                'note': record.get('備註'),
+                'brand_color': record.get('品牌顏色'),
+                'created_at': record.get('建立時間'),
+                'updated_at': record.get('更新時間'),
+                'category': record.get('卡片分類') or _member_infer_category(record.get('商家名稱', ''))
+            }
+            
+            # 只回傳屬於該 user 的卡片（IDOR 防護）
+            if mapped_record.get('user_id') == user_id and mapped_record.get('card_id'):
+                records.append(mapped_record)
+        _members_cache[cache_key] = {'data': records, 'ts': now}
+        return records, False
+    except Exception as e:
+        print(f"[Member Module] _member_read_all_from_sheet error: {e}")
+        # 快取失敗時回傳空清單
+        return [], False
+
+
+def _member_invalidate_cache(spreadsheet_id, user_id):
+    """寫入/修改/刪除後立即清除快取，確保下次查詢取得最新資料"""
+    cache_key = f"{spreadsheet_id}:{user_id}"
+    _members_cache.pop(cache_key, None)
+
+
+@app.route('/api/members', methods=['GET'])
+def member_get_all():
+    """
+    [P2] 取得目前登入使用者的所有會員卡列表。
+    快取命中時回傳 from_cache: true，不消耗 Google API 配額。
+    ---
+    Response: { success, data: [...], from_cache: bool, brand_colors: {...}, barcode_types: {...} }
+    """
+    user_id = _member_get_user_id()
+    spreadsheet_id = _member_get_spreadsheet_id()
+    if not spreadsheet_id:
+        return jsonify({'success': False, 'message': '無法取得試算表 ID，請先登入'}), 401
+    try:
+        sheets_service = get_sheets_service()
+        _member_ensure_sheet(sheets_service, spreadsheet_id)
+        records, from_cache = _member_read_all_from_sheet(sheets_service, spreadsheet_id, user_id)
+        return jsonify({
+            'success': True,
+            'data': records,
+            'from_cache': from_cache,
+            'brand_colors': MEMBER_BRAND_COLORS,
+            'barcode_types': MEMBER_BARCODE_TYPES,
+            'preset_brands': MEMBER_PRESET_BRANDS
+        })
+    except Exception as e:
+        print(f"[Member Module] GET /api/members error: {e}")
+        return jsonify({'success': False, 'message': f'讀取會員卡失敗: {str(e)}'}), 500
+
+
+@app.route('/api/members', methods=['POST'])
+def member_add():
+    """
+    [P2] 新增一張會員卡。
+    卡號採用 RAW 模式寫入，搭配單引號前綴強制文字格式，防止前導零（如電話型卡號）被 Sheets 自動截斷。
+    ---
+    Request JSON: { store_name, card_number, barcode_type, note?, brand_color? }
+    Response: { success, card_id, message }
+    """
+    user_id = _member_get_user_id()
+    spreadsheet_id = _member_get_spreadsheet_id()
+    if not spreadsheet_id:
+        return jsonify({'success': False, 'message': '無法取得試算表 ID，請先登入'}), 401
+
+    data = request.get_json() or {}
+    store_name = str(data.get('store_name', '')).strip()
+    card_number_raw = str(data.get('card_number', '')).strip()
+    barcode_type = str(data.get('barcode_type', 'CODE128')).strip()
+    note = str(data.get('note', '')).strip()
+    brand_color = str(data.get('brand_color', '')).strip()
+    category = str(data.get('category', '其他')).strip()
+
+    # 必填欄位驗證
+    if not store_name:
+        return jsonify({'success': False, 'message': '商家名稱為必填'}), 400
+    if not card_number_raw:
+        return jsonify({'success': False, 'message': '卡號為必填'}), 400
+
+    # 卡號後端安全過濾
+    try:
+        card_number = _member_sanitize_card_number(card_number_raw)
+    except ValueError as ve:
+        return jsonify({'success': False, 'message': str(ve)}), 400
+
+    # 條碼類型白名單驗證
+    allowed_barcode_types = {'CODE128', 'EAN13', 'CODE39', 'QR_CODE'}
+    if barcode_type not in allowed_barcode_types:
+        barcode_type = 'CODE128'
+
+    # 若未傳品牌色，嘗試從對照表自動推斷
+    if not brand_color:
+        brand_color = MEMBER_BRAND_COLORS.get(store_name, '#C9B8A8')
+
+    card_id = f"card_{datetime.now(TW_TZ).strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:6]}"
+    now_str = datetime.now(TW_TZ).isoformat()
+
+    # ⚠️ 卡號強制文字格式：前綴單引號 + RAW 寫入，防止 Sheets 自動將數字型卡號轉為整數
+    row = [
+        card_id,
+        user_id,
+        store_name,
+        f"'{card_number}",   # 強制文字格式
+        barcode_type,
+        note,
+        brand_color,
+        now_str,
+        now_str,
+        category
+    ]
+
+    try:
+        sheets_service = get_sheets_service()
+        _member_ensure_sheet(sheets_service, spreadsheet_id)
+        sheets_service.spreadsheets().values().append(
+            spreadsheetId=spreadsheet_id,
+            range=f"{MEMBER_SHEET_NAME}!A2",
+            valueInputOption='RAW',
+            body={'values': [row]}
+        ).execute()
+        _member_invalidate_cache(spreadsheet_id, user_id)
+        print(f"[Member Module] 新增會員卡成功: {card_id} ({store_name}) for {user_id}")
+        return jsonify({'success': True, 'card_id': card_id, 'message': f'{store_name} 的會員卡已成功新增！🎴'})
+    except Exception as e:
+        print(f"[Member Module] POST /api/members error: {e}")
+        return jsonify({'success': False, 'message': f'新增會員卡失敗: {str(e)}'}), 500
+
+
+@app.route('/api/members/<card_id>', methods=['PUT'])
+def member_update(card_id):
+    """
+    [P2] 更新指定 card_id 的會員卡資料。
+    透過逐列比對 card_id 與 user_id 雙重驗證，防止越權修改他人資料（IDOR 防護）。
+    ---
+    Request JSON: { store_name?, card_number?, barcode_type?, note?, brand_color? }
+    Response: { success, message }
+    """
+    user_id = _member_get_user_id()
+    spreadsheet_id = _member_get_spreadsheet_id()
+    if not spreadsheet_id:
+        return jsonify({'success': False, 'message': '無法取得試算表 ID，請先登入'}), 401
+
+    data = request.get_json() or {}
+
+    try:
+        sheets_service = get_sheets_service()
+        result = sheets_service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id,
+            range=f"{MEMBER_SHEET_NAME}!A2:J"
+        ).execute()
+        rows = result.get('values', [])
+
+        target_row_index = None
+        for i, row in enumerate(rows):
+            while len(row) < len(MEMBER_HEADERS):
+                row.append('')
+            record = dict(zip(MEMBER_HEADERS, row))
+            # 雙重驗證：卡片ID 正確 且 使用者ID 吻合（IDOR 防護）
+            if record.get('卡片ID') == card_id and record.get('使用者ID') == user_id:
+                target_row_index = i
+                break
+
+        if target_row_index is None:
+            return jsonify({'success': False, 'message': '找不到該會員卡，或您沒有權限修改'}), 404
+
+        # 取得現有資料後做部分更新（未傳的欄位保留原值）
+        old_row = rows[target_row_index]
+        while len(old_row) < len(MEMBER_HEADERS):
+            old_row.append('')
+        old = dict(zip(MEMBER_HEADERS, old_row))
+
+        store_name = str(data.get('store_name', old['商家名稱'])).strip() or old['商家名稱']
+        barcode_type = str(data.get('barcode_type', old['條碼類型'])).strip() or old['條碼類型']
+        note = data.get('note', old['備註'])
+        brand_color = str(data.get('brand_color', old['品牌顏色'])).strip()
+        category = str(data.get('category', old.get('卡片分類', '其他'))).strip()
+        if not brand_color:
+            brand_color = MEMBER_BRAND_COLORS.get(store_name, old.get('品牌顏色', '#C9B8A8'))
+
+        # 卡號更新（若有傳新卡號才更新）
+        if 'card_number' in data:
+            try:
+                new_card_number = _member_sanitize_card_number(str(data['card_number']))
+                card_number_cell = f"'{new_card_number}"  # 強制文字格式
+            except ValueError as ve:
+                return jsonify({'success': False, 'message': str(ve)}), 400
+        else:
+            card_number_cell = old['卡號']  # 保留原值（含原本 the 單引號前綴）
+
+        # 條碼類型白名單驗證
+        allowed_barcode_types = {'CODE128', 'EAN13', 'CODE39', 'QR_CODE'}
+        if barcode_type not in allowed_barcode_types:
+            barcode_type = 'CODE128'
+
+        updated_row = [
+            card_id,
+            user_id,
+            store_name,
+            card_number_cell,
+            barcode_type,
+            note,
+            brand_color,
+            old['建立時間'],
+            datetime.now(TW_TZ).isoformat(),
+            category
+        ]
+
+        # 計算實際行號（試算表 Row 1 = 表頭，資料從 Row 2 開始）
+        sheet_row_number = target_row_index + 2
+        sheets_service.spreadsheets().values().update(
+            spreadsheetId=spreadsheet_id,
+            range=f"{MEMBER_SHEET_NAME}!A{sheet_row_number}:J{sheet_row_number}",
+            valueInputOption='RAW',
+            body={'values': [updated_row]}
+        ).execute()
+        _member_invalidate_cache(spreadsheet_id, user_id)
+        print(f"[Member Module] 更新會員卡成功: {card_id} for {user_id}")
+        return jsonify({'success': True, 'message': '會員卡資料已成功更新！✅'})
+    except Exception as e:
+        print(f"[Member Module] PUT /api/members/{card_id} error: {e}")
+        return jsonify({'success': False, 'message': f'更新會員卡失敗: {str(e)}'}), 500
+
+
+@app.route('/api/members/<card_id>', methods=['DELETE'])
+def member_delete(card_id):
+    """
+    [P2] 刪除指定 card_id 的會員卡。
+    採用「清空列內容」策略（而非刪除整列），避免影響其他列的行號計算。
+    透過 card_id + user_id 雙重驗證防止越權刪除（IDOR 防護）。
+    ---
+    Response: { success, message }
+    """
+    user_id = _member_get_user_id()
+    spreadsheet_id = _member_get_spreadsheet_id()
+    if not spreadsheet_id:
+        return jsonify({'success': False, 'message': '無法取得試算表 ID，請先登入'}), 401
+
+    try:
+        sheets_service = get_sheets_service()
+        result = sheets_service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id,
+            range=f"{MEMBER_SHEET_NAME}!A2:J"
+        ).execute()
+        rows = result.get('values', [])
+
+        target_row_index = None
+        for i, row in enumerate(rows):
+            while len(row) < len(MEMBER_HEADERS):
+                row.append('')
+            record = dict(zip(MEMBER_HEADERS, row))
+            if record.get('卡片ID') == card_id and record.get('使用者ID') == user_id:
+                target_row_index = i
+                break
+
+        if target_row_index is None:
+            return jsonify({'success': False, 'message': '找不到該會員卡，或您沒有權限刪除'}), 404
+
+        # 取得試算表中的 sheetId（用於 deleteDimension）
+        sheet_meta = sheets_service.spreadsheets().get(
+            spreadsheetId=spreadsheet_id
+        ).execute()
+        member_sheet_id = None
+        for s in sheet_meta.get('sheets', []):
+            if s['properties']['title'] == MEMBER_SHEET_NAME:
+                member_sheet_id = s['properties']['sheetId']
+                break
+
+        if member_sheet_id is None:
+            return jsonify({'success': False, 'message': '找不到會員卡包工作表'}), 500
+
+        # 採用 deleteDimension 真正刪除整列，避免空白列殘留
+        actual_row_index = target_row_index + 1  # +1 因為 index 0 = Row 1 表頭，資料從 index 1 開始
+        sheets_service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body={'requests': [{
+                'deleteDimension': {
+                    'range': {
+                        'sheetId': member_sheet_id,
+                        'dimension': 'ROWS',
+                        'startIndex': actual_row_index,
+                        'endIndex': actual_row_index + 1
+                    }
+                }
+            }]}
+        ).execute()
+        _member_invalidate_cache(spreadsheet_id, user_id)
+        print(f"[Member Module] 刪除會員卡成功: {card_id} for {user_id}")
+        return jsonify({'success': True, 'message': '會員卡已成功刪除！🗑️'})
+    except Exception as e:
+        print(f"[Member Module] DELETE /api/members/{card_id} error: {e}")
+        return jsonify({'success': False, 'message': f'刪除會員卡失敗: {str(e)}'}), 500
+
+
+@app.route('/api/members/brands', methods=['GET'])
+def member_get_brands():
+    """
+    [P2] 取得商家品牌資料庫（品牌色 + 建議條碼類型），供前端表單自動填入使用。
+    ---
+    Response: { success, brand_colors: {...}, barcode_types: {...} }
+    """
+    return jsonify({
+        'success': True,
+        'brand_colors': MEMBER_BRAND_COLORS,
+        'barcode_types': MEMBER_BARCODE_TYPES,
+        'preset_brands': MEMBER_PRESET_BRANDS
+    })
+
+
+# ===              END OF MEMBER CARD MODULE                    ===
+# ================================================================
 
 @app.route('/api/admin/sync_stocks', methods=['POST'])
 def force_sync_stocks_api():
