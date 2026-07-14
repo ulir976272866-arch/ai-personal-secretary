@@ -1635,10 +1635,18 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 特權防線攔截
-        if (id !== 'upgradePaywallModal' && !window.checkFeatureAccess(id)) {
+        // 特權防線攔截（對退款政策彈窗免檢放行）
+        if (id !== 'upgradePaywallModal' && id !== 'refundPolicyModal' && !window.checkFeatureAccess(id)) {
             window.openModal('upgradePaywallModal');
             return;
+        }
+
+        // 升級方案自動彈出合理退款政策
+        if (id === 'upgradePaywallModal' && !localStorage.getItem('refund_policy_agreed')) {
+            if (typeof window.showRefundPolicy === 'function') {
+                // 稍微延遲以確保升級彈窗先渲染完畢，再彈出確認視窗
+                setTimeout(() => window.showRefundPolicy(), 100);
+            }
         }
 
         if (id === 'expenseModal') {

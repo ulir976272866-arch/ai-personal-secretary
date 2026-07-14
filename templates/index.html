@@ -1930,7 +1930,6 @@
                         <strong>試用權益保障</strong>：若您目前仍處於免費試用中，現在升級訂閱將<strong>完整保留並加贈</strong>您剩餘的試用天數（正式扣款與計費天數將在試用期結束後才開始計算），請安心升級！
                     </p>
                 </div>
-
                 <!-- 方案卡片區 -->
                 <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 25px;">
                     <!-- 基礎版 -->
@@ -1990,13 +1989,49 @@
                 </div>
             </div>
             
-            <div class="modal-footer" style="padding-top: 15px; border-top: 1px solid #f1f5f9; text-align: center;">
-                <p style="font-size: 0.75rem; color: #94a3b8; margin: 0;">100% 隱私去中心化資產管理 • 無任何內置插頁廣告干擾</p>
+            <div class="modal-footer" style="padding-top: 10px; border-top: 1px solid #f1f5f9; text-align: center; display: flex; flex-direction: column; gap: 6px; position: relative; z-index: 9999;">
+                <p style="font-size: 0.72rem; color: #94a3b8; margin: 0;">100% 隱私去中心化專屬資產管理 • 無任何內置插頁廣告干擾</p>
+                <p style="font-size: 0.68rem; color: #64748b; margin: 0;">
+                    升級即代表您自動同意本站的 <span style="color: #4f46e5; font-weight: 600;">合理退費政策與服務條款</span>
+                </p>
             </div>
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=12.0"></script>
+    <script>
+        // 🛡️ 獨立退費政策宣告 (改為全域函數以供自動彈出)
+        window.showRefundPolicy = async function() {
+            const policyHtml = `
+                <div style="font-size: 0.82rem; text-align: left; color: #475569; line-height: 1.65; max-height: 280px; overflow-y: auto; padding: 2px;">
+                    <ul style="margin: 0; padding-left: 18px; list-style-type: disc; display: flex; flex-direction: column; gap: 8px;">
+                        <li><strong>比例退費計算</strong>：退款金額將依據剩餘天數進行比例退還（<code>退款 = 剩餘天數價值 - 原方案總價之 2.5% 手續費</code>）。</li>
+                        <li><strong>金流手續費扣除</strong>：統一金流等服務商於交易成立時將收取不可退還之 <strong>2.5% 手續服務費及跨行轉帳費用（如有）</strong>，該費用將從退款總額中直接扣除。</li>
+                        <li><strong>AI 點數額度回收</strong>：提出退費後，系統將<strong>同步回收本月已發放之 AI 智慧點數額度並將帳號重設回免費版</strong>。若剩餘點數不足扣回，將依比例自退款中折抵扣除。</li>
+                    </ul>
+                </div>
+            `;
+            if (typeof window.customConfirm === 'function') {
+                const agreed = await window.customConfirm('合理退款與手續費說明 🛡️', policyHtml, '🛡️', '我已閱讀並同意', false);
+                if (agreed) {
+                    try {
+                        const res = await fetch('/api/user/agree_refund_policy', { method: 'POST' });
+                        const data = await res.json();
+                        if (data.status === 'success') {
+                            localStorage.setItem('refund_policy_agreed', 'true');
+                            window.showToast('✅ 已記錄您的同意聲明！', 'success');
+                        }
+                    } catch (err) {
+                        console.error('[Refund Policy Agreement Save Error]', err);
+                    }
+                }
+            } else {
+                alert("合理退費政策：\n1. 依天數比例退還（扣除2.5%金流手續費）。\n2. 系統同步回收當月贈送之AI點數額度。");
+                localStorage.setItem('refund_policy_agreed', 'true');
+            }
+        }
+    </script>
+
+    <script src="/static/js/app.js?v=12.1"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&libraries=places&callback=initMap" async defer></script>
 
     <!-- 📊 存股看板 Modal (V3.2 - Interactive Premium Dashboard) -->

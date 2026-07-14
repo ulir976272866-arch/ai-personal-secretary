@@ -500,7 +500,7 @@
             </div>
         </div>
 
-        <!-- 右側：訂單確認區（卡號由綠界頁面處理）-->
+        <!-- 右側：訂單確認區（卡號由統一金流頁面處理）-->
         <div class="payment-form-panel" style="justify-content: center; gap: 0;">
 
             <!-- 標題 -->
@@ -509,7 +509,7 @@
                 確認訂單並前往付款
             </h2>
 
-            <!-- ECPay 說明卡片 -->
+            <!-- UniPay 說明卡片 -->
             <div style="background: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(79,70,229,0.05) 100%); border: 1.5px solid rgba(99,102,241,0.25); border-radius: 20px; padding: 24px; margin-bottom: 24px;">
                 <!-- 步驟說明 -->
                 <div style="display: flex; flex-direction: column; gap: 14px;">
@@ -517,14 +517,14 @@
                         <div style="width: 28px; height: 28px; background: rgba(99,102,241,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: #818cf8; flex-shrink: 0;">1</div>
                         <div>
                             <div style="font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin-bottom: 2px;">點擊下方按鈕</div>
-                            <div style="font-size: 0.75rem; color: #94a3b8;">系統將安全跳轉至綠界科技官方支付頁面</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8;">系統將安全跳轉至統一金流官方支付頁面</div>
                         </div>
                     </div>
                     <div style="display: flex; align-items: flex-start; gap: 12px;">
                         <div style="width: 28px; height: 28px; background: rgba(99,102,241,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: #818cf8; flex-shrink: 0;">2</div>
                         <div>
-                            <div style="font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin-bottom: 2px;">在綠界頁面輸入信用卡資訊</div>
-                            <div style="font-size: 0.75rem; color: #94a3b8;">卡號輸入由綠界科技官方頁面處理，安全無虞</div>
+                            <div style="font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin-bottom: 2px;">在統一金流頁面輸入信用卡資訊</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8;">卡號輸入由統一金流官方安全通道處理，安全無虞</div>
                         </div>
                     </div>
                     <div style="display: flex; align-items: flex-start; gap: 12px;">
@@ -543,20 +543,20 @@
                 <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.72rem; color: #64748b;">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                     <span>SSL 256-bit 安全加密 · 由</span>
-                    <span style="font-weight: 700; color: #94a3b8;">綠界科技 ECPay</span>
+                    <span style="font-weight: 700; color: #94a3b8;">統一金流 UniPay</span>
                     <span>官方平台處理</span>
                 </div>
             </div>
 
             <!-- 主要付款按鈕 -->
-            <button type="button" id="ecpay-pay-btn" class="btn-pay-premium" onclick="triggerECPayCheckout()" style="font-size: 1.05rem; padding: 18px; letter-spacing: 0.3px;">
+            <button type="button" id="unipay-pay-btn" class="btn-pay-premium" onclick="triggerUniPayCheckout()" style="font-size: 1.05rem; padding: 18px; letter-spacing: 0.3px;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-                前往綠界安全刷卡 (NT$ {{ price }})
+                前往統一金流安全刷卡 (NT$ {{ price }})
             </button>
 
-            <!-- 🧪 開發模擬區（虛線框，顯眼但不干擾主流程）-->
-            <div style="border: 1.5px dashed rgba(255,255,255,0.1); border-radius: 14px; padding: 16px; margin-top: 16px;">
-                <div style="font-size: 0.7rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 1px; text-align: center; margin-bottom: 12px;">🧪 Dev 模擬金流（跳過綠界）</div>
+            <!-- 🧪 開發模擬區（虛線框，僅在本地 127.0.0.1 或 localhost 顯示，正式網址自動隱藏）-->
+            <div id="dev-mock-payment-section" style="display: none; border: 1.5px dashed rgba(255,255,255,0.1); border-radius: 14px; padding: 16px; margin-top: 16px;">
+                <div style="font-size: 0.7rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 1px; text-align: center; margin-bottom: 12px;">🧪 Dev 模擬金流（跳過統一金流）</div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; box-sizing: border-box;">
                     <button type="button" onclick="triggerMockPayment(true)"
                         style="width: 100%; box-sizing: border-box; padding: 11px 8px; border-radius: 10px; border: 1.5px solid rgba(16,185,129,0.4); background: rgba(16,185,129,0.08); color: #34d399; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;"
@@ -581,7 +581,7 @@
     <!-- 🔒 全螢幕支付中載入動畫層 -->
     <div class="payment-loading-overlay" id="loading-overlay">
         <div class="loading-ring"></div>
-        <h3 class="loading-title" id="loading-title">正在連線至綠界安全支付...</h3>
+        <h3 class="loading-title" id="loading-title">正在連線至統一金流安全支付...</h3>
         <p class="loading-desc" id="loading-desc">正在產生簽章並準備跳轉，請稍候</p>
     </div>
 
@@ -589,9 +589,16 @@
         // 自動生成模擬交易序號（僅顯示用）
         document.getElementById('transaction-id').innerText = 'UTK-' + Date.now().toString(36).toUpperCase();
 
-        // ─── 綠界 ECPay 付款跳轉核心邏輯 ───
-        async function triggerECPayCheckout() {
-            const btn     = document.getElementById('ecpay-pay-btn');
+        // 🌟 僅在本地開發環境（localhost 或 127.0.0.1）顯示 Dev 模擬按鈕，正式網頁自動隱藏
+        const hostname = window.location.hostname;
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            const devSection = document.getElementById('dev-mock-payment-section');
+            if (devSection) devSection.style.display = 'block';
+        }
+
+        // ─── 統一金流 UniPay 付款跳轉核心邏輯 ───
+        async function triggerUniPayCheckout() {
+            const btn     = document.getElementById('unipay-pay-btn');
             const overlay = document.getElementById('loading-overlay');
             const title   = document.getElementById('loading-title');
             const desc    = document.getElementById('loading-desc');
@@ -600,11 +607,11 @@
             btn.disabled = true;
             btn.style.opacity = '0.7';
             overlay.classList.add('active');
-            title.innerText = '正在連線至綠界安全支付...';
-            desc.innerText  = '正在產生交易簽章，即將跳轉至綠界支付頁面，請稍候';
+            title.innerText = '正在連線至統一金流安全支付...';
+            desc.innerText  = '正在產生交易簽章，即將跳轉至統一金流支付頁面，請稍候';
 
             try {
-                // 2. 向後端取得綠界自動送出表單 HTML
+                // 2. 向後端取得統一金流自動送出表單 HTML (在此依然先導向原本的金流介面做跳轉)
                 const res = await fetch('/ecpay/checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -620,22 +627,22 @@
 
                 const formHtml = await res.text();
 
-                // 3. 注入表單至 DOM 並立即 submit 至綠界
+                // 3. 注入表單至 DOM 並立即 submit
                 document.body.insertAdjacentHTML('beforeend', formHtml);
                 const ecpayForm = document.getElementById('ecpay-auto-form');
                 if (ecpayForm) {
                     title.innerText = '✅ 簽章驗證完成，正在跳轉...';
-                    desc.innerText  = '即將前往綠界科技安全支付頁面，請稍候';
+                    desc.innerText  = '即將前往統一金流官方安全支付頁面，請稍候';
                     setTimeout(() => ecpayForm.submit(), 500);
                 } else {
-                    throw new Error('找不到 ECPay 表單元素');
+                    throw new Error('找不到 UniPay 表單元素');
                 }
             } catch (err) {
-                console.error('[ECPay Checkout Error]', err);
+                console.error('[UniPay Checkout Error]', err);
                 overlay.classList.remove('active');
                 btn.disabled = false;
                 btn.style.opacity = '1';
-                alert('❌ 連線綠界金流失敗：' + err.message + '\n\n請確認伺服器正常運作後重試。');
+                alert('❌ 連線統一金流失敗：' + err.message + '\n\n請確認伺服器正常運作後重試。');
             }
         }
 

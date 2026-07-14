@@ -2299,6 +2299,152 @@ def api_mock_payment_process():
             conn.close()
 
 
+@app.route('/api/admin/refund', methods=['POST'])
+def api_admin_refund():
+    """
+    [Admin] 退款與特權回收機制
+    自動依使用天數計算比例退款，並扣除「原價的 2.5% 金流交易手續費」後得出實際應退款金額。
+    接受參數: { email, tier }
+    """
+    # 限制只有開發者本人信箱可呼叫退費 API
+    current_user_email = session.get('user_email', '')
+    if current_user_email != 'ulir976272866@gmail.com':
+        return jsonify({"status": "error", "message": "無此操作權限！"}), 403
+
+    data = request.json or {}
+    email = data.get('email', '').strip()
+    tier = data.get('tier', 'BASIC').strip()  # BASIC, PREMIUM_MONTHLY, PREMIUM, POINTS_300, POINTS_600
+
+    if not email:
+        return jsonify({"status": "error", "message": "缺少用戶信箱"}), 400
+
+    # 取得不同方案的原價與對應天數
+    tier_prices = {
+        'BASIC': (119, 30),
+        'PREMIUM_MONTHLY': (199, 30),
+        'PREMIUM': (1990, 365),
+        'POINTS_300': (70, 0),
+        'POINTS_600': (120, 0)
+    }
+
+    if tier not in tier_prices:
+        return jsonify({"status": "error", "message": "不支援的退款方案"}), 400
+
+    original_price, total_days = tier_prices[tier]
+
+    try:
+        conn = get_db_connection()
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            cursor.execute("SELECT * FROM users WHERE email = %s;", (email,))
+            user = cursor.fetchone()
+            if not user:
+                return jsonify({"status": "error", "message": "找不到該用戶"}), 404
+
+            current_points = user.get('ai_points', 0)
+            
+            # 計算退款金額
+            calculated_refund = 0
+            processing_fee = round(original_price * 0.025)  # 2.5% 金流手續費
+
+            if total_days > 0:
+                # 訂閱類別：按天數比例退費
+                sub_expires = user.get('subscription_expires_at')
+                from datetime import datetime
+                if sub_expires:
+                    if isinstance(sub_expires, str):
+                        try: sub_expires = datetime.strptime(sub_expires, "%Y-%m-%d %H:%M:%S")
+                        except ValueError: pass
+                    
+                    now = datetime.now()
+                    if sub_expires > now:
+                        # 剩餘天數
+                        remaining_days = (sub_expires - now).days + 1
+                        remaining_days = min(total_days, remaining_days)
+                        # 按比例價值
+                        prorated_value = (original_price / total_days) * remaining_days
+                        # 實際退款 = 比例價值 - 2.5% 手續費
+                        calculated_refund = max(0, round(prorated_value - processing_fee))
+                        print(f"[Admin Refund Calc] {email} {tier}: 剩餘 {remaining_days}/{total_days} 天, 比例價值 NT${round(prorated_value)}, 手續費 NT${processing_fee}, 實際退還 NT${calculated_refund}")
+                    else:
+                        return jsonify({"status": "error", "message": "該用戶方案已過期，無法退費"}), 400
+                else:
+                    return jsonify({"status": "error", "message": "找不到該用戶的訂閱到期時間，無法計算比例"}), 400
+            else:
+                # 點數購買退款（若點數沒用，則扣除 2.5% 手續費後全退，否則不予退費）
+                points_volume = 300 if tier == 'POINTS_300' else 600
+                if current_points >= points_volume:
+                    calculated_refund = max(0, original_price - processing_fee)
+                else:
+                    return jsonify({"status": "error", "message": "用戶點數已部分使用，無法進行點數加購退費"}), 400
+
+            # 1. 回收訂閱特權或扣回點數
+            if tier in ['BASIC', 'PREMIUM_MONTHLY', 'PREMIUM']:
+                points_to_deduct = 500 if tier == 'BASIC' else 650
+                new_points = max(0, current_points - points_to_deduct)
+                cursor.execute(
+                    "UPDATE users SET is_subscribed = 0, subscription_type = 'NONE', subscription_expires_at = NULL, ai_points = %s WHERE email = %s;",
+                    (new_points, email)
+                )
+            elif tier == 'POINTS_300':
+                new_points = max(0, current_points - 300)
+                cursor.execute("UPDATE users SET ai_points = %s WHERE email = %s;", (new_points, email))
+            elif tier == 'POINTS_600':
+                new_points = max(0, current_points - 600)
+                cursor.execute("UPDATE users SET ai_points = %s WHERE email = %s;", (new_points, email))
+
+            conn.commit()
+
+            # 2. 如果退款用戶剛好是當前登入者，同步重設 session
+            if session.get('user_email') == email:
+                session['is_subscribed'] = False
+                session['subscription_type'] = 'NONE'
+                session['subscription_expires_at'] = None
+                session['ai_points'] = new_points
+
+            print(f"[Admin Refund Success] 用戶 {email} 方案 {tier} 已退款。扣除後AI點數: {new_points}，實際應退款金額: NT${calculated_refund}")
+            return jsonify({
+                "status": "success", 
+                "message": f"退款權限回收完成！已回收 AI 額度並取消方案。本次「比例退款金額」(已扣除 2.5% 手續費 NT${processing_fee}) 計算結果為：NT$ {calculated_refund} 元。請手動至統一金流後台執行此金額退款。"
+            })
+
+    except Exception as e:
+        print(f"[Admin Refund Error] 退款處理失敗: {e}")
+        return jsonify({"status": "error", "message": f"退款處理失敗: {str(e)}"}), 500
+    finally:
+        if 'conn' in locals() and conn:
+            conn.close()
+
+@app.route('/api/user/agree_refund_policy', methods=['POST'])
+def api_user_agree_refund_policy():
+    """
+    [User] 記錄使用者同意合理退款政策之時間戳記
+    ---
+    Response: { status, message }
+    """
+    email = session.get('user_email')
+    if not email:
+        return jsonify({"status": "error", "message": "尚未登入，無法記錄"}), 401
+
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            from datetime import datetime
+            now_time = datetime.now(TW_TZ).strftime('%Y-%m-%d %H:%M:%S')
+            cursor.execute(
+                "UPDATE users SET refund_policy_agreed_at = %s WHERE email = %s;",
+                (now_time, email)
+            )
+            conn.commit()
+            print(f"[Refund Policy Policy] 用戶 {email} 於 {now_time} 點選確認並同意合理退費政策與服務條款。")
+            return jsonify({"status": "success", "message": "已成功記錄同意時間。"})
+    except Exception as e:
+        print(f"[Refund Policy Error] 記錄用戶同意時間失敗: {e}")
+        return jsonify({"status": "error", "message": f"伺服器記錄失敗: {str(e)}"}), 500
+    finally:
+        if 'conn' in locals() and conn:
+            conn.close()
+
+
 # ============================================================
 # 🏦 綠界科技（ECPay）金流串接路由 (測試環境)
 # ============================================================
@@ -8841,6 +8987,14 @@ def init_users_table_migration():
                 cursor.execute("ALTER TABLE users ADD COLUMN daily_ad_rewards_count INT DEFAULT 0;")
                 conn.commit()
                 print("[Subscription DB Guard] 成功自癒升級！已為 users 表新增 daily_ad_rewards_count 欄位。")
+            except Exception:
+                pass
+
+            # 嘗試新增 refund_policy_agreed_at 欄位
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN refund_policy_agreed_at TIMESTAMP NULL DEFAULT NULL;")
+                conn.commit()
+                print("[Subscription DB Guard] 成功自癒升級！已為 users 表新增 refund_policy_agreed_at 欄位。")
             except Exception:
                 pass
     except Exception as e:
