@@ -2303,7 +2303,7 @@ def api_mock_payment_process():
 def api_admin_refund():
     """
     [Admin] 退款與特權回收機制
-    自動依使用天數計算比例退款，並扣除「原價的 2.5% 金流交易手續費」後得出實際應退款金額。
+    自動依使用天數計算比例退款，並扣除「原價的 5% 金流交易手續費」後得出實際應退款金額。
     接受參數: { email, tier }
     """
     # 限制只有開發者本人信箱可呼叫退費 API
@@ -2344,33 +2344,50 @@ def api_admin_refund():
             
             # 計算退款金額
             calculated_refund = 0
-            processing_fee = round(original_price * 0.025)  # 2.5% 金流手續費
+            processing_fee = round(original_price * 0.05)  # 5% 金流手續費
 
             if total_days > 0:
                 # 訂閱類別：按天數比例退費
                 sub_expires = user.get('subscription_expires_at')
-                from datetime import datetime
+                from datetime import datetime, timedelta
                 if sub_expires:
                     if isinstance(sub_expires, str):
                         try: sub_expires = datetime.strptime(sub_expires, "%Y-%m-%d %H:%M:%S")
                         except ValueError: pass
                     
                     now = datetime.now()
-                    if sub_expires > now:
-                        # 剩餘天數
-                        remaining_days = (sub_expires - now).days + 1
-                        remaining_days = min(total_days, remaining_days)
-                        # 按比例價值
-                        prorated_value = (original_price / total_days) * remaining_days
-                        # 實際退款 = 比例價值 - 2.5% 手續費
-                        calculated_refund = max(0, round(prorated_value - processing_fee))
-                        print(f"[Admin Refund Calc] {email} {tier}: 剩餘 {remaining_days}/{total_days} 天, 比例價值 NT${round(prorated_value)}, 手續費 NT${processing_fee}, 實際退還 NT${calculated_refund}")
+                    # 統一為 naive datetime 進行比較
+                    if sub_expires.tzinfo is not None:
+                        sub_expires_naive = sub_expires.replace(tzinfo=None)
+                    else:
+                        sub_expires_naive = sub_expires
+                        
+                    now_naive = now.replace(tzinfo=None)
+                    
+                    # 計算購買時間
+                    purchase_date = sub_expires_naive - timedelta(days=total_days)
+                    days_since_purchase = (now_naive - purchase_date).days
+                    
+                    if sub_expires_naive > now_naive:
+                        if days_since_purchase <= 7:
+                            # 7日無條件退費 (扣除 5% 手續費)
+                            calculated_refund = max(0, original_price - processing_fee)
+                            print(f"[Admin Refund Calc] {email} {tier}: 於購買 7 日內申請無條件退款, 原價 NT${original_price}, 手續費 NT${processing_fee}, 實際退還 NT${calculated_refund}")
+                        else:
+                            # 超過 7 日按天數比例退費
+                            remaining_days = (sub_expires_naive - now_naive).days + 1
+                            remaining_days = min(total_days, remaining_days)
+                            # 按比例價值
+                            prorated_value = (original_price / total_days) * remaining_days
+                            # 實際退款 = 比例價值 - 5% 手續費
+                            calculated_refund = max(0, round(prorated_value - processing_fee))
+                            print(f"[Admin Refund Calc] {email} {tier}: 已購超 7 日按比例退款. 剩餘 {remaining_days}/{total_days} 天, 比例價值 NT${round(prorated_value)}, 手續費 NT${processing_fee}, 實際退還 NT${calculated_refund}")
                     else:
                         return jsonify({"status": "error", "message": "該用戶方案已過期，無法退費"}), 400
                 else:
                     return jsonify({"status": "error", "message": "找不到該用戶的訂閱到期時間，無法計算比例"}), 400
             else:
-                # 點數購買退款（若點數沒用，則扣除 2.5% 手續費後全退，否則不予退費）
+                # 點數購買退款（若點數沒用，則扣除 5% 手續費後全退，否則不予退費）
                 points_volume = 300 if tier == 'POINTS_300' else 600
                 if current_points >= points_volume:
                     calculated_refund = max(0, original_price - processing_fee)
@@ -2404,7 +2421,7 @@ def api_admin_refund():
             print(f"[Admin Refund Success] 用戶 {email} 方案 {tier} 已退款。扣除後AI點數: {new_points}，實際應退款金額: NT${calculated_refund}")
             return jsonify({
                 "status": "success", 
-                "message": f"退款權限回收完成！已回收 AI 額度並取消方案。本次「比例退款金額」(已扣除 2.5% 手續費 NT${processing_fee}) 計算結果為：NT$ {calculated_refund} 元。請手動至統一金流後台執行此金額退款。"
+                "message": f"退款權限回收完成！已回收 AI 額度並取消方案。本次「退款金額」(已扣除 5% 手續費 NT${processing_fee}) 計算結果為：NT$ {calculated_refund} 元。請手動至統一金流後台執行此金額退款。"
             })
 
     except Exception as e:
