@@ -1109,6 +1109,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 商業版模擬訂閱與加購 (導向金流收銀台)
     window.mockSubscribe = async (tier) => {
+        // --- 退款政策強制同意攔截 ---
+        if (!localStorage.getItem('refund_policy_agreed')) {
+            if (typeof window.showRefundPolicy === 'function') {
+                const agreed = await window.showRefundPolicy();
+                if (!agreed) {
+                    window.showToast('您必須同意合理退費政策與服務條款才能進行訂閱。', 'error');
+                    return; // 拒絕同意則中斷結帳流程
+                }
+            }
+        }
+
         const currentType = window.USER_SUBSCRIPTION_TYPE || 'NONE';
         const isSubscribed = window.USER_IS_SUBSCRIBED;
         const isTrialActive = window.USER_IS_TRIAL_ACTIVE;

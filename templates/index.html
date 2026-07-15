@@ -262,10 +262,23 @@
             }
         };
 
+        window.isInAppBrowser = () => {
+            const ua = navigator.userAgent || navigator.vendor || window.opera;
+            // 偵測常見的 In-App Browser：LINE, Facebook, Instagram, Messenger, WeChat 等
+            return /FBAV|FBAN|FBIOS|FB_IAB|Instagram|Line|Threads|MicroMessenger/i.test(ua);
+        };
+
         window.handleLoginClick = (e) => {
             const btn = document.getElementById('google-login-btn');
             if (btn && btn.classList.contains('disabled')) {
                 e.preventDefault();
+                return;
+            }
+
+            // 檢查是否為 In-App Browser (避免 Google OAuth 403 disallowed_useragent 錯誤)
+            if (window.isInAppBrowser()) {
+                e.preventDefault();
+                alert('⚠️ 安全限制提醒 ⚠️\n\n您目前正在使用 LINE/FB 等內建瀏覽器，Google 會基於安全考量封鎖登入 (Error 403)。\n\n👉 請點擊右上角或右下角的選單按鈕 (⋮ 或 ⋯)\n👉 選擇「使用 Safari 開啟」或「使用 Chrome 開啟」\n\n這樣才能順利登入喔！');
             }
         };
 
@@ -1992,7 +2005,7 @@
             <div class="modal-footer" style="padding-top: 10px; border-top: 1px solid #f1f5f9; text-align: center; display: flex; flex-direction: column; gap: 6px; position: relative; z-index: 9999;">
                 <p style="font-size: 0.72rem; color: #94a3b8; margin: 0;">100% 隱私去中心化專屬資產管理 • 無任何內置插頁廣告干擾</p>
                 <p style="font-size: 0.68rem; color: #64748b; margin: 0;">
-                    升級即代表您自動同意本站的 <span style="color: #4f46e5; font-weight: 600;">合理退費政策與服務條款</span>
+                    升級即代表您自動同意本站的 <a href="javascript:void(0);" onclick="window.showRefundPolicy()" style="color: #4f46e5; text-decoration: underline; font-weight: 600; cursor: pointer; position: relative; z-index: 99999;">合理退費政策與服務條款</a>
                 </p>
             </div>
         </div>
@@ -2011,7 +2024,7 @@
                 </div>
             `;
             if (typeof window.customConfirm === 'function') {
-                const agreed = await window.customConfirm('合理退款與手續費說明 🛡️', policyHtml, '🛡️', '我已閱讀並同意', false);
+                const agreed = await window.customConfirm('合理退款與手續費說明 🛡️', policyHtml, '🛡️', '我已閱讀並同意', true); // 開啟取消按鈕
                 if (agreed) {
                     try {
                         const res = await fetch('/api/user/agree_refund_policy', { method: 'POST' });
@@ -2023,15 +2036,18 @@
                     } catch (err) {
                         console.error('[Refund Policy Agreement Save Error]', err);
                     }
+                    return true;
                 }
+                return false;
             } else {
                 alert("合理退費政策：\n1. 依天數比例退還（扣除2.5%金流手續費）。\n2. 系統同步回收當月贈送之AI點數額度。");
                 localStorage.setItem('refund_policy_agreed', 'true');
+                return true;
             }
         }
     </script>
 
-    <script src="/static/js/app.js?v=12.1"></script>
+    <script src="/static/js/app.js?v=12.2"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&libraries=places&callback=initMap" async defer></script>
 
     <!-- 📊 存股看板 Modal (V3.2 - Interactive Premium Dashboard) -->
