@@ -969,11 +969,18 @@ select.form-input {
     padding: 4px;
     border-radius: 12px;
     margin-bottom: 0px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+}
+
+.parent-tabs::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
 }
 
 .tab-btn {
-    flex: 1;
-    padding: 7px 4px;
+    flex: 0 0 auto;
+    padding: 7px 12px;
     border: none;
     background: transparent;
     border-radius: 10px;
@@ -986,6 +993,16 @@ select.form-input {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+}
+
+.tab-btn.tab-locked {
+    opacity: 0.55;
+    filter: grayscale(0.95);
+    background: transparent;
+}
+
+.tab-btn.tab-locked:hover {
+    opacity: 0.75;
 }
 
 .tab-btn.active {

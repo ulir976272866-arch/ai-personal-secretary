@@ -1084,11 +1084,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const subType = window.USER_SUBSCRIPTION_TYPE || 'NONE';
         
-        // 免費版 (NONE) 鎖定：行程、備忘、健康、股票、報稅收據
-        const freeLockedTabs = ['schedule', 'memo', 'health', 'stock', 'tax'];
+        // 免費版 (NONE) 鎖定：行程、備忘、健康、股票、報稅收據、卡包
+        const freeLockedTabs = ['schedule', 'memo', 'health', 'stock', 'tax', 'member'];
         const freeLockedModals = [
             'scheduleModal', 'memoModal', 'todoModal', 'pocketModal', 
-            'wishlistModal', 'healthModal', 'trackingModal', 'trainingModal', 'stockModal', 'stockAnalysisModal'
+            'wishlistModal', 'healthModal', 'trackingModal', 'trainingModal', 'stockModal', 'stockAnalysisModal', 'memberModal'
         ];
         
         // 基礎版 (MONTHLY_AI) 鎖定：股票
@@ -1146,7 +1146,7 @@ document.addEventListener('DOMContentLoaded', () => {
             targetTier = 'PREMIUM_UPGRADE';
         }
         // 另開新分頁前往結帳，主畫面保持不動
-        window.open(`/mock/checkout?tier=${targetTier}&email=${encodeURIComponent(email)}`, '_blank');
+        window.open(`/mock/checkout?tier=${targetTier}&email=${encodeURIComponent(email)}&recurring=${window.subscriptionMode === 'recurring' ? '1' : '0'}`, '_blank');
     };
 
     window.mockBuyPoints = async (points, price) => {

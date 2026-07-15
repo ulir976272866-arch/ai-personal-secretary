@@ -2183,13 +2183,16 @@ def mock_checkout():
         product_name = "AI 智慧點數 600 點加購"
         product_desc = "為您的生活與秘書助理充值 600 點 AI 智慧對話額度，極致劃算，永不過期！"
         
+    is_recurring = request.args.get('recurring', '0') == '1'
+        
     return render_template(
         'checkout.html',
         tier=tier,
         email=email,
         price=price,
         product_name=product_name,
-        product_desc=product_desc
+        product_desc=product_desc,
+        is_recurring=is_recurring
     )
 
 
@@ -2521,6 +2524,8 @@ def ecpay_checkout():
     return_url = f"{base_url}/ecpay/return"
 
 
+    is_recurring = data.get('is_recurring', False)
+
     params = {
         'MerchantID':        ECPAY_MERCHANT_ID,
         'MerchantTradeNo':   trade_no,
@@ -2536,6 +2541,17 @@ def ecpay_checkout():
         'CustomField1':      email,
         'CustomField2':      tier,
     }
+
+    if is_recurring:
+        period_type = 'Y' if tier in ['PREMIUM', 'PREMIUM_UPGRADE'] else 'M'
+        exec_times = '9' if period_type == 'Y' else '99'
+        params.update({
+            'PeriodAmount':    str(price),
+            'PeriodType':      period_type,
+            'Frequency':       '1',
+            'ExecTimes':       exec_times,
+            'PeriodReturnURL': f"{base_url}/ecpay/period_return"
+        })
 
     check_mac = generate_check_mac_value(params)
     params['CheckMacValue'] = check_mac
@@ -2570,6 +2586,92 @@ def ecpay_return():
     return '1|OK', 200
 
 
+@app.route('/ecpay/period_return', methods=['POST'])
+def ecpay_period_return():
+    """
+    綠界定期定額背景扣款通知（PeriodReturnURL）。
+    每期自動扣款成功後，綠界會發送 POST 到此網址。
+    必須回傳 '1|OK'。
+    """
+    data = request.form.to_dict()
+    rtn_code = data.get('RtnCode', '')
+    trade_no = data.get('MerchantTradeNo', '')
+    amount = data.get('Amount', '')
+    email = data.get('CustomField1', '')
+    tier = data.get('CustomField2', 'BASIC')
+
+    print(f"[ECPay PeriodReturn] 收到定期定額扣款通知 | 訂單: {trade_no} | 金額: {amount} | RtnCode: {rtn_code} | 用戶: {email}")
+
+    # 驗證檢查碼
+    received_mac = data.get('CheckMacValue', '')
+    params_for_mac = {k: v for k, v in data.items() if k != 'CheckMacValue'}
+    calculated_mac = generate_check_mac_value(params_for_mac)
+
+    if received_mac != calculated_mac:
+        print(f"[ECPay PeriodReturn Error] 檢查碼驗證失敗！收到: {received_mac} | 計算: {calculated_mac}")
+        return '0|CheckMacValueVerifyFail', 200
+
+    if rtn_code == '1':
+        # 扣款成功，自動展延
+        try:
+            conn = get_db_connection()
+            with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                cursor.execute("SELECT * FROM users WHERE email = %s;", (email,))
+                user = cursor.fetchone()
+                if user:
+                    current_points = user.get('ai_points', 0)
+                    current_sub_exp = user.get('subscription_expires_at')
+                    
+                    from datetime import datetime, timedelta
+                    now = datetime.now()
+                    
+                    # 若現有到期日在未來，以原到期日累加；否則以現在起算
+                    if current_sub_exp:
+                        if isinstance(current_sub_exp, str):
+                            try:
+                                current_sub_exp = datetime.strptime(current_sub_exp, "%Y-%m-%d %H:%M:%S")
+                            except ValueError:
+                                pass
+                        
+                        start_time = current_sub_exp if current_sub_exp > now else now
+                    else:
+                        start_time = now
+
+                    # 依方案給予對應天數與 AI 點數
+                    if tier in ['BASIC']:
+                        sub_type = 'MONTHLY_AI'
+                        new_points = current_points + 500
+                        sub_expires = start_time + timedelta(days=30)
+                    elif tier in ['PREMIUM_MONTHLY']:
+                        sub_type = 'PREMIUM_MONTHLY'
+                        new_points = current_points + 650
+                        sub_expires = start_time + timedelta(days=30)
+                    elif tier in ['PREMIUM', 'PREMIUM_UPGRADE']:
+                        sub_type = 'YEARLY_AI'
+                        new_points = current_points + 650
+                        sub_expires = start_time + timedelta(days=365)
+                    else:
+                        sub_type = 'MONTHLY_AI'
+                        new_points = current_points + 500
+                        sub_expires = start_time + timedelta(days=30)
+
+                    cursor.execute(
+                        "UPDATE users SET is_subscribed=1, subscription_type=%s, ai_points=%s, subscription_expires_at=%s WHERE email=%s;",
+                        (sub_type, new_points, sub_expires, email)
+                    )
+                    conn.commit()
+                    print(f"[ECPay PeriodReturn Success] 定期扣款成功！已為 {email} 自動續訂方案 {tier}，新到期日為 {sub_expires}。")
+                else:
+                    print(f"[ECPay PeriodReturn Error] 找不到對應的用戶: {email}")
+        except Exception as e:
+            print(f"[ECPay PeriodReturn Error] DB 更新失敗: {e}")
+        finally:
+            if 'conn' in locals() and conn:
+                conn.close()
+
+    return '1|OK', 200
+
+
 @app.route('/ecpay/result', methods=['GET', 'POST'])
 def ecpay_result():
     """
@@ -2601,6 +2703,14 @@ def ecpay_result():
                     if tier in ['BASIC']:
                         sub_type   = 'MONTHLY_AI'
                         new_points = current_points + 500
+                        sub_expires = now + timedelta(days=30)
+                        cursor.execute(
+                            "UPDATE users SET is_subscribed=1, subscription_type=%s, ai_points=%s, subscription_expires_at=%s WHERE email=%s;",
+                            (sub_type, new_points, sub_expires, email)
+                        )
+                    elif tier in ['PREMIUM_MONTHLY']:
+                        sub_type   = 'PREMIUM_MONTHLY'
+                        new_points = current_points + 650
                         sub_expires = now + timedelta(days=30)
                         cursor.execute(
                             "UPDATE users SET is_subscribed=1, subscription_type=%s, ai_points=%s, subscription_expires_at=%s WHERE email=%s;",

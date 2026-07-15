@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="UniTask">
     
-    <link rel="stylesheet" href="/static/css/style.css?v=11.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=12.0">
     <link rel="apple-touch-icon" href="/static/icons/icon.png">
     <link rel="icon" type="image/png" href="/static/icons/icon.png">
     <!-- Google Fonts -->
@@ -514,11 +514,11 @@
         <!-- 第一層：母分頁 -->
         <div class="parent-tabs">
             <button class="tab-btn" id="tab_btn_finance" onclick="switchTab('finance', event)">💰 記帳</button>
-            <button class="tab-btn" id="tab_btn_schedule" onclick="switchTab('schedule', event)"><span class="dynamic-date-wrapper"><span class="date-top"></span><span class="date-num current-day-val"></span></span> 行程 {% if session.get('subscription_type') == 'NONE' %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
-            <button class="tab-btn" id="tab_btn_memo" onclick="switchTab('memo', event)">📝 備忘 {% if session.get('subscription_type') == 'NONE' %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
-            <button class="tab-btn tab-health" id="tab_btn_health" onclick="switchTab('health', event)">🌸 女性 {% if session.get('subscription_type') == 'NONE' %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
-            <button class="tab-btn" id="tab_btn_stock" onclick="switchTab('stock', event)">📈 存股 {% if not session.get('subscription_type') or session.get('subscription_type') in ['NONE', 'MONTHLY_AI'] %}<span class="gold-lock-icon">🔒</span>{% endif %}</button>
-            <button class="tab-btn" id="tab_btn_member" onclick="memberOpenModal()">🎴 卡包</button>
+            <button class="tab-btn {% if not session.get('subscription_type') or session.get('subscription_type') == 'NONE' %}tab-locked{% endif %}" id="tab_btn_schedule" onclick="switchTab('schedule', event)"><span class="dynamic-date-wrapper"><span class="date-top"></span><span class="date-num current-day-val"></span></span> 行程</button>
+            <button class="tab-btn {% if not session.get('subscription_type') or session.get('subscription_type') == 'NONE' %}tab-locked{% endif %}" id="tab_btn_memo" onclick="switchTab('memo', event)">📝 備忘</button>
+            <button class="tab-btn tab-health {% if not session.get('subscription_type') or session.get('subscription_type') == 'NONE' %}tab-locked{% endif %}" id="tab_btn_health" onclick="switchTab('health', event)">🌸 女性</button>
+            <button class="tab-btn {% if not session.get('subscription_type') or session.get('subscription_type') in ['NONE', 'MONTHLY_AI'] %}tab-locked{% endif %}" id="tab_btn_stock" onclick="switchTab('stock', event)">📈 存股</button>
+            <button class="tab-btn {% if not session.get('subscription_type') or session.get('subscription_type') == 'NONE' %}tab-locked{% endif %}" id="tab_btn_member" onclick="memberOpenModal()">🎴 卡包</button>
         </div>
     </div>
 
@@ -1943,6 +1943,13 @@
                         <strong>試用權益保障</strong>：若您目前仍處於免費試用中，現在升級訂閱將<strong>完整保留並加贈</strong>您剩餘的試用天數（正式扣款與計費天數將在試用期結束後才開始計算），請安心升級！
                     </p>
                 </div>
+                <!-- 🌟 訂閱模式切換器 (Sliding Toggle) 🌟 -->
+                <div style="display: flex; background: #e2e8f0; border-radius: 16px; padding: 4px; margin-bottom: 20px; position: relative; border: 1px solid #cbd5e1;">
+                    <div id="paywall_toggle_bg" style="position: absolute; top: 4px; left: 4px; width: calc(50% - 4px); height: calc(100% - 8px); background: white; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.06); transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1;"></div>
+                    <button onclick="setSubscriptionMode('onetime')" id="paywall_tab_onetime" style="flex: 1; border: none; background: none; padding: 10px; font-size: 0.85rem; font-weight: 800; color: #0f172a; cursor: pointer; position: relative; z-index: 2; transition: color 0.25s;">單次體驗 30天/1年</button>
+                    <button onclick="setSubscriptionMode('recurring')" id="paywall_tab_recurring" style="flex: 1; border: none; background: none; padding: 10px; font-size: 0.85rem; font-weight: 800; color: #64748b; cursor: pointer; position: relative; z-index: 2; transition: color 0.25s;">自動扣款 續訂免煩惱 ⚡</button>
+                </div>
+
                 <!-- 方案卡片區 -->
                 <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 25px;">
                     <!-- 基礎版 -->
@@ -1952,9 +1959,9 @@
                         <p style="font-size: 0.8rem; color: #14532d; opacity: 0.85; margin: 0 0 12px; text-align: left; line-height: 1.4;">全面解鎖行程、備忘錄與經期看板，並獲得 500 點 AI 額度！</p>
                         <div style="display: flex; align-items: baseline; gap: 4px; margin-bottom: 12px;">
                             <span style="font-size: 1.5rem; font-weight: 900; color: #0d9488;">NT$ 119</span>
-                            <span style="font-size: 0.8rem; color: #0d9488; opacity: 0.8;">/ 月</span>
+                            <span id="paywall_basic_unit" style="font-size: 0.8rem; color: #0d9488; opacity: 0.8;">/ 30 天</span>
                         </div>
-                        <button id="paywall_basic_btn" onclick="mockSubscribe('BASIC')" style="width: 100%; padding: 10px; border-radius: 12px; border: none; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: white; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(20, 184, 166, 0.25);">立即訂閱 🚀</button>
+                        <button id="paywall_basic_btn" onclick="mockSubscribe('BASIC')" style="width: 100%; padding: 10px; border-radius: 12px; border: none; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: white; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(20, 184, 166, 0.25);">單次體驗 30 天 🚀</button>
                     </div>
 
                     <!-- 旗艦版 -->
@@ -1964,9 +1971,9 @@
                         <p style="font-size: 0.8rem; color: #0369a1; opacity: 0.85; margin: 0 0 12px; text-align: left; line-height: 1.4;">解鎖「智慧存股損益」、尊榮一鍵 AI 健檢與 650 點 AI 額度！</p>
                         <div style="display: flex; align-items: baseline; gap: 4px; margin-bottom: 12px;">
                             <span style="font-size: 1.5rem; font-weight: 900; color: #0284c7;">NT$ 199</span>
-                            <span style="font-size: 0.8rem; color: #0284c7; opacity: 0.8;">/ 月</span>
+                            <span id="paywall_premium_monthly_unit" style="font-size: 0.8rem; color: #0284c7; opacity: 0.8;">/ 30 天</span>
                         </div>
-                        <button id="paywall_premium_monthly_btn" onclick="mockSubscribe('PREMIUM_MONTHLY')" style="width: 100%; padding: 10px; border-radius: 12px; border: none; background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%); color: white; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);">立即訂閱 🚀</button>
+                        <button id="paywall_premium_monthly_btn" onclick="mockSubscribe('PREMIUM_MONTHLY')" style="width: 100%; padding: 10px; border-radius: 12px; border: none; background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%); color: white; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);">單次體驗 30 天 🚀</button>
                     </div>
 
                     <!-- 尊榮版 -->
@@ -1976,9 +1983,9 @@
                         <p style="font-size: 0.8rem; color: #78350f; opacity: 0.85; margin: 0 0 12px; text-align: left; line-height: 1.4;">解鎖全部功能！包含「智慧存股損益」、AI 一鍵健檢與 650 點 AI 額度！採年繳計費超划算！</p>
                         <div style="display: flex; align-items: baseline; gap: 4px; margin-bottom: 12px;">
                             <span style="font-size: 1.5rem; font-weight: 900; color: #b45309;">NT$ 1,990</span>
-                            <span style="font-size: 0.8rem; color: #b45309; opacity: 0.8;">/ 年</span>
+                            <span id="paywall_premium_unit" style="font-size: 0.8rem; color: #b45309; opacity: 0.8;">/ 365 天</span>
                         </div>
-                        <button id="paywall_premium_btn" onclick="mockSubscribe('PREMIUM')" style="width: 100%; padding: 10px; border-radius: 12px; border: none; background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: white; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);">尊榮解鎖 ✨</button>
+                        <button id="paywall_premium_btn" onclick="mockSubscribe('PREMIUM')" style="width: 100%; padding: 10px; border-radius: 12px; border: none; background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: white; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);">單次體驗 365 天 ✨</button>
                     </div>
 
                     <!-- 點數加購包 -->
@@ -2044,6 +2051,49 @@
                 alert("合理退費政策：\n1. 7日內可無條件退款（扣除5%金流手續費）。\n2. 超過7日恕不退款。\n3. 系統同步回收當月贈送之AI點數額度。");
                 localStorage.setItem('refund_policy_agreed', 'true');
                 return true;
+            }
+        }
+
+        // 訂閱模式切換邏輯 (單次 vs 定期定額)
+        window.subscriptionMode = 'onetime';
+        window.setSubscriptionMode = function(mode) {
+            window.subscriptionMode = mode;
+            const bg = document.getElementById('paywall_toggle_bg');
+            const tabOnetime = document.getElementById('paywall_tab_onetime');
+            const tabRecurring = document.getElementById('paywall_tab_recurring');
+            
+            const btnBasic = document.getElementById('paywall_basic_btn');
+            const btnPremiumMonthly = document.getElementById('paywall_premium_monthly_btn');
+            const btnPremium = document.getElementById('paywall_premium_btn');
+            
+            const unitBasic = document.getElementById('paywall_basic_unit');
+            const unitPremiumMonthly = document.getElementById('paywall_premium_monthly_unit');
+            const unitPremium = document.getElementById('paywall_premium_unit');
+
+            if (mode === 'onetime') {
+                if (bg) bg.style.left = '4px';
+                if (tabOnetime) tabOnetime.style.color = '#0f172a';
+                if (tabRecurring) tabRecurring.style.color = '#64748b';
+                
+                if (btnBasic) btnBasic.innerText = '單次體驗 30 天 🚀';
+                if (btnPremiumMonthly) btnPremiumMonthly.innerText = '單次體驗 30 天 🚀';
+                if (btnPremium) btnPremium.innerText = '單次體驗 365 天 ✨';
+                
+                if (unitBasic) unitBasic.innerText = '/ 30 天';
+                if (unitPremiumMonthly) unitPremiumMonthly.innerText = '/ 30 天';
+                if (unitPremium) unitPremium.innerText = '/ 365 天';
+            } else {
+                if (bg) bg.style.left = 'calc(50% - 4px)';
+                if (tabOnetime) tabOnetime.style.color = '#64748b';
+                if (tabRecurring) tabRecurring.style.color = '#0f172a';
+                
+                if (btnBasic) btnBasic.innerText = '按月自動續訂 🚀';
+                if (btnPremiumMonthly) btnPremiumMonthly.innerText = '按月自動續訂 🚀';
+                if (btnPremium) btnPremium.innerText = '按年自動續訂 ✨';
+                
+                if (unitBasic) unitBasic.innerText = '/ 月 (自動扣款)';
+                if (unitPremiumMonthly) unitPremiumMonthly.innerText = '/ 月 (自動扣款)';
+                if (unitPremium) unitPremium.innerText = '/ 年 (自動扣款)';
             }
         }
     </script>
@@ -3398,6 +3448,10 @@
 
     // ── 開啟 / 關閉主 Modal ──────────────────────────────────────────────
     function memberOpenModal() {
+        if (typeof window.checkFeatureAccess === 'function' && !window.checkFeatureAccess('member')) {
+            window.openModal('upgradePaywallModal');
+            return;
+        }
         const el = document.getElementById('memberModal');
         if (!el) { console.error('[Member] memberModal 元素不存在'); return; }
         el.classList.add('show');

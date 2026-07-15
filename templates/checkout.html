@@ -617,7 +617,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         email: "{{ email }}",
-                        tier:  "{{ tier }}"
+                        tier:  "{{ tier }}",
+                        is_recurring: {% if is_recurring %}true{% else %}false{% endif %}
                     })
                 });
 
