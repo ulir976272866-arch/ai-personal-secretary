@@ -370,3 +370,51 @@ https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/READM
   import google.generativeai as genai
  * Debugger is active!
  * Debugger PIN: 493-899-119
+127.0.0.1 - - [15/Jul/2026 22:44:44] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:44:44] "GET /static/js/app.js?v=12.2 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:44:44] "GET /static/css/style.css?v=11.0 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:44:44] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [15/Jul/2026 22:44:44] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:44:45] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:44:46] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:44:46] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [15/Jul/2026 22:44:48] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:44:48] "GET /api/fixed_expenses HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:44:50] "GET /api/asset_accounts HTTP/1.1" 200 -
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11433 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11433 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 15
+  code_verifier: baUMsyW8ZpJedkuf1HdjWvupA1w4cEeJ3cBtVZ.mXQ7vBv1KV_ZLnk166R89N6O7HCzmXVAa4wI-sBxkozUH7h_f9Yp1d71t6ndHllUzN87vRb33iK7oLy-AiEmusifV
+  has_stock_record: True
+  is_subscribed: False
+  is_trial_active: False
+  self_healing_done: True
+  sheet_gids: {'AI_指令集': 1312459277, '代墊待收款': 210831678, '口袋': 354824961, '固定支出': 337464173, '待辦': 1174917236, '日記': 632786333, '會員卡包': 1276320783, '生理症狀紀錄': 1590915179, '生理紀錄': 617554318, '記帳': 716405923, '資產帳戶': 1316877898, '願望': 171180494, '💰股票投資組合': 1736764267}
+  spreadsheet_id: 1ss0EoK0bwJpv12G94_cMFaHV2t_Dqj9fFZ1SLIJhKZA
+  state: M2sWxqkHaWnTzTSoi5YscIL9KFD7tN
+  subscription_expires_at: None
+  subscription_type: NONE
+  trial_expires_at: None
+  user_email: mina.chen.xstar.sg@gmail.com
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei, executed=[]
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai

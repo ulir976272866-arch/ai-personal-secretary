@@ -2018,7 +2018,7 @@
                 <div style="font-size: 0.82rem; text-align: left; color: #475569; line-height: 1.65; max-height: 280px; overflow-y: auto; padding: 2px;">
                     <ul style="margin: 0; padding-left: 18px; list-style-type: disc; display: flex; flex-direction: column; gap: 8px;">
                         <li><strong>7 日無條件退費</strong>：自購買日起 <strong>7 日內</strong>，享有通訊交易網路購買 7 日無條件退款權利（<code>退款金額 = 方案原價 - 5% 金流交易手續費</code>）。</li>
-                        <li><strong>超過 7 日比例退還</strong>：超過 7 日後，退款金額將依剩餘天數比例折算（<code>退款 = 剩餘天數價值 - 原方案總價之 5% 手續費</code>）。</li>
+                        <li><strong>超過 7 日恕不退費</strong>：方案購買超過 7 日鑑賞期後，恕不接受任何退款申請。</li>
                         <li><strong>金流手續費扣除</strong>：統一金流等服務商於交易成立時將收取不可退還之 <strong>5% 手續服務費及跨行轉帳費用（如有）</strong>，該費用將從退款中直接扣除。</li>
                         <li><strong>AI 點數額度回收</strong>：提出退費後，系統將<strong>同步回收本月已發放之 AI 智慧點數額度並將帳號重設回免費版</strong>。若剩餘點數不足扣回，將依比例自退款中折抵扣除。</li>
                     </ul>
@@ -2041,7 +2041,7 @@
                 }
                 return false;
             } else {
-                alert("合理退費政策：\n1. 7日內可無條件退款（扣除5%金流手續費）。\n2. 超過7日依天數比例退還（扣除5%金流手續費）。\n3. 系統同步回收當月贈送之AI點數額度。");
+                alert("合理退費政策：\n1. 7日內可無條件退款（扣除5%金流手續費）。\n2. 超過7日恕不退款。\n3. 系統同步回收當月贈送之AI點數額度。");
                 localStorage.setItem('refund_policy_agreed', 'true');
                 return true;
             }

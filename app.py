@@ -2374,14 +2374,8 @@ def api_admin_refund():
                             calculated_refund = max(0, original_price - processing_fee)
                             print(f"[Admin Refund Calc] {email} {tier}: 於購買 7 日內申請無條件退款, 原價 NT${original_price}, 手續費 NT${processing_fee}, 實際退還 NT${calculated_refund}")
                         else:
-                            # 超過 7 日按天數比例退費
-                            remaining_days = (sub_expires_naive - now_naive).days + 1
-                            remaining_days = min(total_days, remaining_days)
-                            # 按比例價值
-                            prorated_value = (original_price / total_days) * remaining_days
-                            # 實際退款 = 比例價值 - 5% 手續費
-                            calculated_refund = max(0, round(prorated_value - processing_fee))
-                            print(f"[Admin Refund Calc] {email} {tier}: 已購超 7 日按比例退款. 剩餘 {remaining_days}/{total_days} 天, 比例價值 NT${round(prorated_value)}, 手續費 NT${processing_fee}, 實際退還 NT${calculated_refund}")
+                            # 超過 7 日，依政策不予退費
+                            return jsonify({"status": "error", "message": "該用戶方案已購買超過 7 日，不符合退費資格。"}), 400
                     else:
                         return jsonify({"status": "error", "message": "該用戶方案已過期，無法退費"}), 400
                 else:
