@@ -2347,7 +2347,7 @@ def api_admin_refund():
             
             # 計算退款金額
             calculated_refund = 0
-            processing_fee = round(original_price * 0.05)  # 5% 金流手續費
+            processing_fee = 0  # 信用卡退刷不產生金流手續費；若使用虛擬 ATM 退款，則酌收跨行轉帳處理費 15 元。
 
             if total_days > 0:
                 # 訂閱類別：按天數比例退費
@@ -2373,9 +2373,9 @@ def api_admin_refund():
                     
                     if sub_expires_naive > now_naive:
                         if days_since_purchase <= 7:
-                            # 7日無條件退費 (扣除 5% 手續費)
-                            calculated_refund = max(0, original_price - processing_fee)
-                            print(f"[Admin Refund Calc] {email} {tier}: 於購買 7 日內申請無條件退款, 原價 NT${original_price}, 手續費 NT${processing_fee}, 實際退還 NT${calculated_refund}")
+                            # 7日內無條件退費 (全額退刷)
+                            calculated_refund = original_price
+                            print(f"[Admin Refund Calc] {email} {tier}: 於購買 7 日內申請無條件退款, 原價 NT${original_price}, 實際退還 NT${calculated_refund}")
                         else:
                             # 超過 7 日，依政策不予退費
                             return jsonify({"status": "error", "message": "該用戶方案已購買超過 7 日，不符合退費資格。"}), 400
@@ -2418,7 +2418,7 @@ def api_admin_refund():
             print(f"[Admin Refund Success] 用戶 {email} 方案 {tier} 已退款。扣除後AI點數: {new_points}，實際應退款金額: NT${calculated_refund}")
             return jsonify({
                 "status": "success", 
-                "message": f"退款權限回收完成！已回收 AI 額度並取消方案。本次「退款金額」(已扣除 5% 手續費 NT${processing_fee}) 計算結果為：NT$ {calculated_refund} 元。請手動至統一金流後台執行此金額退款。"
+                "message": f"退款權限回收完成！已回收 AI 額度並取消方案。本次「退款金額」(信用卡將全額退刷 NT$ {calculated_refund} 元；若為虛擬 ATM，請手動扣除跨行轉帳作業處理費 15 元後再執行退款) 計算結果為：NT$ {calculated_refund} 元。請手動至綠界金流後台執行此金額退款。"
             })
 
     except Exception as e:
