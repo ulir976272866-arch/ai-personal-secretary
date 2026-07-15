@@ -242,3 +242,6 @@ Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei, executed=
 127.0.0.1 - - [15/Jul/2026 22:37:39] "POST /api/sync_profile HTTP/1.1" 200 -
 127.0.0.1 - - [15/Jul/2026 22:37:40] "GET / HTTP/1.1" 200 -
 127.0.0.1 - - [15/Jul/2026 22:37:41] "GET /api/asset_accounts HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:40:21] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [15/Jul/2026 22:40:21] "[36mGET /static/css/style.css?v=11.0 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [15/Jul/2026 22:40:21] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
