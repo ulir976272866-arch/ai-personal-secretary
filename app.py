@@ -1581,6 +1581,14 @@ def serve_sw():
     response.headers['Service-Worker-Allowed'] = '/'
     return response
 
+@app.route('/privacy')
+def privacy_policy():
+    return render_template('privacy.html')
+
+@app.route('/terms')
+def terms_of_service():
+    return render_template('terms.html')
+
 @app.route('/')
 def index():
     # 優先尋找專用地圖 Key，若無則嘗試共用 Gemini Key
