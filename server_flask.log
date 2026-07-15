@@ -513,3 +513,46 @@ https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/READM
   import google.generativeai as genai
  * Debugger is active!
  * Debugger PIN: 493-899-119
+127.0.0.1 - - [15/Jul/2026 22:57:13] "GET /mock/checkout?tier=BASIC&email=mina.chen.xstar.sg@gmail.com HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:57:13] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [15/Jul/2026 22:57:15] "GET /sw.js HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:57:17] "POST /ecpay/checkout HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:58:35] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:58:36] "GET /static/css/style.css?v=12.0 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:58:36] "GET /static/js/app.js?v=12.2 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:58:36] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [15/Jul/2026 22:58:36] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [15/Jul/2026 22:58:37] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [15/Jul/2026 22:58:37] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [15/Jul/2026 22:58:37] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:58:38] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [15/Jul/2026 22:58:39] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:58:39] "GET /api/fixed_expenses HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 22:58:41] "GET /api/asset_accounts HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:03:25] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:03:25] "GET /static/css/style.css?v=12.0 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:03:25] "GET /static/js/app.js?v=12.2 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:03:25] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [15/Jul/2026 23:03:25] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:03:26] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:03:26] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [15/Jul/2026 23:03:26] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:03:28] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:03:29] "GET /api/fixed_expenses HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:03:30] "GET /api/asset_accounts HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:04:01] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [15/Jul/2026 23:04:02] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [15/Jul/2026 23:04:02] "[36mGET /static/css/style.css?v=12.0 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [15/Jul/2026 23:04:02] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [15/Jul/2026 23:04:02] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [15/Jul/2026 23:04:13] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:04:13] "GET /static/css/style.css?v=12.0 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:04:13] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+127.0.0.1 - - [15/Jul/2026 23:04:13] "GET /static/js/app.js?v=12.2 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:04:13] "GET /static/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:04:14] "GET /static/icons/icon.png HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:04:14] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [15/Jul/2026 23:04:14] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:04:16] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:04:17] "GET /api/fixed_expenses HTTP/1.1" 200 -
+127.0.0.1 - - [15/Jul/2026 23:04:18] "GET /api/asset_accounts HTTP/1.1" 200 -
