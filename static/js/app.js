@@ -3374,6 +3374,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         recognition.onresult = (event) => {
+            if (!window.isSpeechListening) return; // 💡 防禦：若已經結束聆聽，忽略任何晚到的語音識別結果，避免覆蓋已被清空的輸入框
             if (window.speechSilenceTimer) clearTimeout(window.speechSilenceTimer);
 
             let currentFinal = '';

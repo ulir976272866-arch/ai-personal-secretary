@@ -754,3 +754,753 @@ https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/READM
 127.0.0.1 - - [16/Jul/2026 00:51:48] "[36mGET /sw.js HTTP/1.1[0m" 304 -
 127.0.0.1 - - [16/Jul/2026 00:52:22] "[32mGET /login HTTP/1.1[0m" 302 -
 127.0.0.1 - - [16/Jul/2026 00:52:27] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11433 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11433 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+[OAuth] Token refreshed successfully for mina.chen.xstar.sg@gmail.com
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 15
+  code_verifier: baUMsyW8ZpJedkuf1HdjWvupA1w4cEeJ3cBtVZ.mXQ7vBv1KV_ZLnk166R89N6O7HCzmXVAa4wI-sBxkozUH7h_f9Yp1d71t6ndHllUzN87vRb33iK7oLy-AiEmusifV
+  has_stock_record: True
+  is_subscribed: False
+  is_trial_active: False
+  self_healing_done: True
+  sheet_gids: {'AI_指令集': 1312459277, '代墊待收款': 210831678, '口袋': 354824961, '固定支出': 337464173, '待辦': 1174917236, '日記': 632786333, '會員卡包': 1276320783, '生理症狀紀錄': 1590915179, '生理紀錄': 617554318, '記帳': 716405923, '資產帳戶': 1316877898, '願望': 171180494, '💰股票投資組合': 1736764267}
+  spreadsheet_id: 1ss0EoK0bwJpv12G94_cMFaHV2t_Dqj9fFZ1SLIJhKZA
+  state: M2sWxqkHaWnTzTSoi5YscIL9KFD7tN
+  subscription_expires_at: None
+  subscription_type: NONE
+  trial_expires_at: None
+  user_email: mina.chen.xstar.sg@gmail.com
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei, executed=[]
+[DEBUG LOGIN] generated redirect_uri: http://127.0.0.1:8080/callback
+[DEBUG LOGIN] authorization_url: https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=284348980617-4f3fd1sr9o2eeomrmpr6q2e9nceu1qia.apps.googleusercontent.com&redirect_uri=http%3A%2F%2F127.0.0.1%3A8080%2Fcallback&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fspreadsheets+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.file+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email&state=DTM5YqYVNOxDGi1ixDnzk7OM5mbk5W&code_challenge=pju5jm9dpgJlf-wEwUndnepxoyev_vLTV6Q5p8l0_dc&code_challenge_method=S256&access_type=offline&include_granted_scopes=true&prompt=consent
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+127.0.0.1 - - [17/Jul/2026 00:36:11] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:16:58] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:16:58] "[36mGET /static/css/style.css?v=12.1 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:16:59] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:16:59] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:16:59] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:17:01] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:17:04] "[32mGET /login HTTP/1.1[0m" 302 -
+127.0.0.1 - - [17/Jul/2026 01:17:09] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:17:17] "[32mGET /callback?state=Ze2UGtDU3AwrOISslP6O2z4gRMZ0NX&iss=https://accounts.google.com&code=4/0AXEQxIDglfQqOrDeqC1ldwi_5oMGUPOcuMzbas5KRrn6o0utjhiw7PrVBYydsxCLsNfPZA&scope=email%20profile%20https://www.googleapis.com/auth/drive.file%20https://www.googleapis.com/auth/spreadsheets%20https://www.googleapis.com/auth/calendar%20https://www.googleapis.com/auth/userinfo.profile%20https://www.googleapis.com/auth/userinfo.email%20openid&authuser=0&prompt=consent HTTP/1.1[0m" 302 -
+127.0.0.1 - - [17/Jul/2026 01:17:19] "[36mGET /static/css/style.css?v=12.1 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:17:19] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:17:19] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:17:19] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:17:21] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:17:21] "[32mGET /login HTTP/1.1[0m" 302 -
+127.0.0.1 - - [17/Jul/2026 01:17:25] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:17:30] "[32mGET /callback?state=bMvKeELiqjOSKufe16fLt9YOLxGuqR&iss=https://accounts.google.com&code=4/0AXEQxICoYoJawcJdZQppdkeDWBFxeHYESZD9tk2wu3ZibRw30Vze_IkamvtjtLWVo5sRbg&scope=email%20profile%20https://www.googleapis.com/auth/drive.file%20https://www.googleapis.com/auth/spreadsheets%20https://www.googleapis.com/auth/calendar%20https://www.googleapis.com/auth/userinfo.profile%20https://www.googleapis.com/auth/userinfo.email%20openid&authuser=0&prompt=consent HTTP/1.1[0m" 302 -
+127.0.0.1 - - [17/Jul/2026 01:17:31] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:17:31] "[36mGET /static/css/style.css?v=12.1 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:17:31] "[36mGET /static/js/app.js?v=12.2 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:17:31] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:17:32] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:17:33] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:17:34] "GET /api/fixed_expenses HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:17:36] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:17:36] "GET /api/asset_accounts HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:17:37] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:17:52] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:18:13] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:18:21] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:18:24] "POST /api/toggle_completion HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:18:30] "POST /api/toggle_completion HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:18:31] "POST /api/toggle_completion HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:18:33] "POST /api/query_schedule HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:19:03] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:19:24] "POST /api/chat HTTP/1.1" 200 -
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+[DEBUG LOGIN] generated redirect_uri: http://127.0.0.1:8080/callback
+[DEBUG LOGIN] authorization_url: https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=284348980617-4f3fd1sr9o2eeomrmpr6q2e9nceu1qia.apps.googleusercontent.com&redirect_uri=http%3A%2F%2F127.0.0.1%3A8080%2Fcallback&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fspreadsheets+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.file+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email&state=Ze2UGtDU3AwrOISslP6O2z4gRMZ0NX&code_challenge=Xp-W_UoWI3WCA3U71KaXbK0nCg9i7fftJsSkJ3d0Zok&code_challenge_method=S256&access_type=offline&include_granted_scopes=true&prompt=consent
+User email captured: ulir976272866@gmail.com
+Loaded existing spreadsheet_id from TiDB: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: .lb-rUUanwH6bgI.~QMfdL29S_hN5Fs-SaCBdOPebhWpVwT9DclDZMKDMjmPC4~fkx-tebJgn.SR~5zqKsFDl0n~hBMVFlT4RQ_bNae6cBxCvVUvIMY2NZHzNv2e-FE2
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  self_healing_done: True
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: Ze2UGtDU3AwrOISslP6O2z4gRMZ0NX
+  subscription_expires_at: 2028-12-31 23:59:59
+  subscription_type: YEARLY_AI
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+  sheet_gids: {'記帳': 0, '💰股票投資組合': 171614209, '待辦': 608456079, '日記': 42975215, '願望': 595875261, '生理紀錄': 2064871780, '口袋': 707369315, 'AI_指令集': 1679641234, '生理症狀紀錄': 1347859321, '固定支出': 999948010, '代墊待收款': 458175199, '記帳分類習慣': 1918974421, '儲蓄目標': 630110784, '資產帳戶': 1234690288, '存股觀察名單': 1926735423, '會員卡包': 780963529}
+[BG Self-Healing] Completed successfully for ulir976272866@gmail.com
+[DEBUG LOGIN] generated redirect_uri: http://127.0.0.1:8080/callback
+[DEBUG LOGIN] authorization_url: https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=284348980617-4f3fd1sr9o2eeomrmpr6q2e9nceu1qia.apps.googleusercontent.com&redirect_uri=http%3A%2F%2F127.0.0.1%3A8080%2Fcallback&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fspreadsheets+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.file+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email&state=bMvKeELiqjOSKufe16fLt9YOLxGuqR&code_challenge=U084a64KHr0cU4qQkvdFbr5LPkutBJG8D-h-f3JrUeo&code_challenge_method=S256&access_type=offline&include_granted_scopes=true&prompt=consent
+User email captured: ulir976272866@gmail.com
+Loaded existing spreadsheet_id from TiDB: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: ihBb24n6DKzEQ9~Z4saoNyc-pZaGRRvaO6~EvpDdlifAO306F-EKsbrEwP45yf3.7XA5exFqIIBvKB3Ky1vF_f8Ls_EwoyUo1hZR93By6C19S-Oay3-WgWe4AUFPOMC3
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  self_healing_done: True
+  sheet_gids: {'AI_指令集': 1679641234, '代墊待收款': 458175199, '儲蓄目標': 630110784, '口袋': 707369315, '固定支出': 999948010, '存股觀察名單': 1926735423, '待辦': 608456079, '日記': 42975215, '會員卡包': 780963529, '生理症狀紀錄': 1347859321, '生理紀錄': 2064871780, '記帳': 0, '記帳分類習慣': 1918974421, '資產帳戶': 1234690288, '願望': 595875261, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: bMvKeELiqjOSKufe16fLt9YOLxGuqR
+  subscription_expires_at: 2028-12-31 23:59:59
+  subscription_type: YEARLY_AI
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei, executed=[]
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Parsed AI response: {'type': 'query_completed_schedule', 'days': 30, 'keyword': None}
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Parsed AI response: {'type': 'calendar', 'action': 'update', 'original_title': '池王爺', 'title': '池王爺', 'start_time': '2026-07-17 12:00:00'}
+API 執行錯誤: local variable 're' referenced before assignment
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Parsed AI response: {'type': 'calendar', 'action': 'update', 'original_title': '淡水池王爺參拜', 'title': '淡水池王爺參拜', 'start_time': '2026-07-18 12:00:00'}
+API 執行錯誤: local variable 're' referenced before assignment
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Parsed AI response: {'type': 'calendar', 'title': '埔眼金色補課', 'start_time': '2026-07-17 19:00:00', 'action': 'update', 'original_title': '埔眼金色補課'}
+API 執行錯誤: local variable 're' referenced before assignment
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+127.0.0.1 - - [17/Jul/2026 01:19:51] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:20:19] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:20:20] "[36mGET /static/css/style.css?v=12.1 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:20:20] "[36mGET /static/js/app.js?v=12.2 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:20:20] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:20:20] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:20:20] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:20:21] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:20:22] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:20:22] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:20:23] "GET /api/fixed_expenses HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:20:25] "GET /api/asset_accounts HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:20:41] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:21:37] "GET /api/members HTTP/1.1" 200 -
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: ihBb24n6DKzEQ9~Z4saoNyc-pZaGRRvaO6~EvpDdlifAO306F-EKsbrEwP45yf3.7XA5exFqIIBvKB3Ky1vF_f8Ls_EwoyUo1hZR93By6C19S-Oay3-WgWe4AUFPOMC3
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  self_healing_done: True
+  sheet_gids: {'AI_指令集': 1679641234, '代墊待收款': 458175199, '儲蓄目標': 630110784, '口袋': 707369315, '固定支出': 999948010, '存股觀察名單': 1926735423, '待辦': 608456079, '日記': 42975215, '會員卡包': 780963529, '生理症狀紀錄': 1347859321, '生理紀錄': 2064871780, '記帳': 0, '記帳分類習慣': 1918974421, '資產帳戶': 1234690288, '願望': 595875261, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: bMvKeELiqjOSKufe16fLt9YOLxGuqR
+  subscription_expires_at: 2028-12-31 23:59:59
+  subscription_type: YEARLY_AI
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei, executed=[]
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Parsed AI response: {'type': 'calendar', 'action': 'update', 'original_title': '淡水池王爺', 'title': '淡水池王爺', 'start_time': '2026-07-18 12:00:00', 'location': '淡水池王爺'}
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+127.0.0.1 - - [17/Jul/2026 01:22:16] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:23:20] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:23:20] "[36mGET /static/css/style.css?v=12.1 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:23:20] "GET /static/js/app.js?v=12.2 HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:23:20] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:23:21] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:23:21] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:23:22] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:23:23] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:23:24] "POST /api/query_schedule HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:23:26] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:23:26] "GET /api/fixed_expenses HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:23:27] "GET /api/asset_accounts HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:23:43] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:24:18] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:24:23] "POST /api/query_schedule HTTP/1.1" 200 -
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: ihBb24n6DKzEQ9~Z4saoNyc-pZaGRRvaO6~EvpDdlifAO306F-EKsbrEwP45yf3.7XA5exFqIIBvKB3Ky1vF_f8Ls_EwoyUo1hZR93By6C19S-Oay3-WgWe4AUFPOMC3
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  self_healing_done: True
+  sheet_gids: {'AI_指令集': 1679641234, '代墊待收款': 458175199, '儲蓄目標': 630110784, '口袋': 707369315, '固定支出': 999948010, '存股觀察名單': 1926735423, '待辦': 608456079, '日記': 42975215, '會員卡包': 780963529, '生理症狀紀錄': 1347859321, '生理紀錄': 2064871780, '記帳': 0, '記帳分類習慣': 1918974421, '資產帳戶': 1234690288, '願望': 595875261, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: bMvKeELiqjOSKufe16fLt9YOLxGuqR
+  subscription_expires_at: 2028-12-31 23:59:59
+  subscription_type: YEARLY_AI
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei, executed=[]
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Parsed AI response: {'type': 'calendar', 'action': 'update', 'original_title': '7月18號全天行程', 'start_time': '2026-07-18 12:00:00', 'title': '7月18號行程'}
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Parsed AI response: {'type': 'calendar', 'title': '淡水池王爺', 'start_time': '2026-07-18 12:00:00', 'location': '淡水', 'action': 'update', 'original_title': '淡水池王爺', 'duration_hours': 6}
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+127.0.0.1 - - [17/Jul/2026 01:27:19] "POST /api/update_event HTTP/1.1" 200 -
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+127.0.0.1 - - [17/Jul/2026 01:30:20] "POST /api/chat HTTP/1.1" 200 -
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Parsed AI response: {'type': 'calendar', 'title': '普眼精舍的活動', 'start_time': '2026-07-17 19:00:00', 'action': 'update', 'original_title': '普眼精舍的活動'}
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+127.0.0.1 - - [17/Jul/2026 01:33:02] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:33:02] "[36mGET /static/css/style.css?v=12.1 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:33:02] "[36mGET /static/js/app.js?v=12.2 HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:33:02] "[36mGET /static/manifest.json HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:33:03] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:33:03] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:33:03] "[36mGET /static/icons/icon.png HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:33:05] "POST /api/sync_profile HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:33:05] "[36mGET /sw.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [17/Jul/2026 01:33:05] "GET /api/fixed_expenses HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:33:07] "GET /api/asset_accounts HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:33:34] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:33:44] "POST /api/query_schedule HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:33:56] "POST /api/query_schedule HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:34:58] "POST /api/chat HTTP/1.1" 200 -
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+[DEBUG INDEX SESSION] Current session keys and values:
+  _permanent: True
+  ai_points: 9999
+  code_verifier: ihBb24n6DKzEQ9~Z4saoNyc-pZaGRRvaO6~EvpDdlifAO306F-EKsbrEwP45yf3.7XA5exFqIIBvKB3Ky1vF_f8Ls_EwoyUo1hZR93By6C19S-Oay3-WgWe4AUFPOMC3
+  has_stock_record: True
+  is_subscribed: True
+  is_trial_active: False
+  self_healing_done: True
+  sheet_gids: {'AI_指令集': 1679641234, '代墊待收款': 458175199, '儲蓄目標': 630110784, '口袋': 707369315, '固定支出': 999948010, '存股觀察名單': 1926735423, '待辦': 608456079, '日記': 42975215, '會員卡包': 780963529, '生理症狀紀錄': 1347859321, '生理紀錄': 2064871780, '記帳': 0, '記帳分類習慣': 1918974421, '資產帳戶': 1234690288, '願望': 595875261, '💰股票投資組合': 171614209}
+  spreadsheet_id: 1RkhMRiRBIn7zYJKuT0Qr4tXCx-VxjBF3c6AuYOR3mgg
+  state: bMvKeELiqjOSKufe16fLt9YOLxGuqR
+  subscription_expires_at: 2028-12-31 23:59:59
+  subscription_type: YEARLY_AI
+  trial_expires_at: None
+  user_email: ulir976272866@gmail.com
+Profile synced: gender=girl, enable_period=True, timezone=Asia/Taipei, executed=[]
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Parsed AI response: {'type': 'calendar', 'action': 'update', 'original_title': '埔眼金色', 'title': '埔眼金色活動', 'start_time': '2026-07-17 19:00:00', 'duration': 120}
+Error in _find_event_by_title_or_keyword: name 're' is not defined
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Gemini AI Error: Invalid control character at: line 3 column 121 (char 150)
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119
+127.0.0.1 - - [17/Jul/2026 01:52:16] "POST /api/query_schedule HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:52:37] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:53:02] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:53:31] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:53:39] "POST /api/query_schedule HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:54:05] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:54:35] "POST /api/chat HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:54:45] "POST /api/query_schedule HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:55:09] "POST /api/update_event HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:55:14] "POST /api/query_schedule HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 01:55:33] "GET /api/training/rules HTTP/1.1" 200 -

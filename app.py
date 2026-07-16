@@ -3303,8 +3303,8 @@ def chat():
         
         【意圖判斷】：
         - 記帳：type: "expense" (item, amount, category: {cat_list_str}, sub_category: "對應的子分類", expense_type: "income" 或 "expense")
-        - 糾錯/刪除上一筆：type: "correct_intent" (不需要其他欄位)
-        - 行事曆：type: "calendar" (title, start_time, location)
+        - 糾錯/刪除上一筆：type: "correct_intent" (不需要其他欄位。例如當用戶指稱「加錯了」、「記錯了」、「新增錯誤」或抱怨剛才的新增結果時，優先生成此意圖以協助刪除/復原上一次的新增紀錄)
+        - 行事曆：type: "calendar" (title, start_time, location, action: "create"、"update" 或 "delete" 預設為 "create", original_title: "修改或刪除時要尋找的原行程標題或關鍵字", duration: 行程持續的分鐘數整數。當 action 為 update/delete 時，除非用戶明確要重新命名，否則 title 欄位必須設為 null，切勿將抱怨閒聊文字當成新行程標題！若改動日期，original_title 需填寫原行程名稱，而 start_time 需填寫新日期的時間)
         - 查詢行程/未來/今日/本週行程：type: "query_schedule" (days: 查詢天數，預設 1) (例如：「今日行程」、「這週行程」、「未來三天行程」)
         - 查詢已完成行程：type: "query_completed_schedule" (keyword: 搜尋關鍵字如離職或 null, days: 過去查詢天數，預設 30) (例如：「查詢過去30天內完成的行程」、「我上週完成了什麼」、「搜尋已完成的池府王爺行程」、「查詢過三天內已完成的行程」)
         - 股票交易：type: "stock" (ticker: 股票代號如 "TPE:2330"、"NASDAQ:AAPL", name: 股票名稱如 "台積電", tx_type: "買進" 或 "賣出", shares: 交易股數(整數，例如: 一張=1000股，10張=10000股，零股則依實際股數), price: 單價(浮點數), fee: 手續費(浮點數，預設為 0), date: 交易日期 "YYYY-MM-DD")
@@ -3590,91 +3590,61 @@ def chat():
                     error_messages.append(f"❌ {exp.get('item')} ${exp.get('amount')} 記錄失敗：{str(e)}")
                     
         if calendars:
-            service_cal = get_calendar_service()
             for cal in calendars:
                 try:
-                    start_time_str = cal.get('start_time')
-                    if not start_time_str:
-                        error_messages.append(f"❌ 行事曆「{cal.get('title')}」記錄失敗：缺少開始時間。")
-                        continue
-                    is_all_day = False
-                    if len(start_time_str) <= 10 or 'T' not in start_time_str:
-                        is_all_day = True
-                        start_date = start_time_str[:10]
-                        dt = datetime.strptime(start_date, '%Y-%m-%d')
-                        end_date = (dt + timedelta(days=1)).strftime('%Y-%m-%d')
-                        event = {
-                            'summary': cal.get('title'),
-                            'location': cal.get('location', ''),
-                            'start': { 'date': start_date, 'timeZone': 'Asia/Taipei' },
-                            'end': { 'date': end_date, 'timeZone': 'Asia/Taipei' },
-                        }
+                    response_obj = execute_single_intent_internal(cal, email, now, user_text=user_text)
+                    resp_data = json.loads(response_obj.get_data(as_text=True))
+                    if resp_data.get('status') == 'success':
+                        success_messages.append(resp_data.get('message', '行事曆處理成功'))
                     else:
-                        is_all_day = False
-                        start_str = start_time_str
-                        if 'T' in start_str and '+' not in start_str and 'Z' not in start_str:
-                            start_str += '+08:00'
-                        start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-                        
-                        end_str = cal.get('end_time')
-                        if end_str:
-                            if 'T' in end_str and '+' not in end_str and 'Z' not in end_str:
-                                end_str += '+08:00'
-                            end_dt = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
-                        else:
-                            end_dt = start_dt + timedelta(hours=1)
-                        event = {
-                            'summary': cal.get('title'),
-                            'location': cal.get('location', ''),
-                            'start': { 'dateTime': start_dt.isoformat(), 'timeZone': 'Asia/Taipei' },
-                            'end': { 'dateTime': end_dt.isoformat(), 'timeZone': 'Asia/Taipei' },
-                        }
-                        
-                    conflict_msg = check_conflicts(
-                        service_cal, 
-                        event['start'].get('dateTime', event['start'].get('date')), 
-                        event['end'].get('dateTime', event['end'].get('date')),
-                        summary=event.get('summary')
-                    )
-                    if conflict_msg:
-                        error_messages.append(f"❌ 行事曆「{cal.get('title')}」衝突：{conflict_msg}")
-                        continue
-                        
-                    service_cal.events().insert(calendarId=CALENDAR_ID, body=event).execute()
-                    cal_msg = format_event_success_message(
-                        title=cal.get('title'),
-                        start_time_str=start_time_str,
-                        location=cal.get('location', ''),
-                        is_all_day=is_all_day,
-                        is_manual=False
-                    )
-                    success_messages.append(cal_msg)
+                        error_messages.append(resp_data.get('message', '行事曆處理失敗'))
                 except Exception as e:
                     print(f"[Batch Calendar Error] {e}")
-                    error_messages.append(f"❌ 行事曆「{cal.get('title')}」記錄失敗：{str(e)}")
+                    error_messages.append(f"❌ 行事曆「{cal.get('title')}」處理失敗：{str(e)}")
                     
         if correct_intents:
             for ci in correct_intents:
-                try:
-                    service = get_sheets_service()
-                    res = service.spreadsheets().values().get(spreadsheetId=SPREADSHEET_ID, range='記帳!A:H').execute()
-                    rows = res.get('values', [])
-                    last_row_index = len(rows)
-                    if last_row_index > 1:
-                        deleted_data = rows[-1]
-                        service.spreadsheets().values().clear(spreadsheetId=SPREADSHEET_ID, range=f'記帳!A{last_row_index}:H{last_row_index}').execute()
-                        item = "未知"
-                        if len(deleted_data) > 3 and deleted_data[3]:
-                            item = deleted_data[3]
-                        elif len(deleted_data) > 4 and deleted_data[4]:
-                            item = deleted_data[4]
-                        amt = deleted_data[5] if len(deleted_data) > 5 else "0"
-                        
-                        success_messages.append(f"🗑️ 已幫您刪除最後一筆記帳資料：「{item} ${amt}」。")
+                user_msg = (user_text or "").lower()
+                is_calendar_correction = any(w in user_msg for w in ["行程", "日曆", "時間", "會", "活動"])
+                
+                if is_calendar_correction:
+                    last_cal_id = session.get('last_created_event_id')
+                    if last_cal_id:
+                        try:
+                            service_cal = get_calendar_service()
+                            try:
+                                ev_detail = service_cal.events().get(calendarId=CALENDAR_ID, eventId=last_cal_id).execute()
+                                ev_title = ev_detail.get('summary', '無標題')
+                            except:
+                                ev_title = '該行程'
+                            service_cal.events().delete(calendarId=CALENDAR_ID, eventId=last_cal_id).execute()
+                            session.pop('last_created_event_id', None)
+                            success_messages.append(f"🗑️ 偵測到新增行程有誤，已自動幫您從日曆中移除剛才錯誤新增的「{ev_title}」！")
+                        except Exception as e:
+                            error_messages.append(f"❌ 移除錯誤行程失敗：{str(e)}")
                     else:
-                        success_messages.append("⚠️ 目前記帳表中沒有資料可以刪除。")
-                except Exception as e:
-                    error_messages.append(f"❌ 修正舊資料失敗：{str(e)}")
+                        success_messages.append("⚠️ 找不到剛才新增的行程記錄，無法自動刪除。")
+                else:
+                    try:
+                        service = get_sheets_service()
+                        res = service.spreadsheets().values().get(spreadsheetId=SPREADSHEET_ID, range='記帳!A:H').execute()
+                        rows = res.get('values', [])
+                        last_row_index = len(rows)
+                        if last_row_index > 1:
+                            deleted_data = rows[-1]
+                            service.spreadsheets().values().clear(spreadsheetId=SPREADSHEET_ID, range=f'記帳!A{last_row_index}:H{last_row_index}').execute()
+                            item = "未知"
+                            if len(deleted_data) > 3 and deleted_data[3]:
+                                item = deleted_data[3]
+                            elif len(deleted_data) > 4 and deleted_data[4]:
+                                item = deleted_data[4]
+                            amt = deleted_data[5] if len(deleted_data) > 5 else "0"
+                            
+                            success_messages.append(f"🗑️ 已幫您刪除最後一筆記帳資料：「{item} ${amt}」。")
+                        else:
+                            success_messages.append("⚠️ 目前記帳表中沒有資料可以刪除。")
+                    except Exception as e:
+                        error_messages.append(f"❌ 修正舊資料失敗：{str(e)}")
                     
         for other in others:
             itype = other.get('type')
@@ -3754,69 +3724,416 @@ def chat():
             
     return resp_obj
 
+def _extract_date_from_text(text, now):
+    if not text:
+        return None
+    import re
+    # 匹配 "M月D號/日" 或 "M/D"
+    m = re.search(r'(\d{1,2})\s*[月/]\s*(\d{1,2})\s*[號日]?', text)
+    if m:
+        month = int(m.group(1))
+        day = int(m.group(2))
+        year = now.year
+        return f"{year}-{month:02d}-{day:02d}"
+    return None
+
+def _find_event_by_title_or_keyword(service, title, target_date=None, original_date_hint=None):
+    """
+    在指定範圍內根據行程標題或關鍵字尋找現有的 Google 日曆行程。
+    """
+    if not title:
+        return None
+    current_cal_id = session.get('calendar_id', 'primary')
+    
+    # 優先使用 original_date_hint，若無則看是否能從 title 提取日期
+    search_date = original_date_hint
+    if not search_date:
+        search_date = _extract_date_from_text(title, datetime.now(TW_TZ))
+        
+    if search_date:
+        try:
+            dt = datetime.strptime(search_date, "%Y-%m-%d")
+            # 搜尋該日期前後 1 天
+            t_min = ensure_tz((dt - timedelta(days=1)).strftime("%Y-%m-%d") + "T00:00:00")
+            t_max = ensure_tz((dt + timedelta(days=2)).strftime("%Y-%m-%d") + "T00:00:00")
+        except:
+            t_min = ensure_tz((datetime.now(TW_TZ) - timedelta(days=30)).isoformat())
+            t_max = ensure_tz((datetime.now(TW_TZ) + timedelta(days=60)).isoformat())
+    elif target_date:
+        try:
+            dt = datetime.strptime(target_date[:10], "%Y-%m-%d")
+            # 搜尋目標日期中心的前後 14 天
+            t_min = ensure_tz((dt - timedelta(days=14)).strftime("%Y-%m-%d") + "T00:00:00")
+            t_max = ensure_tz((dt + timedelta(days=15)).strftime("%Y-%m-%d") + "T00:00:00")
+        except Exception as ex:
+            print(f"Error defining search window from target_date: {ex}")
+            t_min = ensure_tz((datetime.now(TW_TZ) - timedelta(days=30)).isoformat())
+            t_max = ensure_tz((datetime.now(TW_TZ) + timedelta(days=60)).isoformat())
+    else:
+        now_dt = datetime.now(TW_TZ)
+        t_min = ensure_tz((now_dt - timedelta(days=30)).isoformat())
+        t_max = ensure_tz((now_dt + timedelta(days=60)).isoformat())
+        
+    try:
+        events_result = service.events().list(
+            calendarId=current_cal_id,
+            q=title,
+            timeMin=t_min,
+            timeMax=t_max,
+            singleEvents=True
+        ).execute()
+        
+        events = events_result.get('items', [])
+        if events:
+            return events[0]
+            
+        # 若 q 參數無精確結果，進行 Python 端模糊子字串比對
+        events_result_broad = service.events().list(
+            calendarId=current_cal_id,
+            timeMin=t_min,
+            timeMax=t_max,
+            singleEvents=True
+        ).execute()
+        all_events = events_result_broad.get('items', [])
+        matched = []
+        
+        # 去除 title 中的日期部分 (如 "7月24號") 再比對，提升匹配率
+        clean_title = re.sub(r'\d{1,2}\s*[月/]\s*\d{1,2}\s*[號日]?', '', title).strip()
+        if not clean_title:
+            clean_title = title
+            
+        for ev in all_events:
+            summary = ev.get('summary', '').lower()
+            if clean_title.lower() in summary or any(word in summary for word in clean_title.lower().split() if len(word) >= 2):
+                matched.append(ev)
+        return matched[0] if matched else None
+    except Exception as e:
+        print(f"Error in _find_event_by_title_or_keyword: {e}")
+        return None
+
+def _get_events_on_date(service, target_date):
+    """
+    獲取特定日期的所有 Google 日曆行程。
+    """
+    if not target_date:
+        return []
+    try:
+        dt = datetime.strptime(target_date[:10], "%Y-%m-%d")
+        t_min = ensure_tz(dt.strftime("%Y-%m-%d") + "T00:00:00")
+        t_max = ensure_tz((dt + timedelta(days=1)).strftime("%Y-%m-%d") + "T00:00:00")
+        current_cal_id = session.get('calendar_id', 'primary')
+        events_result = service.events().list(
+            calendarId=current_cal_id,
+            timeMin=t_min,
+            timeMax=t_max,
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        return events_result.get('items', [])
+    except Exception as e:
+        print(f"Error in _get_events_on_date: {e}")
+        return []
+
 def execute_single_intent_internal(parsed_data, email, now, ai_response_message=None, user_text=None):
+    import re
     intent_type = parsed_data.get("type") if isinstance(parsed_data, dict) else None
     developer_emails = {'ulir976272866@gmail.com', 'mina.chen.xstar.sg@gmail.com'}
     
     if intent_type == "calendar":
         service = get_calendar_service()
         start_time_str = parsed_data.get('start_time')
-        if not start_time_str:
-            return jsonify({"status": "error", "message": "❌ AI 解析失敗：遺失開始時間。"})
+        action = parsed_data.get('action', 'create')
+        original_title = parsed_data.get('original_title')
+        title = parsed_data.get('title')
+        location = parsed_data.get('location', '')
         
-        is_all_day = False
-        if len(start_time_str) <= 10 or 'T' not in start_time_str:
-            is_all_day = True
-            start_date = start_time_str[:10]
-            dt = datetime.strptime(start_date, '%Y-%m-%d')
-            end_date = (dt + timedelta(days=1)).strftime('%Y-%m-%d')
-            event = {
-                'summary': parsed_data.get('title'),
-                'location': parsed_data.get('location', ''),
-                'start': { 'date': start_date, 'timeZone': 'Asia/Taipei' },
-                'end': { 'date': end_date, 'timeZone': 'Asia/Taipei' },
-            }
-        else:
-            is_all_day = False
-            start_str = start_time_str
-            if 'T' in start_str and '+' not in start_str and 'Z' not in start_str:
-                start_str += '+08:00'
-            start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+        # 🛡️ 雙重防禦：若使用者語意明確為修改/變更/改為，但 AI 解析仍回傳 create，自動升格為 update
+        user_text_clean = (user_text or "").strip()
+        is_modify_request = any(w in user_text_clean for w in ["改", "修改", "更新", "調整", "移到", "變更"])
+        if is_modify_request and action == 'create':
+            action = 'update'
             
-            end_str = parsed_data.get('end_time')
-            if end_str:
-                if 'T' in end_str and '+' not in end_str and 'Z' not in end_str:
-                    end_str += '+08:00'
-                end_dt = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
+        # 🌸 智慧時間解析防禦與修復
+        if start_time_str:
+            start_time_str = start_time_str.strip().replace(' ', 'T')
+            # 檢查是否僅包含時間部分 (例如 "12:00" 或 "12:00:00")
+            time_match = re.match(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?$', start_time_str)
+            if time_match:
+                h, m, s = time_match.groups()
+                s = s or "00"
+                # 優先使用上一次衝突行程的日期，否則用今日
+                target_date = session.get('last_calendar_date') or datetime.now(TW_TZ).strftime('%Y-%m-%d')
+                start_time_str = f"{target_date}T{int(h):02d}:{int(m):02d}:{int(s):02d}"
+                
+            if 'T' in start_time_str and '+' not in start_time_str and 'Z' not in start_time_str:
+                start_time_str += '+08:00'
+
+        # 尋找現有的行程 ID (用於修改與刪除)
+        target_event = None
+        event_id = None
+        duration_mins = parsed_data.get('duration')
+        if duration_mins:
+            try:
+                duration_mins = int(duration_mins)
+            except:
+                duration_mins = None
+                
+        # A. 檢查是否為選擇候選行程 (例如 "第一個"、"第 1 個"、"1")
+        is_candidate_selection = False
+        selected_index = None
+        if action in ["update", "delete"] and (original_title or title):
+            search_str = (original_title or title).strip()
+            idx_match = re.search(r'第\s*([一二三四五12345])\s*個', search_str)
+            if not idx_match and search_str in ["1", "2", "3", "4", "5"]:
+                selected_index = int(search_str) - 1
+                is_candidate_selection = True
+            elif idx_match:
+                num_map = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "1": 0, "2": 1, "3": 2, "4": 3, "5": 4}
+                selected_index = num_map.get(idx_match.group(1))
+                is_candidate_selection = True
+                
+        if is_candidate_selection and selected_index is not None:
+            candidates = session.get('modify_candidates')
+            pending_data = session.get('pending_modify_data')
+            if candidates and selected_index < len(candidates) and pending_data:
+                event_id = candidates[selected_index]
+                action = pending_data.get('action', 'update')
+                title = pending_data.get('title') or title
+                location = pending_data.get('location') or location
+                start_time_str = pending_data.get('start_time') or start_time_str
+                if pending_data.get('duration'):
+                    duration_mins = pending_data.get('duration')
+                try:
+                    target_event = service.events().get(calendarId=CALENDAR_ID, eventId=event_id).execute()
+                except Exception as ex:
+                    print(f"Error fetching candidate event: {ex}")
             else:
-                end_dt = start_dt + timedelta(hours=1)
-            event = {
-                'summary': parsed_data.get('title'),
-                'location': parsed_data.get('location', ''),
-                'start': { 'dateTime': start_dt.isoformat(), 'timeZone': 'Asia/Taipei' },
-                'end': { 'dateTime': end_dt.isoformat(), 'timeZone': 'Asia/Taipei' },
-            }
+                return jsonify({"status": "error", "message": "❌ 無效的選擇或快取過期，請重新說出要修改的行程名稱。"})
+                
+        # B. 正常的行程搜尋定位
+        if action in ["update", "delete"] and not event_id:
+            # 1. 優先使用上一次衝突行程的快取
+            cached_id = session.get('last_conflict_event_id')
+            cached_title = session.get('last_conflict_event_title')
+            if cached_id and original_title in ["那個", "那個行程", "剛剛那個", "剛剛的行程"]:
+                event_id = cached_id
+                
+            # 2. 若沒快取，到日曆中進行模糊/關鍵字尋找
+            if not event_id:
+                # 判斷是否為模糊/空標題
+                is_generic_title = not original_title or any(kw in original_title for kw in ["全天的行程", "全天行程", "那天的行程", "當天的行程", "今天的行程", "行程"])
+                target_date = start_time_str[:10] if start_time_str else datetime.now(TW_TZ).strftime('%Y-%m-%d')
+                
+                if is_generic_title:
+                    day_events = _get_events_on_date(service, target_date)
+                    if not day_events:
+                        return jsonify({"status": "error", "message": f"❌ {target_date} 當天似乎沒有安排 any 行程喔！"})
+                    elif len(day_events) == 1:
+                        # 只有 1 個行程，直接推斷！
+                        event_id = day_events[0]['id']
+                        target_event = day_events[0]
+                    else:
+                        # 有多個行程，需要詢問
+                        candidate_list = []
+                        event_options = []
+                        for idx, ev in enumerate(day_events):
+                            candidate_list.append(ev['id'])
+                            time_label = "全天" if 'date' in ev['start'] else ev['start'].get('dateTime', '')[11:16]
+                            event_options.append(f"{idx+1}️⃣ [{time_label}] {ev.get('summary', '無標題')}")
+                            
+                        session['modify_candidates'] = candidate_list
+                        session['pending_modify_data'] = {
+                            "action": action, "title": title, "location": location,
+                            "start_time": start_time_str, "duration": duration_mins
+                        }
+                        msg = f"💬 偵測到 {target_date} 當天有多個行程：\n" + "\n".join(event_options) + "\n\n請問您要修改的是哪一個呢？您可以說『修改第 1 個』或直接告訴我行程名稱。"
+                        return jsonify({"status": "success", "type": "chat", "message": msg})
+                else:
+                    # 有講具體名稱，優先搜尋
+                    search_title = original_title or title
+                    original_date_hint = None
+                    if original_title:
+                        original_date_hint = _extract_date_from_text(original_title, now)
+                    if not original_date_hint and user_text:
+                        original_date_hint = _extract_date_from_text(user_text, now)
+                        
+                    found_ev = _find_event_by_title_or_keyword(service, search_title, target_date, original_date_hint)
+                    if found_ev:
+                        event_id = found_ev.get('id')
+                        target_event = found_ev
+                    else:
+                        # 找不到的話，嘗試取得當天行程看是否能自動推斷
+                        day_events = _get_events_on_date(service, target_date)
+                        if len(day_events) == 1:
+                            event_id = day_events[0]['id']
+                            target_event = day_events[0]
+                        elif len(day_events) > 1:
+                            candidate_list = []
+                            event_options = []
+                            for idx, ev in enumerate(day_events):
+                                candidate_list.append(ev['id'])
+                                time_label = "全天" if 'date' in ev['start'] else ev['start'].get('dateTime', '')[11:16]
+                                event_options.append(f"{idx+1}️⃣ [{time_label}] {ev.get('summary', '無標題')}")
+                                
+                            session['modify_candidates'] = candidate_list
+                            session['pending_modify_data'] = {
+                                "action": action, "title": title, "location": location,
+                                "start_time": start_time_str, "duration": duration_mins
+                            }
+                            msg = f"💡 找不到名稱包含「{search_title}」的行程，但看到 {target_date} 當天有以下行程：\n" + "\n".join(event_options) + "\n\n請問您要修改的是哪一個呢？您可以說『修改第 1 個』或直接說行程名稱。"
+                            return jsonify({"status": "success", "type": "chat", "message": msg})
+                        else:
+                            return jsonify({"status": "error", "message": f"❌ 未能找到要修改的「{original_title or title or '該'}」行程。"})
+                            
+        if event_id and not target_event:
+            try:
+                target_event = service.events().get(calendarId=CALENDAR_ID, eventId=event_id).execute()
+            except Exception as ex:
+                print(f"Error fetching event {event_id}: {ex}")
+                
+        if action == "delete":
+            if not event_id:
+                return jsonify({"status": "error", "message": f"❌ 未能找到要刪除的「{original_title or title or '該'}」行程。"})
+            event_title = target_event.get('summary', '無標題') if target_event else (original_title or title or '該行程')
+            service.events().delete(calendarId=CALENDAR_ID, eventId=event_id).execute()
+            session.pop('last_conflict_event_id', None)
+            session.pop('last_conflict_event_title', None)
+            session.pop('modify_candidates', None)
+            session.pop('pending_modify_data', None)
+            return jsonify({"status": "success", "type": "calendar", "message": f"🗑️ 行程「{event_title}」已成功刪除。"})
             
-        conflict_msg = check_conflicts(
-            service, 
-            event['start'].get('dateTime', event['start'].get('date')), 
-            event['end'].get('dateTime', event['end'].get('date')),
-            summary=event.get('summary')
-        )
-        if conflict_msg: 
-            return jsonify({"status": "error", "message": conflict_msg})
+        elif action == "update":
+            if not event_id or not target_event:
+                return jsonify({"status": "error", "message": f"❌ 未能找到要修改的「{original_title or title or '該'}」行程。"})
+                
+            new_title = title or target_event.get('summary')
+            if new_title:
+                target_event['summary'] = new_title
+            if location:
+                target_event['location'] = location
+                
+            is_all_day = False
+            if start_time_str:
+                if len(start_time_str) <= 10 or 'T' not in start_time_str:
+                    is_all_day = True
+                    start_date = start_time_str[:10]
+                    dt = datetime.strptime(start_date, '%Y-%m-%d')
+                    end_date = (dt + timedelta(days=1)).strftime('%Y-%m-%d')
+                    target_event['start'] = { 'date': start_date, 'timeZone': 'Asia/Taipei' }
+                    target_event['end'] = { 'date': end_date, 'timeZone': 'Asia/Taipei' }
+                else:
+                    is_all_day = False
+                    start_str = start_time_str
+                    start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                    
+                    # 計算行程時長
+                    if not duration_mins:
+                        duration_mins = 60
+                        try:
+                            orig_start_str = target_event['start'].get('dateTime')
+                            orig_end_str = target_event['end'].get('dateTime')
+                            if orig_start_str and orig_end_str:
+                                orig_start = datetime.fromisoformat(orig_start_str.replace('Z', '+00:00'))
+                                orig_end = datetime.fromisoformat(orig_end_str.replace('Z', '+00:00'))
+                                duration_mins = int((orig_end - orig_start).total_seconds() / 60)
+                        except Exception as ex:
+                            print(f"Error calculating duration: {ex}")
+                            
+                    end_dt = start_dt + timedelta(minutes=duration_mins)
+                    target_event['start'] = { 'dateTime': start_dt.isoformat(), 'timeZone': 'Asia/Taipei' }
+                    target_event['end'] = { 'dateTime': end_dt.isoformat(), 'timeZone': 'Asia/Taipei' }
+                    
+            # 檢查衝突 (排除自己)
+            conflict_msg = check_conflicts(
+                service, 
+                target_event['start'].get('dateTime', target_event['start'].get('date')), 
+                target_event['end'].get('dateTime', target_event['end'].get('date')),
+                exclude_id=event_id,
+                summary=target_event.get('summary')
+            )
+            if conflict_msg:
+                return jsonify({"status": "error", "message": conflict_msg + "\n\n❌ 偵測到與其他行程衝突，已取消修改。"})
+                
+            service.events().update(calendarId=CALENDAR_ID, eventId=event_id, body=target_event).execute()
+            session.pop('last_conflict_event_id', None)
+            session.pop('last_conflict_event_title', None)
+            session.pop('modify_candidates', None)
+            session.pop('pending_modify_data', None)
             
-        service.events().insert(calendarId=CALENDAR_ID, body=event).execute()
-        success_msg = format_event_success_message(
-            title=parsed_data.get('title'),
-            start_time_str=start_time_str,
-            location=parsed_data.get('location', ''),
-            is_all_day=is_all_day,
-            is_manual=False
-        )
-        if ai_response_message:
-            success_msg = f"{ai_response_message}\n\n{success_msg}"
-        return jsonify({"status": "success", "type": "calendar", "message": success_msg})
+            success_msg = format_event_success_message(
+                title=target_event.get('summary'),
+                start_time_str=target_event['start'].get('dateTime', target_event['start'].get('date')),
+                location=target_event.get('location', ''),
+                is_all_day=is_all_day,
+                is_manual=False,
+                prefix="✅ 行程已成功修改"
+            )
+            if ai_response_message:
+                success_msg = f"{ai_response_message}\n\n{success_msg}"
+            return jsonify({"status": "success", "type": "calendar", "message": success_msg})
+            
+        else:
+            # 建立 (create)
+            if not start_time_str:
+                return jsonify({"status": "error", "message": "❌ AI 解析失敗：遺失開始時間。"})
+            is_all_day = False
+            if len(start_time_str) <= 10 or 'T' not in start_time_str:
+                is_all_day = True
+                start_date = start_time_str[:10]
+                dt = datetime.strptime(start_date, '%Y-%m-%d')
+                end_date = (dt + timedelta(days=1)).strftime('%Y-%m-%d')
+                event = {
+                    'summary': title,
+                    'location': location,
+                    'start': { 'date': start_date, 'timeZone': 'Asia/Taipei' },
+                    'end': { 'date': end_date, 'timeZone': 'Asia/Taipei' },
+                }
+            else:
+                is_all_day = False
+                start_str = start_time_str
+                start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                
+                # 計算結束時間
+                if not duration_mins:
+                    end_str = parsed_data.get('end_time')
+                    if end_str:
+                        if 'T' in end_str and '+' not in end_str and 'Z' not in end_str:
+                            end_str += '+08:00'
+                        end_dt = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
+                    else:
+                        end_dt = start_dt + timedelta(hours=1)
+                else:
+                    end_dt = start_dt + timedelta(minutes=duration_mins)
+                    
+                event = {
+                    'summary': title,
+                    'location': location,
+                    'start': { 'dateTime': start_dt.isoformat(), 'timeZone': 'Asia/Taipei' },
+                    'end': { 'dateTime': end_dt.isoformat(), 'timeZone': 'Asia/Taipei' },
+                }
+                
+            conflict_msg = check_conflicts(
+                service, 
+                event['start'].get('dateTime', event['start'].get('date')), 
+                event['end'].get('dateTime', event['end'].get('date')),
+                summary=event.get('summary')
+            )
+            if conflict_msg: 
+                return jsonify({"status": "error", "message": conflict_msg})
+                
+            created_ev = service.events().insert(calendarId=CALENDAR_ID, body=event).execute()
+            session['last_created_event_id'] = created_ev.get('id')
+            
+            success_msg = format_event_success_message(
+                title=title,
+                start_time_str=start_time_str,
+                location=location,
+                is_all_day=is_all_day,
+                is_manual=False
+            )
+            if ai_response_message:
+                success_msg = f"{ai_response_message}\n\n{success_msg}"
+            return jsonify({"status": "success", "type": "calendar", "message": success_msg})
 
     elif intent_type == "expense":
         service = get_sheets_service()
