@@ -1539,3 +1539,28 @@ https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/READM
   import google.generativeai as genai
  * Debugger is active!
  * Debugger PIN: 493-899-119
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Stock DB Guard Error] 初始化資料庫失敗: (2003, "Can't connect to MySQL server on 'gateway01.ap-northeast-1.prod.aws.tidbcloud.com' ([Errno 8] nodename nor servname provided, or not known)")
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Subscription DB Guard Error] 欄位檢查與自癒程序發生異常: (2003, "Can't connect to MySQL server on 'gateway01.ap-northeast-1.prod.aws.tidbcloud.com' ([Errno 8] nodename nor servname provided, or not known)")
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Shopee DB Guard Error] 初始化蝦皮連結表失敗: (2003, "Can't connect to MySQL server on 'gateway01.ap-northeast-1.prod.aws.tidbcloud.com' ([Errno 8] nodename nor servname provided, or not known)")
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync Error] 同步台灣股票時發生錯誤: HTTPSConnectionPool(host='openapi.twse.com.tw', port=443): Max retries exceeded with url: /v1/exchangeReport/STOCK_DAY_ALL (Caused by NameResolutionError("HTTPSConnection(host='openapi.twse.com.tw', port=443): Failed to resolve 'openapi.twse.com.tw' ([Errno 8] nodename nor servname provided, or not known)"))
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119

@@ -1697,6 +1697,33 @@ def index():
                     else:
                         session['subscription_expires_at'] = None
 
+                    # 🎯 廣告投放策略計算：
+                    # 1. 正式付費會員 (is_subscribed 且非試用期)：100% 無廣告 (VIP)
+                    # 2. 7天試用期會員：前 3 天無廣告 (滿滿好感度)，第 4 天起 (~第 7 天) 開始顯示廣告
+                    # 3. 試用期已過期之一般用戶：顯示廣告
+                    is_sub_user = session.get('is_subscribed', False)
+                    is_trial_user = session.get('is_trial_active', False)
+
+                    if is_sub_user and not is_trial_user:
+                        session['show_ads'] = False
+                    elif is_trial_user:
+                        expires_at = user.get('trial_expires_at')
+                        if isinstance(expires_at, str):
+                            try:
+                                expires_at = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S")
+                            except ValueError:
+                                pass
+                        if isinstance(expires_at, datetime):
+                            remaining_time = expires_at - datetime.now()
+                            if remaining_time > timedelta(days=4):
+                                session['show_ads'] = False # 前 3 天：無廣告
+                            else:
+                                session['show_ads'] = True  # 第 4 天起：開始顯示廣告
+                        else:
+                            session['show_ads'] = True
+                    else:
+                        session['show_ads'] = True
+
                     if user.get('google_spreadsheet_id'):
                         session['spreadsheet_id'] = user.get('google_spreadsheet_id')
             

@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>AI 專屬小秘書</title>
     <meta name="google-site-verification" content="deKooB9S6LrkqUbmEtQTBQxCvVrvSIBVsUMbb4dcPcc" />
-    <!-- Google AdSense 驗證與自動廣告 -->
+    {% if logged_in and session.get('show_ads', True) %}
+    <!-- Google AdSense 自動廣告（試用期第4天起與非付費會員載入，前3天與付費VIP無廣告） -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7022056984579451"
          crossorigin="anonymous"></script>
+    {% endif %}
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#fff5f6">
     
