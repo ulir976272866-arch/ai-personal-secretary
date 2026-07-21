@@ -1504,3 +1504,38 @@ https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/READM
 127.0.0.1 - - [17/Jul/2026 01:55:09] "POST /api/update_event HTTP/1.1" 200 -
 127.0.0.1 - - [17/Jul/2026 01:55:14] "POST /api/query_schedule HTTP/1.1" 200 -
 127.0.0.1 - - [17/Jul/2026 01:55:33] "GET /api/training/rules HTTP/1.1" 200 -
+ * Detected change in '/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py', reloading
+--- [DEBUG] SINGLE_USER_MODE in Flask initialization: false ---
+Success: Loaded backup credentials from service_account.json
+[Stock DB Guard] 啟動 TiDB 股票選單聯想表檢查與自癒程序...
+[Subscription DB Guard] 啟動 TiDB 使用者表訂閱與廣告過期欄位檢查與自癒程序...
+[Shopee DB Guard] 啟動 TiDB 蝦皮連結表檢查與自癒程序...
+[Stock Sync] 啟動全台灣上市上櫃股票/ETF 資料庫實時同步程序...
+[Stock Sync] 資料清洗完成，共計 11458 檔有效標的。開始寫入 TiDB...
+[Stock Sync] 同步大成功！共 11458 檔台灣上市上櫃股票/ETF 已經 100% 寫入您的 TiDB 資料庫！
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Parsed AI response: {'type': 'calendar', 'action': 'delete', 'original_title': '埔眼精舍活動', 'start_time': '2026-07-17 00:00:00', 'title': None}
+Error in _find_event_by_title_or_keyword: name 're' is not defined
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Parsed AI response: {'type': 'calendar', 'action': 'delete', 'original_title': '晚上7點的行程', 'start_time': '2026-07-24T19:00:00', 'title': None}
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Parsed AI response: {'type': 'calendar', 'action': 'update', 'original_title': None, 'title': '塗眼睛', 'start_time': '2026-07-17'}
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Parsed AI response: {'type': 'calendar', 'title': '補課', 'start_time': '2026-07-17 19:00:00', 'location': '萬華西門埔鹽精舍', 'action': 'create', 'duration': 120}
+Skipping bad date format in row: ['SYSTEM', 'LEGAL', 'SYSTEM_NOTICE', 'AGREED', '', '', '已於 2026-05-23 12:15:30 同意醫療暨避孕免責聲明 V1.0'], error: time data 'SYSTEM_NOTICE' does not match format '%Y/%m/%d'
+Parsed AI response: {'type': 'calendar', 'action': 'update', 'original_title': '7月18號的行程', 'start_time': '2026-07-18 12:30:00', 'title': None}
+[Self-Healing] Detected header mismatch in sheet 'AI_指令集': ['觸發語句', '執行動作', '備註'] vs standard ['觸發語句', '執行動作']. Overwriting...
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/Users/yinmin/0_Ai coding/私人行事曆安排/ai-personal-secretary/app.py:91: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+ * Debugger is active!
+ * Debugger PIN: 493-899-119

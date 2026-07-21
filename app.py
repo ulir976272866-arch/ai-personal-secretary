@@ -1581,6 +1581,10 @@ def serve_sw():
     response.headers['Service-Worker-Allowed'] = '/'
     return response
 
+@app.route('/ads.txt')
+def ads_txt():
+    return send_from_directory('static', 'ads.txt')
+
 @app.route('/privacy')
 def privacy_policy():
     return render_template('privacy.html')
