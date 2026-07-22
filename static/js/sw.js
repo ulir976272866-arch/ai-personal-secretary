@@ -1,8 +1,7 @@
 // ================================================================
-// AI 小秘書 Service Worker  v2.1
-// 新增：🎴 會員卡包 CDN 條碼函式庫離線快取（P5）
+// AI 小秘書 Service Worker  v2.2
 // ================================================================
-const CACHE_NAME = 'ai-secretary-v2.1';
+const CACHE_NAME = 'ai-secretary-v2.2';
 
 // 核心 Shell 資源（必要）
 const ASSETS_TO_CACHE = [
@@ -14,30 +13,15 @@ const ASSETS_TO_CACHE = [
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
 ];
 
-// 🎴 P5：條碼函式庫 CDN 離線快取（讓超商地下室也能顯示條碼）
-const MEMBER_CDN_ASSETS = [
-    'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js',
-    'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js'
-];
+// 🎴 會員卡條碼函式庫 CDN 白名單（目前尚未串接條碼功能，先留空陣列避免 fetch handler 噴 ReferenceError）
+const MEMBER_CDN_ASSETS = [];
 
-// ── Installation：預快取所有核心 + 條碼函式庫 ─────────────────────
+// ── Installation：預快取所有核心資源 ───────────────────────────────
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            console.log('[SW] Pre-caching core shell + 🎴 條碼函式庫...');
-            // 核心資源：任一失敗即中止安裝
-            return cache.addAll(ASSETS_TO_CACHE).then(() => {
-                // 條碼 CDN：個別嘗試，失敗不影響 SW 安裝
-                return Promise.allSettled(
-                    MEMBER_CDN_ASSETS.map(url =>
-                        fetch(url).then(res => {
-                            if (res.ok) cache.put(url, res);
-                        }).catch(() => {
-                            console.warn('[SW] 條碼函式庫快取失敗（離線安裝）：', url);
-                        })
-                    )
-                );
-            });
+            console.log('[SW] Pre-caching core shell...');
+            return cache.addAll(ASSETS_TO_CACHE);
         }).then(() => self.skipWaiting())
     );
 });
@@ -68,6 +52,7 @@ self.addEventListener('fetch', (event) => {
     // 🛡️ 繞過 OAuth / 登入 / 登出，避免 Service Worker 造成無限導向
     if (
         url.pathname.startsWith('/login') ||
+        url.pathname.startsWith('/auth/google') ||
         url.pathname.startsWith('/callback') ||
         url.pathname.startsWith('/logout') ||
         url.pathname.startsWith('/api')
