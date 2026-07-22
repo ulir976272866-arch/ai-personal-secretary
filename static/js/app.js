@@ -1084,16 +1084,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const subType = window.USER_SUBSCRIPTION_TYPE || 'NONE';
         
-        // 免費版 (NONE) 鎖定：行程、備忘、健康、股票、報稅收據、卡包
-        const freeLockedTabs = ['schedule', 'memo', 'health', 'stock', 'tax', 'member'];
+        // 免費版 (NONE) 鎖定：行程、備忘、健康、股票、報稅收據
+        const freeLockedTabs = ['schedule', 'memo', 'health', 'stock', 'tax'];
         const freeLockedModals = [
             'scheduleModal', 'memoModal', 'todoModal', 'pocketModal', 
-            'wishlistModal', 'healthModal', 'trackingModal', 'trainingModal', 'stockModal', 'stockAnalysisModal', 'memberModal'
+            'wishlistModal', 'healthModal', 'trackingModal', 'trainingModal', 'stockModal', 'stockAnalysisModal', 'stockNavigationModal'
         ];
         
         // 基礎版 (MONTHLY_AI) 鎖定：股票
         const basicLockedTabs = ['stock'];
-        const basicLockedModals = ['stockModal', 'stockAnalysisModal'];
+        const basicLockedModals = ['stockModal', 'stockAnalysisModal', 'stockNavigationModal'];
         
         if (subType === 'NONE') {
             if (freeLockedTabs.includes(featureOrModalId) || freeLockedModals.includes(featureOrModalId)) {
@@ -1154,6 +1154,68 @@ document.addEventListener('DOMContentLoaded', () => {
         const tier = points === 300 ? 'POINTS_300' : 'POINTS_600';
         // 另開新分頁前往結帳，主畫面保持不動
         window.open(`/mock/checkout?tier=${tier}&email=${encodeURIComponent(email)}`, '_blank');
+    };
+
+    // 📺 免費觀看廣告賺點數（目前用簡易倒數模擬觀看時間，未來接上正式 Rewarded Ad SDK 後可直接替換這段播放邏輯，
+    // 後端 /api/user/ad_reward 每日上限 5 次、每次 +1 點的邏輯已經完整實作，這裡只負責觸發「播放」與呼叫發放）
+    window.triggerRewardedAd = async () => {
+        if (window.__rewardedAdPlaying) return; // 防止重複點擊
+        window.__rewardedAdPlaying = true;
+
+        const AD_WATCH_SECONDS = 15;
+        const overlay = document.createElement('div');
+        overlay.id = 'rewarded-ad-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.92);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;padding:20px;';
+        overlay.innerHTML = `
+            <div style="font-size:2.2rem;margin-bottom:14px;">📺</div>
+            <div style="font-weight:700;font-size:1rem;margin-bottom:10px;">廣告播放中，請稍候…</div>
+            <div id="rewarded-ad-countdown" style="font-size:1.6rem;font-weight:800;color:#f97316;">${AD_WATCH_SECONDS}</div>
+        `;
+        document.body.appendChild(overlay);
+
+        let remaining = AD_WATCH_SECONDS;
+        const countdownEl = overlay.querySelector('#rewarded-ad-countdown');
+        const timer = setInterval(() => {
+            remaining -= 1;
+            if (countdownEl) countdownEl.innerText = Math.max(remaining, 0);
+            if (remaining <= 0) clearInterval(timer);
+        }, 1000);
+
+        await new Promise((resolve) => setTimeout(resolve, AD_WATCH_SECONDS * 1000));
+        clearInterval(timer);
+        overlay.remove();
+
+        try {
+            const res = await fetch('/api/user/ad_reward', { method: 'POST' });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                if (data.ai_points !== undefined) {
+                    // 畫面上顯示點數的 <span> 沒有固定 id（依訂閱狀態 Jinja 條件渲染出不同版本），
+                    // 統一用 .js-ai-points-count class 抓，有幾個就更新幾個，即時反映不用整頁重整
+                    document.querySelectorAll('.js-ai-points-count').forEach((el) => {
+                        el.innerText = data.ai_points;
+                    });
+                    window.USER_AI_POINTS = data.ai_points;
+                }
+                if (typeof window.showToast === 'function') {
+                    window.showToast(data.message || '恭喜獲得 1 點 AI 額度！💎', 'success');
+                }
+            } else {
+                if (typeof window.showToast === 'function') {
+                    window.showToast(data.message || '廣告點數發放失敗，請稍後再試', 'warning');
+                } else {
+                    alert(data.message || '廣告點數發放失敗，請稍後再試');
+                }
+            }
+        } catch (e) {
+            console.error('[triggerRewardedAd] 發放點數失敗:', e);
+            if (typeof window.showToast === 'function') {
+                window.showToast('連線失敗，請稍後再試', 'warning');
+            }
+        } finally {
+            window.__rewardedAdPlaying = false;
+        }
     };
 
     // --- 訂閱到期倒數與試用到期計時器 (V25.0 Premium UI) ---
@@ -6489,10 +6551,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
             
-            // 同步更新首頁右上角的點數顯示
-            const pointEl = document.getElementById('user_ai_points');
-            if (pointEl && data.remaining_points !== undefined) {
-                pointEl.innerText = data.remaining_points;
+            // 同步更新首頁右上角的點數顯示（沒有固定 id，統一用 class 抓）
+            if (data.remaining_points !== undefined) {
+                document.querySelectorAll('.js-ai-points-count').forEach((el) => {
+                    el.innerText = data.remaining_points;
+                });
                 window.USER_AI_POINTS = data.remaining_points;
             }
             showToast('AI 全能持股健檢大數據計算完畢！', 'success');
@@ -6522,20 +6585,35 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/\n/g, '<br>');
     }
 
+    // 🧭 像開啟雲端試算表一樣，直接於獨立新分頁中開啟存股導航網站 (自動識別本機 Port 3001 與 Cloud Run 正式版，若本機未啟動則無縫轉接線上版)
+    window.openStockNavigationWebPage = async () => {
+        const emailParam = window.USER_EMAIL ? `?email=${encodeURIComponent(window.USER_EMAIL)}` : '';
+        const cloudUrl = `https://stock-navigation-system-662049004454.europe-west1.run.app${emailParam}`;
+        const localUrl = `http://localhost:3001${emailParam}`;
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+        if (isLocal) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 600);
+                await fetch('http://localhost:3001', { method: 'HEAD', mode: 'no-cors', signal: controller.signal });
+                clearTimeout(timeoutId);
+                window.open(localUrl, '_blank');
+                return;
+            } catch (e) {
+                console.log('[StockNav] Local 3001 server not running, falling back to Cloud Run URL');
+            }
+        }
+        window.open(cloudUrl, '_blank');
+    };
+
     window.deliverStockPortfolio = (data) => {
         // 第一個對話氣泡：智慧證券持股部位總覽
         appendMessage(formatStockMarkdown(data.message || data.reply));
         
-        // 第二個對話氣泡：我的存股網頁鏈接
+        // 第二個對話氣泡：存股導航網頁連結 (網頁模式)
         setTimeout(() => {
-            const emailParam = window.USER_EMAIL ? `?email=${encodeURIComponent(window.USER_EMAIL)}` : '';
-            // 自動偵測環境：本機測試連本機存股系統，線上則連 Cloud Run
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const stockBaseUrl = isLocal 
-                ? `http://localhost:3000` 
-                : `https://stock-navigation-system-662049004454.europe-west1.run.app`;
-            const stockUrl = `${stockBaseUrl}${emailParam}`;
-            const portalLinkText = `<div style="background: linear-gradient(135deg, #3a4750 0%, #303841 100%); border: 1px solid #4f5b66; border-radius: 16px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25); display: flex; flex-direction: column; gap: 8px;"><div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 1.15rem;">📡</span><strong style="color: #d4af37; font-size: 0.95rem; font-weight: 800; letter-spacing: 0.5px;">大戶資金存股導航系統已就緒</strong></div><p style="color: #cfd8dc; font-size: 0.8rem; margin: 0; line-height: 1.45;">已為您接通大戶爆量量能排行榜與巴菲特內在價值估值系統！點擊下方按鈕即可跳轉至存股導航系統。</p><a href="${stockUrl}" target="_blank" style="align-self: flex-start; margin-top: 4px; display: inline-flex; align-items: center; gap: 6px; background: #8e9eab; color: #1c2331; font-size: 0.8rem; font-weight: 700; padding: 6px 14px; border-radius: 20px; text-decoration: none; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"><span>開啟存股導航系統</span> ↗</a></div>`;
+            const portalLinkText = `<div style="background: linear-gradient(135deg, #3a4750 0%, #303841 100%); border: 1px solid #4f5b66; border-radius: 16px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25); display: flex; flex-direction: column; gap: 8px;"><div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 1.15rem;">🧭</span><strong style="color: #d4af37; font-size: 0.95rem; font-weight: 800; letter-spacing: 0.5px;">存股導航系統已就緒</strong></div><p style="color: #cfd8dc; font-size: 0.8rem; margin: 0; line-height: 1.45;">已為您接通大戶爆量量能排行榜與巴菲特內在價值估值系統！點擊下方按鈕即可於新分頁開啟存股導航網頁。</p><button onclick="window.openStockNavigationWebPage()" style="align-self: flex-start; margin-top: 4px; display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); color: #ffffff; border: none; font-size: 0.82rem; font-weight: 800; padding: 8px 16px; border-radius: 20px; text-decoration: none; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 10px rgba(234,179,8,0.3);"><span>🧭 開啟存股導航網頁</span> ↗</button></div>`;
             appendMessage(portalLinkText);
         }, 400);
     };

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 專屬小秘書 — 讓時間與財務管理變得無痛自然</title>
+    <meta name="description" content="AI 專屬小秘書整合 Google 行事曆與試算表，用說的就能安排行程、輕鬆記帳，還能管理備忘清單、追蹤健康與股票。免下載，直接把網站加入手機桌面即可像 APP 一樣使用，採用官方 Google OAuth 授權，資料安全有保障。">
+    <meta name="google-site-verification" content="deKooB9S6LrkqUbmEtQTBQxCvVrvSIBVsUMbb4dcPcc" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="AI 專屬小秘書 — 讓時間與財務管理變得無痛自然">
+    <meta property="og:description" content="整合 Google 行事曆與試算表，用說的就能安排行程、輕鬆記帳。免下載，加入手機桌面即可當 APP 使用。">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="/static/icons/icon.png">
+
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#fff5f6">
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="UniTask">
+
+    <link rel="apple-touch-icon" href="/static/icons/icon.png">
+    <link rel="icon" type="image/png" href="/static/icons/icon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches && savedTheme !== 'light') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+
+    <style>
+        :root {
+            --lp-bg: #fff5f6;
+            --lp-bg-alt: #fffcfc;
+            --lp-primary: #0d9488;
+            --lp-primary-dark: #0f766e;
+            --lp-accent: #f43f5e;
+            --lp-text: #1e293b;
+            --lp-text-muted: #64748b;
+            --lp-card-bg: #ffffff;
+            --lp-border: #f1f5f9;
+        }
+        html[data-theme="dark"] {
+            --lp-bg: #0f172a;
+            --lp-bg-alt: #111827;
+            --lp-text: #f8fafc;
+            --lp-text-muted: #94a3b8;
+            --lp-card-bg: #1e293b;
+            --lp-border: #334155;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, "Noto Sans TC", sans-serif;
+            background: var(--lp-bg);
+            color: var(--lp-text);
+            line-height: 1.6;
+        }
+        a { color: inherit; }
+        .lp-container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+        /* Nav */
+        .lp-nav {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 24px;
+        }
+        .lp-nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.05rem; }
+        .lp-nav-brand img { width: 32px; height: 32px; border-radius: 8px; }
+        .lp-nav-cta {
+            padding: 9px 20px; border-radius: 999px; background: var(--lp-primary); color: #fff;
+            font-weight: 700; font-size: 0.85rem; text-decoration: none; white-space: nowrap;
+        }
+
+        /* Hero */
+        .lp-hero { text-align: center; padding: 56px 24px 40px; }
+        .lp-hero h1 {
+            font-size: clamp(1.8rem, 4.5vw, 2.6rem);
+            font-weight: 800; margin: 0 0 16px; line-height: 1.35;
+            background: linear-gradient(135deg, var(--lp-primary-dark), var(--lp-accent));
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .lp-hero p {
+            font-size: clamp(0.95rem, 2vw, 1.1rem); color: var(--lp-text-muted);
+            max-width: 560px; margin: 0 auto 28px;
+        }
+        .lp-hero-cta {
+            display: inline-block; padding: 14px 36px; border-radius: 999px;
+            background: linear-gradient(135deg, var(--lp-primary) 0%, var(--lp-primary-dark) 100%);
+            color: #fff; font-weight: 700; font-size: 1rem; text-decoration: none;
+            box-shadow: 0 8px 24px rgba(13, 148, 136, 0.28);
+        }
+        .lp-hero-sub-note { margin-top: 14px; font-size: 0.78rem; color: var(--lp-text-muted); }
+
+        /* Section shared */
+        .lp-section { padding: 48px 24px; }
+        .lp-section-alt { background: var(--lp-bg-alt); }
+        .lp-section-title {
+            text-align: center; font-size: clamp(1.3rem, 3vw, 1.7rem); font-weight: 800;
+            margin: 0 0 8px;
+        }
+        .lp-section-desc {
+            text-align: center; color: var(--lp-text-muted); font-size: 0.92rem;
+            max-width: 520px; margin: 0 auto 32px;
+        }
+
+        /* Features */
+        .lp-grid-features {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px;
+            max-width: 1000px; margin: 0 auto;
+        }
+        .lp-card {
+            background: var(--lp-card-bg); border: 1px solid var(--lp-border); border-radius: 20px;
+            padding: 28px 22px; text-align: left;
+        }
+        .lp-card .lp-emoji { font-size: 1.8rem; margin-bottom: 12px; display: block; }
+        .lp-card h3 { margin: 0 0 8px; font-size: 1.05rem; font-weight: 700; }
+        .lp-card p { margin: 0 0 10px; color: var(--lp-text-muted); font-size: 0.9rem; }
+        .lp-card p:last-child { margin-bottom: 0; }
+        .lp-card-list { margin: 10px 0 0; padding-left: 18px; color: var(--lp-text-muted); font-size: 0.85rem; }
+        .lp-card-list li { margin-bottom: 5px; }
+        .lp-card-list li:last-child { margin-bottom: 0; }
+
+        /* PWA steps */
+        .lp-pwa-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 800px; margin: 0 auto;
+        }
+        @media (max-width: 700px) { .lp-pwa-grid { grid-template-columns: 1fr; } }
+        .lp-pwa-card {
+            background: var(--lp-card-bg); border: 1px solid var(--lp-border); border-radius: 20px; padding: 24px;
+        }
+        .lp-pwa-card h3 { margin: 0 0 14px; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .lp-pwa-card ol { margin: 0; padding-left: 20px; color: var(--lp-text-muted); font-size: 0.9rem; }
+        .lp-pwa-card li { margin-bottom: 8px; }
+        .lp-pwa-note {
+            text-align: center; margin-top: 20px; font-size: 0.85rem; color: var(--lp-text-muted);
+            max-width: 600px; margin-left: auto; margin-right: auto;
+        }
+
+        /* How it works：可展開的教學手風琴 */
+        .lp-accordion { max-width: 720px; margin: 0 auto; }
+        .lp-accordion-item {
+            border: 1px solid var(--lp-border); border-radius: 16px; margin-bottom: 12px;
+            background: var(--lp-card-bg); overflow: hidden;
+        }
+        .lp-accordion-item summary {
+            list-style: none; cursor: pointer; padding: 18px 22px;
+            display: flex; align-items: center; gap: 14px; font-weight: 700; font-size: 0.98rem;
+        }
+        .lp-accordion-item summary::-webkit-details-marker { display: none; }
+        .lp-accordion-num {
+            flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: var(--lp-primary);
+            color: #fff; display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 0.9rem;
+        }
+        .lp-accordion-caret {
+            margin-left: auto; color: var(--lp-text-muted); font-size: 0.8rem; transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+        .lp-accordion-item[open] .lp-accordion-caret { transform: rotate(180deg); }
+        .lp-accordion-body {
+            padding: 0 22px 20px 70px; color: var(--lp-text-muted); font-size: 0.88rem;
+        }
+        .lp-accordion-body p { margin: 0 0 8px; }
+        .lp-accordion-body p:last-child { margin-bottom: 0; }
+
+        /* FAQ */
+        .lp-faq { max-width: 720px; margin: 0 auto; }
+        .lp-faq-item {
+            border: 1px solid var(--lp-border); border-radius: 16px; padding: 18px 22px; margin-bottom: 12px;
+            background: var(--lp-card-bg);
+        }
+        .lp-faq-item h3 { margin: 0 0 8px; font-size: 0.95rem; font-weight: 700; }
+        .lp-faq-item p { margin: 0; font-size: 0.88rem; color: var(--lp-text-muted); }
+
+        /* Ad slot placeholder (Phase 3 會放實際 AdSense 版位) */
+        .lp-ad-slot {
+            max-width: 728px; margin: 8px auto 0; min-height: 0;
+        }
+
+        /* Footer */
+        .lp-footer {
+            padding: 32px 24px; text-align: center; border-top: 1px solid var(--lp-border);
+        }
+        .lp-footer-links { margin-bottom: 10px; font-size: 0.85rem; }
+        .lp-footer-links a { text-decoration: underline; margin: 0 8px; color: var(--lp-text-muted); }
+        .lp-footer-copy { font-size: 0.78rem; color: var(--lp-text-muted); }
+        .lp-footer-legal {
+            font-size: 0.7rem; color: var(--lp-text-muted); opacity: 0.75;
+            max-width: 640px; margin: 8px auto 0; line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="lp-nav">
+        <div class="lp-nav-brand">
+            <img src="/static/icons/icon.png" alt="AI 專屬小秘書">
+            <span>AI 專屬小秘書</span>
+        </div>
+        <a href="/login" class="lp-nav-cta">立即免費使用</a>
+    </nav>
+
+    <!-- 1. Hero Section -->
+    <header class="lp-hero">
+        <div class="lp-container">
+            <h1>AI 專屬小秘書<br>讓時間與財務管理變得無痛自然</h1>
+            <p>整合 Google 行事曆與試算表，用說的就能安排行程、輕鬆記帳，還能幫您管理備忘清單、追蹤健康與股票，把瑣碎的生活雜事交給 AI。</p>
+            <a href="/login" class="lp-hero-cta">立即免費使用</a>
+            <div class="lp-hero-sub-note">使用 Google 帳號登入即可開始，無需下載任何 APP</div>
+        </div>
+    </header>
+
+    <!-- 2. Features Section -->
+    <section class="lp-section" id="features">
+        <h2 class="lp-section-title">核心功能亮點</h2>
+        <p class="lp-section-desc">一站式打理行程、財務、健康與生活雜事，全部交給 AI</p>
+        <div class="lp-grid-features">
+            <div class="lp-card">
+                <span class="lp-emoji">💰</span>
+                <h3>自動化收支記帳</h3>
+                <p>對話式記帳，說一句「午餐花了 150 元」就完成記錄，資料自動同步至 Google Drive 試算表。</p>
+                <ul class="lp-card-list">
+                    <li>固定支出自動提醒（房租、訂閱費等每月自動補記）</li>
+                    <li>資產帳戶總覽，多帳戶合併看淨值變化</li>
+                    <li>朋友分帳與代墊款追蹤，聚餐出遊不再算不清</li>
+                </ul>
+            </div>
+            <div class="lp-card">
+                <span class="lp-emoji">📅</span>
+                <h3>語意智慧排程</h3>
+                <p>自動理解自然語言，例如「明天下午三點和客戶開會」，輕鬆寫入 Google Calendar。</p>
+                <ul class="lp-card-list">
+                    <li>支援口語修改、取消行程，不用手動翻找日曆</li>
+                    <li>與手機原生日曆同步，隨時掌握行程</li>
+                </ul>
+            </div>
+            <div class="lp-card">
+                <span class="lp-emoji">📝</span>
+                <h3>備忘與生活清單</h3>
+                <p>生活雜事不再靠腦袋硬記，通通交給 AI 幫你收好。</p>
+                <ul class="lp-card-list">
+                    <li>待辦清單：勾選完成、標記優先順序</li>
+                    <li>願望清單：想買的東西先收藏，達成願望打勾記錄</li>
+                    <li>口袋名單：收藏想去的景點與店家</li>
+                </ul>
+            </div>
+            <div class="lp-card">
+                <span class="lp-emoji">🌸</span>
+                <h3>專屬健康閨蜜</h3>
+                <p>比您更懂您身體密碼的貼心健康管家。</p>
+                <ul class="lp-card-list">
+                    <li>經期看板：週期預測與排卵期提醒</li>
+                    <li>歷史經期補錄，預測越用越準確</li>
+                    <li>症狀紀錄，長期追蹤身體健康趨勢</li>
+                </ul>
+            </div>
+            <div class="lp-card">
+                <span class="lp-emoji">📈</span>
+                <h3>存股大盤觀測</h3>
+                <p>做自己的專屬理財操盤手。</p>
+                <ul class="lp-card-list">
+                    <li>股票庫存與交易紀錄管理</li>
+                    <li>大盤與個股動態即時觀測</li>
+                    <li>AI 輔助分析，提供操作建議參考</li>
+                </ul>
+            </div>
+            <div class="lp-card">
+                <span class="lp-emoji">🔒</span>
+                <h3>隱私與安全</h3>
+                <p>採用官方 Google OAuth 2.0 授權機制，不儲存您的 Google 密碼，資料安全有保障。</p>
+                <ul class="lp-card-list">
+                    <li>所有資料存放於您自己的 Google 雲端硬碟與試算表</li>
+                    <li>僅在您授權範圍內讀寫行事曆與試算表資料</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Ad slot placeholder：Phase 3 會在此放置實際 AdSense 版位 -->
+    <div class="lp-ad-slot"></div>
+
+    <!-- 3. PWA Section -->
+    <section class="lp-section lp-section-alt" id="pwa">
+        <h2 class="lp-section-title">免下載！一鍵把網站變成手機 APP</h2>
+        <p class="lp-section-desc">不用去 App Store，兩步把 AI 秘書放進手機桌面</p>
+        <div class="lp-pwa-grid">
+            <div class="lp-pwa-card">
+                <h3>🍎 iOS（Safari）</h3>
+                <ol>
+                    <li>用 Safari 瀏覽器開啟本網站</li>
+                    <li>點擊瀏覽器下方的「分享」按鈕</li>
+                    <li>選擇「加入主畫面」</li>
+                </ol>
+            </div>
+            <div class="lp-pwa-card">
+                <h3>🤖 Android（Chrome）</h3>
+                <ol>
+                    <li>用 Chrome 瀏覽器開啟本網站</li>
+                    <li>點擊右上角「選單（⋮）」</li>
+                    <li>選擇「新增至主畫面」或「安裝應用程式」</li>
+                </ol>
+            </div>
+        </div>
+        <p class="lp-pwa-note">💡 加入桌面後，可享有如同原生 APP 一般的全螢幕流暢體驗，開啟速度更快、操作更順手。</p>
+    </section>
+
+    <!-- 4. How It Works Section -->
+    <section class="lp-section" id="how-it-works">
+        <h2 class="lp-section-title">三步驟開始使用</h2>
+        <p class="lp-section-desc">從登入到自動記錄，只需要三個步驟，點擊展開查看詳細教學</p>
+        <div class="lp-accordion">
+            <details class="lp-accordion-item" open>
+                <summary>
+                    <span class="lp-accordion-num">1</span>
+                    <span>Google 帳號快速登入</span>
+                    <span class="lp-accordion-caret">▼</span>
+                </summary>
+                <div class="lp-accordion-body">
+                    <p>點擊「使用 Google 帳號安全登入」，畫面會導向 Google 官方登入頁面完成授權。</p>
+                    <p>本站採用 Google OAuth 2.0 標準機制，不會儲存您的帳號密碼，只會在您明確同意的範圍內存取行事曆與試算表資料，登入完成後即可立即使用所有功能。</p>
+                </div>
+            </details>
+            <details class="lp-accordion-item">
+                <summary>
+                    <span class="lp-accordion-num">2</span>
+                    <span>用說的輸入行程或消費</span>
+                    <span class="lp-accordion-caret">▼</span>
+                </summary>
+                <div class="lp-accordion-body">
+                    <p>在主畫面的對話框直接輸入自然語言，例如「明天下午三點和客戶開會」或「午餐花了 150 元」。</p>
+                    <p>AI 會自動判斷這是「行程」還是「記帳」需求，並解析出時間、地點、金額、分類等細節，不需要手動填寫複雜表單。</p>
+                </div>
+            </details>
+            <details class="lp-accordion-item">
+                <summary>
+                    <span class="lp-accordion-num">3</span>
+                    <span>AI 自動整理並同步雲端</span>
+                    <span class="lp-accordion-caret">▼</span>
+                </summary>
+                <div class="lp-accordion-body">
+                    <p>解析完成後，行程會直接寫入您的 Google Calendar，消費紀錄會同步更新到您 Google Drive 裡的試算表。</p>
+                    <p>所有資料都存放在您自己的 Google 帳號中，隨時可以用手機、電腦查看與編輯，換裝置也不會遺失。</p>
+                </div>
+            </details>
+        </div>
+    </section>
+
+    <!-- 5. FAQ Section -->
+    <section class="lp-section lp-section-alt" id="faq">
+        <h2 class="lp-section-title">常見問題</h2>
+        <div class="lp-faq">
+            <div class="lp-faq-item">
+                <h3>Q1. 這項服務是免費的嗎？</h3>
+                <p>是的，登入即可享有 <strong>7 天旗艦版全功能免費試用</strong>。試用期結束後，記帳功能永久免費使用；若想持續使用行程、備忘、女性健康、存股等進階功能，可依需求訂閱：</p>
+                <ul style="margin: 0 0 8px; padding-left: 18px;">
+                    <li>🥈 基礎版 NT$119 / 30 天</li>
+                    <li>🥇 旗艦版 NT$199 / 30 天</li>
+                    <li>👑 尊榮版 NT$1,990 / 365 天（相當於年繳送 2 個月，最划算）</li>
+                </ul>
+                <p>不想訂閱也可以單買 AI 點數加購包，免訂閱隨買隨用。所有訂閱方案均享有 <strong>7 日鑑賞期無條件退費</strong>（信用卡全額退刷；ATM 退款酌收 15 元跨行手續費，超過 7 日恕不受理退款），完整退費規則請見<a href="/terms" style="color: #0d9488; text-decoration: underline;">服務條款</a>。</p>
+            </div>
+            <div class="lp-faq-item">
+                <h3>Q2. 我的 Google 行事曆資料安全嗎？</h3>
+                <p>本服務採用 Google 官方 OAuth 2.0 授權機制，不會儲存您的 Google 帳號密碼，且僅在您授權範圍內讀寫行事曆與試算表資料。</p>
+            </div>
+            <div class="lp-faq-item">
+                <h3>Q3. 是否需要下載或安裝其他 APP？</h3>
+                <p>無需下載，直接將網頁加入手機桌面即可當 APP 使用！詳見上方「免下載！一鍵把網站變成手機 APP」說明。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 6. Footer Section -->
+    <footer class="lp-footer">
+        <div class="lp-footer-links">
+            <a href="/terms">服務條款</a> |
+            <a href="/privacy">隱私權政策</a> |
+            <a href="mailto:ulir976272866@gmail.com">聯絡我們</a>
+        </div>
+        <div class="lp-footer-copy">© 2026 Unitask.club. All Rights Reserved. 版權所有，翻印必究。</div>
+        <div class="lp-footer-legal">
+            未經授權，禁止轉載、重製、反編譯或反向工程本服務之原始碼、介面設計及相關內容。<br>
+            Google、Google 日曆、Google 試算表、Google Drive 為 Google LLC 之商標。本服務為第三方獨立開發之整合應用，並非 Google LLC 官方產品，亦未獲得 Google 之背書、贊助或關聯認證。
+        </div>
+    </footer>
+
+</body>
+</html>
