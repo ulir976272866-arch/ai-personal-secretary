@@ -29,6 +29,7 @@
     <!-- Chart.js (v4.4.3 pinned, bundled build - no sourceMappingURL to avoid 404 DevTools warnings) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.min.js"></script>
 
 
     <script>
@@ -158,6 +159,31 @@
     </script>
     <!-- 登入成功後的主介面 -->
     <div id="app-container">
+        <!-- 🎉 頂部小提醒更新公告 (Tip) -->
+        <div id="index-update-tip" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-bottom: 1.5px solid #bbf7d0; padding: 6px 16px; font-family: 'Inter', sans-serif; font-size: 0.72rem; color: #166534; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; transition: all 0.3s ease; position: relative; z-index: 1000; display: none;">
+            <span style="font-size: 0.9rem;">🎉</span>
+            <span>新功能：個人固定日程與農曆打卡月曆上線！</span>
+            <button onclick="window.toggleIndexUpdateDetail(event)" style="background: #22c55e; color: white; border: none; padding: 2px 8px; border-radius: 99px; font-size: 0.65rem; font-weight: 800; cursor: pointer; margin-left: 6px; outline: none; transition: all 0.2s;">點選查看 ➔</button>
+            <button onclick="window.closeUpdateTip()" style="background: none; border: none; font-size: 0.8rem; color: #166534; font-weight: 800; cursor: pointer; padding: 2px; margin-left: auto; outline: none;">✕</button>
+        </div>
+
+        <!-- 展開後的詳細卡片 -->
+        <div id="index-update-detail" style="display: none; background: #ffffff; border: 1.5px solid #bbf7d0; border-radius: 16px; padding: 14px; margin: 10px 16px; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.08); text-align: left; font-family: 'Inter', sans-serif; position: relative; z-index: 999;">
+            <h4 style="margin: 0 0 6px 0; font-size: 0.85rem; font-weight: 800; color: #15803d; display: flex; align-items: center; gap: 6px;">
+                🎉 固定日程打卡月曆功能
+                <span style="font-size: 0.65rem; background: #22c55e; color: white; padding: 1px 6px; border-radius: 99px;">NEW</span>
+            </h4>
+            <div style="font-size: 0.75rem; color: #166534; line-height: 1.45; font-weight: 500;">
+                <p style="margin: 0 0 6px 0;">專為個人生活習慣（如吃素、繳費、運動）設計，與常規 Google Calendar 行程完全獨立：</p>
+                <ul style="margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px;">
+                    <li><b>農曆/國曆/星期重複</b>：可自訂於特定日子重複（如：農曆初一十五吃素 🥬）。</li>
+                    <li><b>專屬打卡月曆</b>：提供雙日曆與精緻 Emoji 徽章，並且首頁今日行程會自動比對浮出提醒。</li>
+                    <li><b>雲端 Sheets 同步</b>：打卡紀錄獨立存於試算表，乾淨又省心。</li>
+                </ul>
+            </div>
+            <button onclick="document.getElementById('index-update-detail').style.display='none'" style="position: absolute; right: 10px; top: 10px; background: none; border: none; font-size: 0.85rem; color: #94a3b8; cursor: pointer; outline: none;">✕</button>
+        </div>
+
         <!-- Header -->
         <div class="header">
             <!-- 第一排：左側個人資料，右側操作按鈕與點數膠囊 -->
@@ -375,9 +401,9 @@
     <!-- 手動新增行程 Modal -->
     <div id="scheduleModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">📅 新增行程</h2>
-                <button class="close-modal" onclick="closeModal('scheduleModal')">✕</button>
+            <div class="modal-header" style="justify-content: flex-start; gap: 12px;">
+                <button class="back-btn" onclick="closeModal('scheduleModal')">← 返回</button>
+                <h2 class="modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">📅 新增行程</h2>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -453,9 +479,9 @@
     <!-- 待辦清單 Modal -->
     <div id="todoModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">✅ 待辦清單</h2>
-                <button class="close-modal" onclick="closeModal('todoModal')">✕</button>
+            <div class="modal-header" style="justify-content: flex-start; gap: 12px;">
+                <button class="back-btn" onclick="closeModal('todoModal')">← 返回</button>
+                <h2 class="modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">✅ 待辦清單</h2>
             </div>
             <div class="modal-body">
                 <div style="display: flex; gap: 8px; margin-bottom: 15px; align-items: center; width: 100%;">
@@ -495,9 +521,9 @@
     <!-- 口袋名單 Modal -->
     <div id="pocketModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">📍 口袋名單</h2>
-                <button class="close-modal" onclick="closeModal('pocketModal')">✕</button>
+            <div class="modal-header" style="justify-content: flex-start; gap: 12px;">
+                <button class="back-btn" onclick="closeModal('pocketModal')">← 返回</button>
+                <h2 class="modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">📍 口袋名單</h2>
             </div>
             <div class="modal-body">
                 <!-- 雙分頁切換鈕 (V3.0) -->
@@ -566,9 +592,9 @@
     <!-- 生活日記 Modal -->
     <div id="memoModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">📝 生活日記</h2>
-                <button class="close-modal" onclick="closeModal('memoModal')">✕</button>
+            <div class="modal-header" style="justify-content: flex-start; gap: 12px;">
+                <button class="back-btn" onclick="closeModal('memoModal')">← 返回</button>
+                <h2 class="modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">📝 生活日記</h2>
             </div>
             <div class="modal-body">
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
@@ -612,9 +638,9 @@
     <!-- 願望清單 Modal -->
     <div id="wishlistModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">🎁 願望清單</h2>
-                <button class="close-modal" onclick="closeModal('wishlistModal')">✕</button>
+            <div class="modal-header" style="justify-content: flex-start; gap: 12px;">
+                <button class="back-btn" onclick="closeModal('wishlistModal')">← 返回</button>
+                <h2 class="modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">🎁 願望清單</h2>
             </div>
             <div class="wish-input-section" style="background: #fff5f5; padding: 15px 20px; border-bottom: 1px solid #fee2e2; flex-shrink: 0;">
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
@@ -655,9 +681,9 @@
     <div id="expenseModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content" style="max-width: 480px;">
             <div class="modal-header" style="flex-direction: column; align-items: stretch; gap: 10px; border-bottom: none; padding-bottom: 0;">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <h2 class="modal-title" style="font-size: 1.25rem; font-weight: 800;">💰 記帳管理</h2>
-                    <button class="close-modal" onclick="closeModal('expenseModal')">✕</button>
+                <div style="display: flex; justify-content: flex-start; align-items: center; gap: 12px; width: 100%;">
+                    <button class="back-btn" onclick="closeModal('expenseModal')">← 返回</button>
+                    <h2 class="modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">💰 記帳管理</h2>
                 </div>
                 <!-- Premium Tabs (V3.7 Step 4) -->
                 <div class="expense-tab-nav" style="display: flex; background: var(--bg-card, #f1f5f9); padding: 4px; border-radius: 14px; gap: 4px; margin-top: 5px;">
@@ -817,9 +843,9 @@
     <!-- 每月固定支出彈窗 (V3.7 Premium Fixed Expenses Modal) -->
     <div id="fixedExpensesModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">⏰ 每月固定支出設定</h2>
-                <button class="close-modal" onclick="closeModal('fixedExpensesModal')">✕</button>
+            <div class="modal-header" style="justify-content: flex-start; gap: 12px;">
+                <button class="back-btn" onclick="closeModal('fixedExpensesModal')">← 返回</button>
+                <h2 class="modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">⏰ 每月固定支出設定</h2>
             </div>
             
             <div class="modal-body">
@@ -920,9 +946,9 @@
     <!-- 💳 個人資產帳戶與淨值總覽儀表板 (V3.8 Asset Accounts Modal) -->
     <div id="assetAccountsModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">💳 個人資產帳戶</h2>
-                <button class="close-modal" onclick="closeModal('assetAccountsModal')">✕</button>
+            <div class="modal-header" style="justify-content: flex-start; gap: 12px;">
+                <button class="back-btn" onclick="closeModal('assetAccountsModal')">← 返回</button>
+                <h2 class="modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">💳 個人資產帳戶</h2>
             </div>
             
             <div class="modal-body">
@@ -1458,9 +1484,9 @@
     <!-- 生理追蹤 Modal -->
     <div id="trackingModal" class="modal-backdrop full-screen-panel">
         <div class="modal-content">
-            <div class="modal-header" style="border-bottom-color: #ffe4e6;">
-                <h2 class="modal-title" style="color: #e11d48; display: flex; align-items: center; gap: 6px;">🌡️ 生理追蹤</h2>
-                <button class="close-modal" onclick="closeModal('trackingModal')" style="background: #fff5f5; color: #e11d48;">✕</button>
+            <div class="modal-header" style="border-bottom-color: #ffe4e6; justify-content: flex-start; gap: 12px;">
+                <button class="back-btn" onclick="closeModal('trackingModal')">← 返回</button>
+                <h2 class="modal-title" style="color: #e11d48; display: flex; align-items: center; gap: 6px; margin: 0;">🌡️ 生理追蹤</h2>
             </div>
             <div class="modal-body" style="padding-top: 15px;">
                 <!-- 📅 莫蘭迪動態月曆組件 -->
@@ -1538,6 +1564,140 @@
         </div>
     </div>
 
+    <!-- 📅 個人固定日程與打卡月曆 Modal -->
+    <div id="routineCalendarModal" class="modal-backdrop full-screen-panel" style="z-index: 9999;">
+        <div class="modal-content" style="max-width: 500px; border-radius: 28px; border: 1px solid #e2e8f0; box-shadow: 0 15px 40px rgba(0,0,0,0.08);">
+            <div class="modal-header" style="border-bottom: 1.5px solid #f1f5f9; padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="back-btn" onclick="closeModal('routineCalendarModal')">← 返回</button>
+                    <h2 class="modal-title" style="color: #0f172a; display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.15rem; margin: 0;">
+                        <span>📅</span> 固定日程打卡
+                    </h2>
+                </div>
+                <button onclick="window.openRoutineSettingsModal()" style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; height: 32px; border-radius: 16px; padding: 0 12px; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; gap: 4px; cursor: pointer; outline: none; transition: all 0.2s; margin: 0;">
+                    ⚙️ 設定固定日程規則
+                </button>
+            </div>
+            <div class="modal-body" style="padding-top: 15px; overflow-y: auto; max-height: calc(85vh - 120px);">
+                <!-- 📅 月曆控制頭部 -->
+                <div class="calendar-card" style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 24px; padding: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.01); position: relative;">
+                    <!-- 雲端同步 Loading 遮罩 (比照生理追蹤) -->
+                    <div id="routine_calendar_loader_overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 24px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 10;">
+                        <div class="loader-spinner" style="border: 3.5px solid #f3f3f3; border-top: 3.5px solid #10b981; border-radius: 50%; width: 28px; height: 28px; animation: spin 1s linear infinite; margin-bottom: 8px;"></div>
+                        <span style="font-size: 0.72rem; color: #10b981; font-weight: 800; letter-spacing: 0.5px;">同步雲端中...</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <button type="button" onclick="window.changeRoutineCalMonth(-1)" class="cal-nav-btn" style="background: #f8fafc; border: 1px solid #e2e8f0; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-weight: 800; color: #475569; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">‹</button>
+                        <span id="routine_cal_month_year" style="font-size: 1.05rem; font-weight: 800; color: #1e293b; letter-spacing: 0.5px;">2026年 7月</span>
+                        <button type="button" onclick="window.changeRoutineCalMonth(1)" class="cal-nav-btn" style="background: #f8fafc; border: 1px solid #e2e8f0; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-weight: 800; color: #475569; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">›</button>
+                    </div>
+                    
+                    <!-- 星期表頭 -->
+                    <div class="calendar-weekdays" style="display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 800; margin-bottom: 10px;">
+                        <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
+                    </div>
+                    
+                    <!-- 日期網格 -->
+                    <div id="routine_cal_days_grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; text-align: center;"></div>
+                </div>
+                
+                <!-- 📝 選定日期詳情動態圖卡 -->
+                <div id="routine_cal_detail_card" style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 20px; padding: 16px; margin-top: 15px; text-align: left;">
+                    <div style="font-weight: 800; font-size: 0.92rem; color: #1e293b; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <span id="routine_detail_date_title">請選擇日期</span>
+                        <span id="routine_detail_lunar_title" style="font-size: 0.75rem; background: #e2e8f0; padding: 2px 8px; border-radius: 8px; color: #475569; font-weight: 700;">農曆 --</span>
+                    </div>
+                    
+                    <!-- 今日固定任務列表 -->
+                    <div id="routine_day_tasks_container" style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 10px 0;">點選日期以查看固定日程</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="background: #f8fafc; border-top: 1.5px solid #e2e8f0; display: flex; justify-content: center; padding: 12px 20px;">
+                <button onclick="window.open('{{ routine_log_sheet_url }}', '_blank')" class="sheet-link-btn">
+                    ☁️ 打開雲端試算表
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ⚙️ 固定日程設定與後台 Modal -->
+    <div id="routineSettingsModal" class="modal-backdrop full-screen-panel" style="z-index: 10000;">
+        <div class="modal-content" style="max-width: 450px; border-radius: 28px; border: 1px solid #e2e8f0; box-shadow: 0 15px 40px rgba(0,0,0,0.1); position: relative;">
+            <!-- 雲端儲存 Loading 遮罩 -->
+            <div id="routine_settings_loader_overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 28px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 10;">
+                <div class="loader-spinner" style="border: 3.5px solid #f3f3f3; border-top: 3.5px solid #10b981; border-radius: 50%; width: 28px; height: 28px; animation: spin 1s linear infinite; margin-bottom: 8px;"></div>
+                <span style="font-size: 0.72rem; color: #10b981; font-weight: 800; letter-spacing: 0.5px;">正在同步儲存至雲端...</span>
+            </div>
+
+            <div class="modal-header" style="border-bottom: 1.5px solid #f1f5f9; padding-bottom: 12px; display: flex; justify-content: flex-start; align-items: center; gap: 12px;">
+                <button class="back-btn" onclick="closeModal('routineSettingsModal')">← 返回</button>
+                <h2 class="modal-title" style="color: #0f172a; display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.1rem; margin: 0;">
+                    <span>⚙️</span> 固定日程規則設定
+                </h2>
+            </div>
+            <div class="modal-body" style="padding-top: 15px; overflow-y: auto; max-height: calc(85vh - 120px);">
+                <!-- 新增規則表單 -->
+                <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 20px; padding: 16px; margin-bottom: 15px;">
+                    <h3 style="margin: 0 0 12px 0; font-size: 0.9rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 4px;">➕ 新增固定日程</h3>
+                    
+                    <div class="form-group" style="margin-bottom: 12px; text-align: left;">
+                        <label style="font-size: 0.78rem; font-weight: 700; color: #475569; display: block; margin-bottom: 6px;">事項名稱</label>
+                        <input type="text" id="routine_new_name" class="form-input" placeholder="例如：初一十五吃素、繳信用卡、健身" style="width: 100%; box-sizing: border-box;">
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                        <div class="form-group" style="flex: 1.5; text-align: left; margin-bottom: 0;">
+                            <label style="font-size: 0.78rem; font-weight: 700; color: #475569; display: block; margin-bottom: 6px;">標記圖示</label>
+                            <select id="routine_icon_select" class="form-input" style="width: 100%; box-sizing: border-box; height: 40px; padding: 0 10px;" onchange="window.onRoutineIconChange(this.value)">
+                                <option value="🥬">🥬 吃素/健康</option>
+                                <option value="🏋️">🏋️ 運動/健身</option>
+                                <option value="💰">💰 記帳/繳費</option>
+                                <option value="💊">💊 吃藥/保健</option>
+                                <option value="📚">📚 閱讀/學習</option>
+                                <option value="🧹">🧹 打鎖/家事</option>
+                                <option value="🐶">🐶 寵物/遛狗</option>
+                                <option value="🎯">🎯 目標/打卡</option>
+                                <option value="custom">自訂輸入...</option>
+                            </select>
+                            <input type="text" id="routine_new_icon" class="form-input" placeholder="請輸入自訂 Emoji" style="width: 100%; box-sizing: border-box; text-align: center; margin-top: 6px; display: none;">
+                        </div>
+                        <div class="form-group" style="flex: 2; text-align: left; margin-bottom: 0;">
+                            <label style="font-size: 0.78rem; font-weight: 700; color: #475569; display: block; margin-bottom: 6px;">重複規則類型</label>
+                            <select id="routine_new_type" class="form-input" style="width: 100%; box-sizing: border-box; height: 40px; padding: 0 10px;" onchange="window.onRoutineTypeChange(this.value)">
+                                <option value="lunar">農曆固定日</option>
+                                <option value="solar">國曆固定日</option>
+                                <option value="week">每週固定日</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 16px; text-align: left;">
+                        <label style="font-size: 0.78rem; font-weight: 700; color: #475569; display: block; margin-bottom: 6px;">選擇重複的日子 (可點選多個)</label>
+                        <div id="routine_value_selector_container" style="display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 14px; background: #f8fafc; max-height: 150px; overflow-y: auto;">
+                            <!-- 由 JS 動態生成多選氣泡 -->
+                        </div>
+                        <input type="hidden" id="routine_new_value">
+                    </div>
+                    
+                    <button onclick="window.saveNewRoutineSetting()" style="width: 100%; padding: 10px; border-radius: 12px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-weight: 800; font-size: 0.85rem; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15); transition: all 0.2s;">
+                        💾 儲存並啟用此規則
+                    </button>
+                </div>
+                
+                <!-- 現有規則列表 -->
+                <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 20px; padding: 16px; text-align: left;">
+                    <h3 style="margin: 0 0 10px 0; font-size: 0.9rem; font-weight: 800; color: #1e293b;">📋 已設定的日程清單</h3>
+                    <div id="routine_settings_list_container" style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 10px 0;">載入中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 生理症狀紀錄 Modal (V17.0) -->
     <div id="menstrualSymptomsModal" class="modal-backdrop" style="z-index: 9999;">
         <div class="modal-content" style="max-width: 460px; max-height: 85vh; overflow-y: auto; border-radius: 28px; padding: 25px; border: 1px solid rgba(225, 29, 72, 0.15); box-shadow: 0 15px 40px rgba(225, 29, 72, 0.12);">
@@ -1577,9 +1737,9 @@
     <!-- 生理歷程與狀態管理 Modal (V17.0 歷史補登與清單) -->
     <div id="menstrualBackfillModal" class="modal-backdrop full-screen-panel" style="z-index: 9999;">
         <div class="modal-content" style="max-width: 460px; max-height: 85vh; overflow-y: auto; border-radius: 28px; padding: 25px; border: 1px solid rgba(109, 40, 217, 0.15); box-shadow: 0 15px 40px rgba(109, 40, 217, 0.12);">
-            <div class="modal-header" style="border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 18px;">
-                <h2 class="modal-title" style="color: #6d28d9; font-size: 1.25rem; display: flex; align-items: center; gap: 8px; font-weight: 800;">📝 生理歷程與狀態</h2>
-                <button class="close-modal" onclick="closeModal('menstrualBackfillModal')">✕</button>
+            <div class="modal-header" style="border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 18px; display: flex; justify-content: flex-start; align-items: center; gap: 12px;">
+                <button class="back-btn" onclick="closeModal('menstrualBackfillModal')">← 返回</button>
+                <h2 class="modal-title" style="color: #6d28d9; font-size: 1.25rem; display: flex; align-items: center; gap: 8px; font-weight: 800; margin: 0;">📝 生理歷程與狀態</h2>
             </div>
             <div class="modal-body" style="padding: 0; display: flex; flex-direction: column; gap: 20px;">
                 
@@ -2030,9 +2190,9 @@
             </div>
             {% endif %}
 
-            <div class="modal-header">
-                <h2 class="modal-title" style="display: flex; align-items: center; gap: 8px;">➕ 新增持股與交易登記</h2>
-                <button class="close-modal" onclick="closeModal('stockModal')">✕</button>
+            <div class="modal-header" style="justify-content: flex-start; gap: 12px;">
+                <button class="back-btn" onclick="closeModal('stockModal')">← 返回</button>
+                <h2 class="modal-title" style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 1.15rem; font-weight: 800;">➕ 新增持股與交易登記</h2>
             </div>
 
             <div class="modal-body">
@@ -2375,6 +2535,14 @@
                             ⚙️ 自訂 AI 指令規則 (AI訓練室)
                         </button>
                     </div>
+                    
+                    <!-- 系統公告與更新 -->
+                    <div style="border-top: 1px dashed #cbd5e1; padding-top: 10px; margin-top: 2px;">
+                        <label style="font-weight: 700; color: #334155; font-size: 0.9rem; display: block; margin-bottom: 6px;">📢 系統公告</label>
+                        <button onclick="closeModal('settingsModal'); document.getElementById('index-update-detail').style.display='block';" type="button" style="width: 100%; padding: 8px 12px; border-radius: 12px; border: 1.5px solid #10b981; background: #ecfdf5; color: #047857; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
+                            🎉 查看新功能更新公告
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2480,6 +2648,7 @@
                 <!-- 行程子選單 -->
                 <div id="sub_schedule" class="sub-menu">
                     <button class="sub-btn" onclick="openModal('scheduleModal')">➕ 新增行程</button>
+                    <button class="sub-btn" onclick="window.openRoutineCalendarModal()">📅 固定日程打卡</button>
                     <button class="sub-btn" onclick="querySchedule(1)"><span class="dynamic-date-wrapper"><span class="date-top"></span><span class="date-num current-day-val"></span></span> 今日行程</button>
                     <button class="sub-btn" onclick="querySchedule(7)">🗓️ 本週行程</button>
                     <button class="sub-btn" onclick="querySchedule(30)">📊 近30日</button>

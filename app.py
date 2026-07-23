@@ -111,7 +111,6 @@ app.permanent_session_lifetime = timedelta(days=365)
 # -----------------------------------------------------------------
 SCOPES = [
     'https://www.googleapis.com/auth/calendar',
-    'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive.file',
     'https://www.googleapis.com/auth/userinfo.profile',
     'https://www.googleapis.com/auth/userinfo.email'
@@ -625,7 +624,7 @@ def get_sheet_urls():
         
     gids = session.get('sheet_gids', {})
     
-    required_titles = ['記帳', '💰股票投資組合', '日記', '待辦', '願望', '口袋', '生理紀錄', 'AI_指令集', '生理症狀紀錄']
+    required_titles = ['記帳', '💰股票投資組合', '日記', '待辦', '願望', '口袋', '生理紀錄', 'AI_指令集', '生理症狀紀錄', '例行設定', '例行打卡']
     has_all_gids = gids and all(
         (t in gids) or 
         (t == '口袋' and '口袋名單' in gids) or 
@@ -699,7 +698,9 @@ def get_sheet_urls():
         "health_sheet_url": get_url_with_gid('生理紀錄'),
         "symptom_sheet_url": get_url_with_gid('生理症狀紀錄'),
         "training_sheet_url": get_url_with_gid('AI_指令集'),
-        "bill_split_sheet_url": get_url_with_gid('代墊待收款')
+        "bill_split_sheet_url": get_url_with_gid('代墊待收款'),
+        "routine_setting_sheet_url": get_url_with_gid('例行設定'),
+        "routine_log_sheet_url": get_url_with_gid('例行打卡')
     }
 def bg_spreadsheet_self_healing(spreadsheet_id, user_email, creds):
     """
@@ -759,7 +760,9 @@ def bg_spreadsheet_self_healing(spreadsheet_id, user_email, creds):
             '生理症狀紀錄': [['日期', '症狀', '備註', '寫入時間']],
             '固定支出': [['建立日期', '項目名稱', '類別設定', '子分類', '金額設定', '每月自動執行日', '最後執行月份', '唯一 ID', '開始日期', '結束日期']],
             '代墊待收款': [['建立日期', '帳目描述', '總金額', '墊款人', '分攤人(逗號分隔)', '各分攤明細(JSON/描述)', '狀態', '唯一 ID', '建立時間']],
-            '資產帳戶': [['帳戶名稱', '帳戶類型', '當前餘額', '唯一 ID', '更新時間', '備註']]
+            '資產帳戶': [['帳戶名稱', '帳戶類型', '當前餘額', '唯一 ID', '更新時間', '備註']],
+            '例行設定': [['項目名稱', '規則類型', '規則數值', '標記圖示', '唯一 ID', '建立時間']],
+            '例行打卡': [['日期', '項目 ID', '項目名稱', '狀態', '寫入時間']]
         }
         
         if '願望' in existing_titles or '願望清單' in existing_titles:
@@ -9859,6 +9862,179 @@ def force_sync_stocks_api():
     # 啟動非同步執行，防止 HTTP 請求阻塞
     threading.Thread(target=sync_taiwan_stocks_to_db, daemon=True).start()
     return jsonify({"status": "success", "message": "已在背景啟動全台上市櫃股票與 ETF 同步作業！🚀"})
+
+
+# =====================================================
+# 📅 個人固定日程與打卡管理系統 API
+# =====================================================
+@app.route('/api/routine/settings', methods=['GET'])
+def get_routine_settings():
+    sheet_id = get_spreadsheet_id()
+    try:
+        values = get_sheet_values('例行設定!A2:F', spreadsheet_id=sheet_id)
+        if not values:
+            return jsonify({"status": "success", "data": []})
+        data = []
+        for r in values:
+            if len(r) >= 5:
+                data.append({
+                    "name": r[0],
+                    "type": r[1],
+                    "value": r[2],
+                    "icon": r[3],
+                    "id": r[4]
+                })
+        return jsonify({"status": "success", "data": data})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/routine/add_setting', methods=['POST'])
+def add_routine_setting():
+    data = request.json
+    name = data.get('name')
+    rule_type = data.get('type')
+    rule_value = data.get('value')
+    icon = data.get('icon', '📝')
+    
+    if not name or not rule_type or not rule_value:
+        return jsonify({"status": "error", "message": "欄位填寫不完整"})
+        
+    row = [
+        name,
+        rule_type,
+        rule_value,
+        icon,
+        str(uuid.uuid4()),
+        datetime.now(TW_TZ).strftime("%Y-%m-%d %H:%M:%S")
+    ]
+    try:
+        append_to_sheet('例行設定', row, spreadsheet_id=get_spreadsheet_id())
+        return jsonify({"status": "success", "message": "固定日程已建立！"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/routine/delete_setting', methods=['POST'])
+def delete_routine_setting():
+    item_id = request.json.get('id')
+    if not item_id:
+        return jsonify({"status": "error", "message": "未提供項目 ID"})
+        
+    sheet_id = get_spreadsheet_id()
+    try:
+        success = delete_row_from_sheet('例行設定', item_id, 4, spreadsheet_id=sheet_id)
+        if success:
+            return jsonify({"status": "success", "message": "日程規則已刪除"})
+        else:
+            return jsonify({"status": "error", "message": "找不到該項目或刪除失敗"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/routine/logs', methods=['GET'])
+def get_routine_logs():
+    sheet_id = get_spreadsheet_id()
+    try:
+        values = get_sheet_values('例行打卡!A2:E', spreadsheet_id=sheet_id)
+        if not values:
+            return jsonify({"status": "success", "data": []})
+        data = []
+        for r in values:
+            if len(r) >= 4:
+                data.append({
+                    "date": r[0],
+                    "item_id": r[1],
+                    "name": r[2],
+                    "status": r[3]
+                })
+        return jsonify({"status": "success", "data": data})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/routine/toggle_log', methods=['POST'])
+def toggle_routine_log():
+    data = request.json
+    date_str = data.get('date')
+    item_id = data.get('item_id')
+    item_name = data.get('name')
+    status = data.get('status')
+    
+    if not date_str or not item_id or not item_name or not status:
+        return jsonify({"status": "error", "message": "參數填寫不完整"})
+        
+    sheet_id = get_spreadsheet_id()
+    try:
+        rows = get_sheet_values('例行打卡', spreadsheet_id=sheet_id)
+        target_row_idx = -1
+        if rows:
+            for i, row in enumerate(rows):
+                if len(row) > 1 and str(row[0]).strip() == date_str.strip() and str(row[1]).strip() == item_id.strip():
+                    target_row_idx = i + 1
+                    break
+                    
+        service = get_sheets_service()
+        write_time = datetime.now(TW_TZ).strftime("%Y-%m-%d %H:%M:%S")
+        
+        if target_row_idx != -1:
+            service.spreadsheets().values().update(
+                spreadsheetId=sheet_id,
+                range=f'例行打卡!D{target_row_idx}:E{target_row_idx}',
+                valueInputOption='USER_ENTERED',
+                body={'values': [[status, write_time]]}
+            ).execute()
+        else:
+            append_to_sheet('例行打卡', [date_str, item_id, item_name, status, write_time], spreadsheet_id=sheet_id)
+            
+        return jsonify({"status": "success", "message": f"已標記為 {status}"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+def delete_row_from_sheet(sheet_title, target_id, id_col_idx, spreadsheet_id=None):
+    if not spreadsheet_id:
+        spreadsheet_id = get_spreadsheet_id()
+    rows = get_sheet_values(sheet_title, spreadsheet_id=spreadsheet_id)
+    if not rows:
+        return False
+        
+    target_row_idx = -1
+    for i, row in enumerate(rows):
+        if len(row) > id_col_idx and str(row[id_col_idx]).strip() == str(target_id).strip():
+            target_row_idx = i
+            break
+            
+    if target_row_idx == -1:
+        return False
+        
+    try:
+        service = get_sheets_service()
+        sheet_meta = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        sheet_id = None
+        for s in sheet_meta.get('sheets', []):
+            if s['properties']['title'] == sheet_title:
+                sheet_id = s['properties']['sheetId']
+                break
+                
+        if sheet_id is None:
+            return False
+            
+        body = {
+            'requests': [
+                {
+                    'deleteDimension': {
+                        'range': {
+                            'sheetId': sheet_id,
+                            'dimension': 'ROWS',
+                            'startIndex': target_row_idx,
+                            'endIndex': target_row_idx + 1
+                        }
+                    }
+                }
+            ]
+        }
+        service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
+        return True
+    except Exception as e:
+        print(f"Error deleting row from {sheet_title}: {e}")
+        return False
+
 
 if __name__ == '__main__':
     # 確保 TiDB 資料庫選單表已初始化自癒

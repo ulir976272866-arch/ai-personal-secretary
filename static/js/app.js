@@ -2846,15 +2846,95 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        const activeEvents = events.filter(e => !hiddenEvents.includes(e.id));
+        // 決定查詢天數
+        let daysToQuery = 7;
+        if (dateStr.includes('今日') || dateStr.includes('今天')) {
+            daysToQuery = 1;
+        } else if (dateStr.includes('30') || dateStr.includes('未來 30')) {
+            daysToQuery = 30;
+        }
+        if (window.lastQueryDays) {
+            daysToQuery = window.lastQueryDays;
+        }
 
-        if (activeEvents.length === 0) {
-            const isTrulyEmpty = events.length === 0;
+        // 比對這段天數範圍內所有符合的個人固定日程
+        const matchedRoutines = [];
+        if (window.routineSettings && window.routineSettings.length > 0) {
+            for (let offset = 0; offset < daysToQuery; offset++) {
+                const targetDate = new Date();
+                targetDate.setDate(targetDate.getDate() + offset);
+                
+                const year = targetDate.getFullYear();
+                const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+                const day = String(targetDate.getDate()).padStart(2, '0');
+                const dateKey = `${year}-${month}-${day}`;
+                
+                let lunarDayStr = '';
+                if (typeof Solar !== 'undefined') {
+                    try {
+                        const solar = Solar.fromDate(targetDate);
+                        lunarDayStr = solar.getLunar().getDayInChinese();
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+                const weekdayChar = ['日', '一', '二', '三', '四', '五', '六'][targetDate.getDay()];
+                
+                window.routineSettings.forEach(rule => {
+                    let isMatch = false;
+                    const vals = rule.value.split(',');
+                    if (rule.type === 'lunar' && lunarDayStr) {
+                        isMatch = vals.includes(lunarDayStr);
+                    } else if (rule.type === 'solar') {
+                        isMatch = vals.includes(String(targetDate.getDate()));
+                    } else if (rule.type === 'week') {
+                        isMatch = vals.includes(weekdayChar);
+                    }
+                    
+                    if (isMatch) {
+                        const log = window.routineLogs ? window.routineLogs.find(l => l.date === dateKey && l.item_id === rule.id) : null;
+                        const isDone = log && log.status === '已完成';
+                        
+                        matchedRoutines.push({
+                            id: `routine_${rule.id}_${dateKey}`,
+                            isRoutine: true,
+                            routineId: rule.id,
+                            dateKey: dateKey,
+                            title: rule.name,
+                            icon: rule.icon || '🥬',
+                            completed: isDone,
+                            start: `${dateKey}T00:00:01`, // 置於當天開頭以利排序
+                            location: ''
+                        });
+                    }
+                });
+            }
+        }
+
+        // 合併 Google Calendar 事件與個人固定日程
+        const allItems = [...events];
+        matchedRoutines.forEach(r => {
+            if (!allItems.some(e => e.id === r.id)) {
+                allItems.push(r);
+            }
+        });
+
+        // 依據時間 start 進行升序排序
+        allItems.sort((a, b) => {
+            const timeA = a.start || '';
+            const timeB = b.start || '';
+            return timeA.localeCompare(timeB);
+        });
+
+        const activeItems = allItems.filter(e => !hiddenEvents.includes(e.id));
+
+        if (activeItems.length === 0) {
+            const isTrulyEmpty = allItems.length === 0;
             const emptyMsg = isTrulyEmpty ? '今天沒有安排行程喔！' : '🎉 已完成所有行程！';
 
             card.innerHTML = headerHtml + `
                 <div style="padding: 30px 15px; text-align: center;">
-                    <p style="color: #64748b; margin:0;">${emptyMsg}</p>
+                    <p style="color: #64748b; margin:0; font-size: 0.82rem;">${emptyMsg}</p>
                 </div>
             `;
             chatHistory.appendChild(card);
@@ -2862,8 +2942,28 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        let listHtml = '<div class="schedule-list">';
-        activeEvents.forEach(event => {
+        let listHtml = '<div class="schedule-list" style="margin-top: 6px;">';
+        activeItems.forEach(event => {
+            if (event.isRoutine) {
+                // 渲染綠色固定日程列
+                listHtml += `
+                    <div class="schedule-item routine-item" style="background: #f0fdf4; border-left: 4px solid #10b981; margin-bottom: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; border-radius: 12px; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.03);">
+                        <div style="display: flex; align-items: center; gap: 8px; text-align: left; min-width: 0; flex: 1;">
+                            <span style="font-size: 1.1rem; flex-shrink: 0;">${event.icon}</span>
+                            <div style="display: flex; flex-direction: column; min-width: 0; flex: 1;">
+                                <span class="routine-item-name" style="font-size: 0.82rem; font-weight: 800; color: ${event.completed ? '#94a3b8' : '#15803d'}; text-decoration: ${event.completed ? 'line-through' : 'none'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    [${event.dateKey.substring(5).replace('-', '/')}] ${event.title}
+                                </span>
+                                <span style="font-size: 0.65rem; color: #16a34a; font-weight: 600;">個人固定日程</span>
+                            </div>
+                        </div>
+                        <button onclick="window.toggleRoutineFromMainCard('${event.dateKey}', '${event.routineId}', '${event.title.replace(/'/g, "\\'")}', this)" style="padding: 4px 10px; border: none; border-radius: 6px; font-size: 0.68rem; font-weight: 800; cursor: pointer; transition: all 0.2s; background: ${event.completed ? '#e2e8f0' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)'}; color: ${event.completed ? '#64748b' : '#ffffff'}; border: ${event.completed ? '1px solid #cbd5e1' : 'none'}; white-space: nowrap; margin-left: 10px; outline: none;">
+                            ${event.completed ? '✓ 已打卡' : '打卡完成'}
+                        </button>
+                    </div>
+                `;
+                return;
+            }
             let locationHtml = '';
             if (event.location) {
                 const mapUrl = getMapUrl(event.location);
@@ -9702,5 +9802,658 @@ document.addEventListener('DOMContentLoaded', () => {
         window.loadFixedExpenses(true);
         window.loadAssetAccounts(true);
     }, 1500);
+
+
+    // =====================================================
+    // 📅 個人固定日程與打卡管理引擎
+    // =====================================================
+    window.currentRoutineYear = new Date().getFullYear();
+    window.currentRoutineMonth = new Date().getMonth() + 1;
+    window.selectedRoutineDate = new Date();
+    window.routineSettings = [];
+    window.routineLogs = [];
+
+    window.openRoutineCalendarModal = async () => {
+        window.closeSubmenuDrawer(); // 關閉導航抽屜
+        
+        // 1. 立即顯現毛玻璃加載遮罩 (比照生理追蹤)
+        const overlay = document.getElementById('routine_calendar_loader_overlay');
+        if (overlay) {
+            overlay.style.opacity = '1';
+            overlay.style.pointerEvents = 'auto';
+        }
+        
+        // 2. 立即開啟 Modal
+        window.openModal('routineCalendarModal');
+        
+        // 3. 立即呼叫骨架月曆生成器，渲染一整個月的基本網格與農曆
+        window.selectedRoutineDate = new Date();
+        window.renderRoutineCalendar(window.currentRoutineYear, window.currentRoutineMonth, true);
+        
+        // 4. 背景載入設定與打卡紀錄，並確保 Loading 動畫至少展示 600ms 以利人眼視覺過渡
+        const startTime = Date.now();
+        await window.loadRoutineData();
+        
+        const elapsed = Date.now() - startTime;
+        const minDelay = 600; 
+        if (elapsed < minDelay) {
+            await new Promise(resolve => setTimeout(resolve, minDelay - elapsed));
+        }
+        
+        // 5. 加載完成，隱藏遮罩並以正式數據重新渲染
+        if (overlay) {
+            overlay.style.opacity = '0';
+            overlay.style.pointerEvents = 'none';
+        }
+        window.renderRoutineCalendar(window.currentRoutineYear, window.currentRoutineMonth, false);
+    };
+
+    window.loadRoutineData = async () => {
+        try {
+            // 平行載入設定與日誌
+            const [settingsRes, logsRes] = await Promise.all([
+                fetch('/api/routine/settings'),
+                fetch('/api/routine/logs')
+            ]);
+            const settingsData = await settingsRes.json();
+            const logsData = await logsRes.json();
+            
+            if (settingsData.status === 'success') {
+                window.routineSettings = settingsData.data;
+            }
+            if (logsData.status === 'success') {
+                window.routineLogs = logsData.data;
+            }
+        } catch (e) {
+            console.error("Failed to load routine data", e);
+        }
+    };
+
+    window.changeRoutineCalMonth = (offset) => {
+        window.currentRoutineMonth += offset;
+        if (window.currentRoutineMonth > 12) {
+            window.currentRoutineMonth = 1;
+            window.currentRoutineYear += 1;
+        } else if (window.currentRoutineMonth < 1) {
+            window.currentRoutineMonth = 12;
+            window.currentRoutineYear -= 1;
+        }
+        window.renderRoutineCalendar(window.currentRoutineYear, window.currentRoutineMonth);
+    };
+
+    window.renderRoutineCalendar = (year, month, isSkeleton = false) => {
+        const grid = document.getElementById('routine_cal_days_grid');
+        const monthYearSpan = document.getElementById('routine_cal_month_year');
+        if (!grid || !monthYearSpan) return;
+        
+        monthYearSpan.innerText = `${year}年 ${month}月`;
+        grid.innerHTML = '';
+        
+        const today = new Date();
+        
+        // 如果是 Skeleton，把 detail 的容器顯示為載入中
+        if (isSkeleton) {
+            const tasksContainer = document.getElementById('routine_day_tasks_container');
+            if (tasksContainer) {
+                tasksContainer.innerHTML = `<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 10px 0;">⏳ 同步雲端設定中...</div>`;
+            }
+        }
+        
+        // 計算當月日期 (42 天網格)
+        const firstDay = new Date(year, month - 1, 1);
+        let startDayOfWeek = firstDay.getDay(); // 0 是週日, 1 是週一...
+        let startOffset = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1; // 轉為週一開始
+        
+        const totalDays = new Date(year, month, 0).getDate();
+        const prevTotalDays = new Date(year, month - 1, 0).getDate();
+        
+        const dayObjects = [];
+        // 前月補白
+        for (let i = startOffset - 1; i >= 0; i--) {
+            dayObjects.push({
+                date: new Date(year, month - 2, prevTotalDays - i),
+                isCurrentMonth: false
+            });
+        }
+        // 當月
+        for (let i = 1; i <= totalDays; i++) {
+            dayObjects.push({
+                date: new Date(year, month - 1, i),
+                isCurrentMonth: true
+            });
+        }
+        // 後月補白
+        const remaining = 42 - dayObjects.length;
+        for (let i = 1; i <= remaining; i++) {
+            dayObjects.push({
+                date: new Date(year, month, i),
+                isCurrentMonth: false
+            });
+        }
+        
+        dayObjects.forEach(day => {
+            const d = day.date;
+            const cell = document.createElement('div');
+            cell.className = 'cal-day-cell';
+            if (!day.isCurrentMonth) {
+                cell.classList.add('other-month');
+            }
+            
+            // 是否是今天
+            if (d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate()) {
+                cell.classList.add('today');
+            }
+            
+            // 是否被選中
+            if (window.selectedRoutineDate && d.getFullYear() === window.selectedRoutineDate.getFullYear() && d.getMonth() === window.selectedRoutineDate.getMonth() && d.getDate() === window.selectedRoutineDate.getDate()) {
+                cell.classList.add('selected');
+            }
+            
+            // 轉為農曆
+            let lunar = null;
+            let lunarDayStr = '';
+            if (typeof Solar !== 'undefined') {
+                try {
+                    const solar = Solar.fromDate(d);
+                    lunar = solar.getLunar();
+                    lunarDayStr = lunar.getDayInChinese();
+                } catch (e) {
+                    console.error("Lunar parse error", e);
+                }
+            }
+            
+            // 找出當天符合的規則與打卡狀態
+            if (!isSkeleton) {
+                const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                const weekdayChar = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+                
+                let matchedRules = [];
+                window.routineSettings.forEach(rule => {
+                    let isMatch = false;
+                    const vals = rule.value.split(',');
+                    if (rule.type === 'lunar' && lunarDayStr) {
+                        isMatch = vals.includes(lunarDayStr);
+                    } else if (rule.type === 'solar') {
+                        isMatch = vals.includes(String(d.getDate()));
+                    } else if (rule.type === 'week') {
+                        isMatch = vals.includes(weekdayChar);
+                    }
+                    
+                    if (isMatch) {
+                        matchedRules.push(rule);
+                    }
+                });
+                
+                // 如果當天有符合的事項，顯示 icon 徽章
+                if (matchedRules.length > 0) {
+                    const badge = document.createElement('span');
+                    badge.style.position = 'absolute';
+                    badge.style.right = '2px';
+                    badge.style.top = '2px';
+                    badge.style.fontSize = '0.62rem';
+                    
+                    // 比對打卡狀態
+                    const uncompleted = matchedRules.some(rule => {
+                        const log = window.routineLogs.find(l => l.date === dateKey && l.item_id === rule.id);
+                        return !log || log.status !== '已完成';
+                    });
+                    
+                    const firstIcon = matchedRules[0].icon || '📝';
+                    badge.innerText = uncompleted ? firstIcon : `${firstIcon}✓`;
+                    cell.appendChild(badge);
+                }
+            }
+            
+            // 日期數字
+            const dateSpan = document.createElement('span');
+            dateSpan.className = 'date-num';
+            dateSpan.innerText = d.getDate();
+            cell.appendChild(dateSpan);
+            
+            // 農曆小字
+            if (lunarDayStr) {
+                const lunarSpan = document.createElement('span');
+                lunarSpan.style.display = 'block';
+                lunarSpan.style.fontSize = '0.52rem';
+                lunarSpan.style.color = '#94a3b8';
+                lunarSpan.style.marginTop = '1px';
+                lunarSpan.innerText = lunarDayStr === '初一' ? `${lunar.getMonthInChinese()}月` : lunarDayStr;
+                cell.appendChild(lunarSpan);
+            }
+            
+            cell.onclick = () => {
+                if (isSkeleton) return;
+                const prevSel = grid.querySelector('.cal-day-cell.selected');
+                if (prevSel) prevSel.classList.remove('selected');
+                cell.classList.add('selected');
+                window.selectedRoutineDate = d;
+                window.showRoutineCalendarDetail(d);
+            };
+            
+            grid.appendChild(cell);
+        });
+        
+        if (!isSkeleton) {
+            window.showRoutineCalendarDetail(window.selectedRoutineDate);
+        }
+    };
+
+    window.showRoutineCalendarDetail = (d) => {
+        const titleEl = document.getElementById('routine_detail_date_title');
+        const lunarEl = document.getElementById('routine_detail_lunar_title');
+        const tasksContainer = document.getElementById('routine_day_tasks_container');
+        if (!titleEl || !lunarEl || !tasksContainer) return;
+        
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const date = String(d.getDate()).padStart(2, '0');
+        const weekdayChar = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+        titleEl.innerText = `${month}/${date} (${weekdayChar})`;
+        
+        let lunarStr = '農曆 --';
+        let lunarDayStr = '';
+        if (typeof Solar !== 'undefined') {
+            try {
+                const solar = Solar.fromDate(d);
+                const lunar = solar.getLunar();
+                lunarDayStr = lunar.getDayInChinese();
+                lunarStr = `農曆${lunar.getMonthInChinese()}月${lunarDayStr}`;
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        lunarEl.innerText = lunarStr;
+        tasksContainer.innerHTML = '';
+        
+        const dateKey = `${year}-${month}-${date}`;
+        
+        // 查找當天匹配的日程
+        let matchedRules = [];
+        window.routineSettings.forEach(rule => {
+            let isMatch = false;
+            const vals = rule.value.split(',');
+            if (rule.type === 'lunar' && lunarDayStr) {
+                isMatch = vals.includes(lunarDayStr);
+            } else if (rule.type === 'solar') {
+                isMatch = vals.includes(String(d.getDate()));
+            } else if (rule.type === 'week') {
+                isMatch = vals.includes(weekdayChar);
+            }
+            if (isMatch) matchedRules.push(rule);
+        });
+        
+        if (matchedRules.length === 0) {
+            tasksContainer.innerHTML = `<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 10px 0;">今日無固定日程設定 😴</div>`;
+            return;
+        }
+        
+        matchedRules.forEach(rule => {
+            const log = window.routineLogs.find(l => l.date === dateKey && l.item_id === rule.id);
+            const isDone = log && log.status === '已完成';
+            
+            const taskItem = document.createElement('div');
+            taskItem.style = "display: flex; align-items: center; justify-content: space-between; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 10px 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.01);";
+            
+            const infoDiv = document.createElement('div');
+            infoDiv.style = "display: flex; align-items: center; gap: 8px;";
+            
+            const iconSpan = document.createElement('span');
+            iconSpan.style.fontSize = '1.1rem';
+            iconSpan.innerText = rule.icon || '📝';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.style = `font-size: 0.82rem; font-weight: 700; color: ${isDone ? '#94a3b8' : '#1e293b'}; text-decoration: ${isDone ? 'line-through' : 'none'};`;
+            nameSpan.innerText = rule.name;
+            
+            infoDiv.appendChild(iconSpan);
+            infoDiv.appendChild(nameSpan);
+            
+            const btn = document.createElement('button');
+            btn.style = `padding: 5px 12px; border: none; border-radius: 8px; font-size: 0.72rem; font-weight: 800; cursor: pointer; transition: all 0.2s; background: ${isDone ? '#f1f5f9' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)'}; color: ${isDone ? '#64748b' : '#ffffff'}; border: ${isDone ? '1px solid #cbd5e1' : 'none'};`;
+            btn.innerText = isDone ? '✓ 已打卡' : '打卡完成';
+            
+            btn.onclick = async () => {
+                btn.disabled = true;
+                const nextStatus = isDone ? '未完成' : '已完成';
+                await window.toggleRoutineLog(dateKey, rule.id, rule.name, nextStatus);
+                btn.disabled = false;
+            };
+            
+            taskItem.appendChild(infoDiv);
+            taskItem.appendChild(btn);
+            tasksContainer.appendChild(taskItem);
+        });
+    };
+
+    window.toggleRoutineLog = async (dateStr, itemId, itemName, status) => {
+        try {
+            const res = await fetch('/api/routine/toggle_log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: dateStr,
+                    item_id: itemId,
+                    name: itemName,
+                    status: status
+                })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                window.showToast(data.message || '打卡狀態已同步雲端！', 'success');
+                const idx = window.routineLogs.findIndex(l => l.date === dateStr && l.item_id === itemId);
+                if (idx !== -1) {
+                    window.routineLogs[idx].status = status;
+                } else {
+                    window.routineLogs.push({ date: dateStr, item_id: itemId, name: itemName, status: status });
+                }
+                window.renderRoutineCalendar(window.currentRoutineYear, window.currentRoutineMonth);
+            } else {
+                window.showToast(data.message || '打卡同步失敗', 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            window.showToast('雲端連線失敗，請稍候重試', 'error');
+        }
+    };
+
+    window.openRoutineSettingsModal = () => {
+        window.openModal('routineSettingsModal');
+        window.loadRoutineSettingsList();
+        
+        // 預設將重複規則類型初始化為農曆 (lunar)
+        const typeSelect = document.getElementById('routine_new_type');
+        if (typeSelect) {
+            typeSelect.value = 'lunar';
+            window.onRoutineTypeChange('lunar');
+        }
+        
+        // 預設將圖示下拉選單初始化為 🥬
+        const iconSelect = document.getElementById('routine_icon_select');
+        const customIconInput = document.getElementById('routine_new_icon');
+        if (iconSelect && customIconInput) {
+            iconSelect.value = '🥬';
+            customIconInput.value = '🥬';
+            customIconInput.style.display = 'none';
+        }
+    };
+
+    window.onRoutineIconChange = (val) => {
+        const customIconInput = document.getElementById('routine_new_icon');
+        if (!customIconInput) return;
+        if (val === 'custom') {
+            customIconInput.value = '';
+            customIconInput.style.display = 'block';
+            customIconInput.focus();
+        } else {
+            customIconInput.value = val;
+            customIconInput.style.display = 'none';
+        }
+    };
+
+    window.onRoutineTypeChange = (val) => {
+        const container = document.getElementById('routine_value_selector_container');
+        const hiddenInput = document.getElementById('routine_new_value');
+        if (!container || !hiddenInput) return;
+        
+        container.innerHTML = '';
+        hiddenInput.value = '';
+        
+        let items = [];
+        if (val === 'lunar') {
+            const lunars = [
+                '初一','初二','初三','初四','初五','初六','初七','初八','初九','初十',
+                '十一','十二','十三','十四','十五','十六','十七','十八','十九','二十',
+                '廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'
+            ];
+            items = lunars;
+        } else if (val === 'solar') {
+            for (let i = 1; i <= 31; i++) {
+                items.push(String(i));
+            }
+        } else if (val === 'week') {
+            items = ['一', '二', '三', '四', '五', '六', '日'];
+        }
+        
+        const selectedVals = new Set();
+        items.forEach(item => {
+            const btn = document.createElement('div');
+            btn.innerText = item;
+            btn.style = "padding: 6px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.72rem; font-weight: 700; color: #475569; background: #ffffff; cursor: pointer; transition: all 0.2s; user-select: none; text-align: center; min-width: 45px;";
+            
+            btn.onclick = () => {
+                if (selectedVals.has(item)) {
+                    selectedVals.delete(item);
+                    btn.style.background = '#ffffff';
+                    btn.style.color = '#475569';
+                    btn.style.borderColor = '#cbd5e1';
+                } else {
+                    selectedVals.add(item);
+                    btn.style.background = '#10b981';
+                    btn.style.color = '#ffffff';
+                    btn.style.borderColor = '#10b981';
+                }
+                hiddenInput.value = Array.from(selectedVals).join(',');
+            };
+            
+            container.appendChild(btn);
+        });
+    };
+
+    window.toggleRoutineFromMainCard = async (dateStr, itemId, itemName, btn) => {
+        btn.disabled = true;
+        try {
+            const res = await fetch('/api/routine/toggle_log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: dateStr, item_id: itemId, name: itemName })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                const isDone = data.action === 'add';
+                // 更新按鈕樣式
+                btn.style.background = isDone ? '#e2e8f0' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                btn.style.color = isDone ? '#64748b' : '#ffffff';
+                btn.style.border = isDone ? '1px solid #cbd5e1' : 'none';
+                btn.innerText = isDone ? '✓ 已打卡' : '打卡完成';
+                
+                // 尋找文字元素並更新
+                const textSpan = btn.parentElement.querySelector('.routine-item-name');
+                if (textSpan) {
+                    textSpan.style.color = isDone ? '#94a3b8' : '#15803d';
+                    textSpan.style.textDecoration = isDone ? 'line-through' : 'none';
+                }
+                
+                // 更新快取
+                if (isDone) {
+                    window.routineLogs.push({ date: dateStr, item_id: itemId, name: itemName, status: '已完成' });
+                } else {
+                    window.routineLogs = window.routineLogs.filter(l => !(l.date === dateStr && l.item_id === itemId));
+                }
+                
+                window.showToast(isDone ? '打卡同步成功！' : '取消打卡成功！', 'success');
+            } else {
+                window.showToast(data.message || '操作失敗', 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            window.showToast('連線失敗', 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    };
+
+    window.saveNewRoutineSetting = async () => {
+        const nameInput = document.getElementById('routine_new_name');
+        const iconSelect = document.getElementById('routine_icon_select');
+        const customIconInput = document.getElementById('routine_new_icon');
+        const typeInput = document.getElementById('routine_new_type');
+        const valInput = document.getElementById('routine_new_value');
+        
+        if (!nameInput || !iconSelect || !customIconInput || !typeInput || !valInput) return;
+        
+        const name = nameInput.value.trim();
+        const type = typeInput.value;
+        const val = valInput.value.trim();
+        
+        // 決定 icon 的值
+        let icon = iconSelect.value;
+        if (icon === 'custom') {
+            icon = customIconInput.value.trim() || '📝';
+        }
+        
+        if (!name || !val) {
+            window.showToast('名稱與日子設定為必填項目！', 'error');
+            return;
+        }
+        
+        const overlay = document.getElementById('routine_settings_loader_overlay');
+        if (overlay) {
+            overlay.style.opacity = '1';
+            overlay.style.pointerEvents = 'auto';
+        }
+        
+        try {
+            const res = await fetch('/api/routine/add_setting', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, icon, type, value: val })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                window.showToast('日程規則新增成功！', 'success');
+                nameInput.value = '';
+                customIconInput.value = '🥬';
+                customIconInput.style.display = 'none';
+                iconSelect.value = '🥬';
+                
+                await window.loadRoutineData();
+                window.loadRoutineSettingsList();
+                window.renderRoutineCalendar(window.currentRoutineYear, window.currentRoutineMonth);
+            } else {
+                window.showToast(data.message || '新增失敗', 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            window.showToast('連線失敗', 'error');
+        } finally {
+            if (overlay) {
+                overlay.style.opacity = '0';
+                overlay.style.pointerEvents = 'none';
+            }
+        }
+    };
+
+    window.deleteRoutineSetting = async (itemId) => {
+        const confirmed = await window.customConfirm('🗑️ 刪除日程規則', '確定要刪除此固定日程規則嗎？刪除後月曆將不再顯示該提醒。', '🗑️', '確定刪除');
+        if (!confirmed) return;
+        
+        const overlay = document.getElementById('routine_settings_loader_overlay');
+        if (overlay) {
+            overlay.style.opacity = '1';
+            overlay.style.pointerEvents = 'auto';
+        }
+        
+        try {
+            const res = await fetch('/api/routine/delete_setting', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: itemId })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                window.showToast('日程規則已成功刪除！', 'success');
+                await window.loadRoutineData();
+                window.loadRoutineSettingsList();
+                window.renderRoutineCalendar(window.currentRoutineYear, window.currentRoutineMonth);
+            } else {
+                window.showToast(data.message || '刪除失敗', 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            window.showToast('連線失敗', 'error');
+        } finally {
+            if (overlay) {
+                overlay.style.opacity = '0';
+                overlay.style.pointerEvents = 'none';
+            }
+        }
+    };
+
+    window.loadRoutineSettingsList = () => {
+        const container = document.getElementById('routine_settings_list_container');
+        if (!container) return;
+        container.innerHTML = '';
+        
+        if (window.routineSettings.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 15px 0;">目前尚未設定任何日程規則 😴</div>`;
+            return;
+        }
+        
+        const typeLabels = { 'lunar': '農曆', 'solar': '每月國曆', 'week': '每週' };
+        
+        window.routineSettings.forEach(rule => {
+            const item = document.createElement('div');
+            item.style = "display: flex; align-items: center; justify-content: space-between; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 10px 14px;";
+            
+            const info = document.createElement('div');
+            info.style = "display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;";
+            
+            const icon = document.createElement('span');
+            icon.style.fontSize = '1.1rem';
+            icon.innerText = rule.icon || '📝';
+            
+            const textContainer = document.createElement('div');
+            textContainer.style = "display: flex; flex-direction: column; text-align: left;";
+            
+            const name = document.createElement('span');
+            name.style = "font-size: 0.8rem; font-weight: 800; color: #1e293b;";
+            name.innerText = rule.name;
+            
+            const detail = document.createElement('span');
+            detail.style = "font-size: 0.68rem; color: #64748b; margin-top: 1px;";
+            detail.innerText = `${typeLabels[rule.type] || '規則'}：${rule.value}`;
+            
+            textContainer.appendChild(name);
+            textContainer.appendChild(detail);
+            info.appendChild(icon);
+            info.appendChild(textContainer);
+            
+            const delBtn = document.createElement('button');
+            delBtn.style = "background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center;";
+            delBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>`;
+            delBtn.onclick = () => window.deleteRoutineSetting(rule.id);
+            
+            item.appendChild(info);
+            item.appendChild(delBtn);
+            container.appendChild(item);
+        });
+    };
+
+    // 頁面加載時主動獲取一次個人固定日程資料以供首頁查詢今日行程比對
+    window.loadRoutineData();
+
+    window.toggleIndexUpdateDetail = (e) => {
+        e.preventDefault();
+        const detail = document.getElementById('index-update-detail');
+        if (detail) {
+            detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
+        }
+    };
+
+    window.closeUpdateTip = () => {
+        const tipEl = document.getElementById('index-update-tip');
+        const detailEl = document.getElementById('index-update-detail');
+        if (tipEl) tipEl.style.display = 'none';
+        if (detailEl) detailEl.style.display = 'none';
+        localStorage.setItem('hideUpdateTip_v18', 'true');
+    };
+
+    // 頁面初始化時，檢查使用者是否已關閉更新提示
+    const hideTip = localStorage.getItem('hideUpdateTip_v18');
+    const tipEl = document.getElementById('index-update-tip');
+    if (tipEl && hideTip !== 'true') {
+        tipEl.style.display = 'flex';
+    }
+
 });
 
