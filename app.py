@@ -2206,11 +2206,11 @@ def mock_checkout():
     if tier == 'PREMIUM_MONTHLY':
         price = 199
         product_name = "旗艦版"
-        product_desc = "解鎖「智慧存股損益」、尊榮一鍵 AI 健檢與 650 點 AI 額度！"
+        product_desc = "解鎖「智慧存股損益」與 650 點 AI 額度！"
     elif tier == 'PREMIUM':
         price = 1990
         product_name = "尊榮版"
-        product_desc = "解鎖全部功能！包含「智慧存股損益」、AI 一鍵健檢與 650 點 AI 額度！採年繳計費超划算！"
+        product_desc = "解鎖全部功能！包含「智慧存股損益」與 650 點 AI 額度！採年繳計費超划算！"
     elif tier == 'PREMIUM_UPGRADE':
         # 進行伺服器端補差價計算
         from datetime import datetime
@@ -8205,14 +8205,14 @@ def get_stock_portfolio():
     # 權限驗證
     if not is_premium_user():
         return jsonify({
-            "status": "locked", 
-            "message": "💡 旗艦版尊榮功能：一鍵開通智慧股票存股健檢，解鎖零時差資產回報率精算！"
+            "status": "locked",
+            "message": "💡 旗艦版尊榮功能：一鍵開通智慧存股損益，解鎖零時差資產回報率精算！"
         })
-        
+
     spreadsheet_id = get_spreadsheet_id()
     if not spreadsheet_id:
         return jsonify({"status": "error", "message": "尚未連結試算表"})
-        
+
     # 自癒式保護：確保表單存在
     ensure_stock_sheet_exists(spreadsheet_id)
     
@@ -8625,121 +8625,6 @@ def add_stock_transaction():
     except Exception as e:
         print(f"[Add Stock Tx Error] {e}")
         return jsonify({"status": "error", "message": f"新增股票交易失敗: {str(e)}"})
-
-@app.route('/api/stock/ai_analysis', methods=['POST'])
-def analyze_stock_portfolio():
-    """
-    一鍵 AI 股票資產健檢：
-    打包股票工作表的歷史持股清單，消耗 30 點 AI 點數，調用 Gemini AI 進行大數據複雜診斷。
-    """
-    if not is_premium_user():
-        return jsonify({
-            "status": "locked", 
-            "message": "💡 旗艦版尊榮功能：一鍵開通智慧股票存股健檢，解鎖零時差資產回報率精算！"
-        })
-        
-    email = session.get('user_email', '')
-    
-    # 1. 扣除 30 點點數
-    success, remaining_points = check_and_deduct_points(email, 30)
-    if not success:
-        return jsonify({
-            "status": "error", 
-            "message": f"您的 AI 額度不足囉！本次健檢需要 30 點，您目前僅剩 {remaining_points} 點。請前往充值或升級方案！"
-        })
-        
-    spreadsheet_id = get_spreadsheet_id()
-    if not spreadsheet_id:
-        return jsonify({"status": "error", "message": "尚未連結試算表"})
-        
-    ensure_stock_sheet_exists(spreadsheet_id)
-    
-    try:
-        # 2. 獲取投資組合數據
-        rows = get_sheet_values('💰股票投資組合', spreadsheet_id=spreadsheet_id)
-        if not rows or len(rows) < 2:
-            return jsonify({
-                "status": "success",
-                "analysis": "💡 您的投資組合目前沒有持股紀錄，請先新增買進交易後再進行 AI 健檢診斷！",
-                "remaining_points": remaining_points
-            })
-            
-        # 整理持股清單
-        portfolio_summary = []
-        portfolio_map = {}
-        for row in rows[1:]:
-            if len(row) < 7 or not row[1].strip():
-                continue
-            ticker = row[1].strip()
-            name = row[2].strip()
-            tx_type = row[3].strip()
-            try:
-                shares = int(row[4])
-                price = float(row[5])
-                fee = float(row[6]) if row[6] else 0.0
-            except ValueError:
-                continue
-                
-            if ticker not in portfolio_map:
-                portfolio_map[ticker] = {"name": name, "shares": 0, "total_cost": 0.0}
-            p = portfolio_map[ticker]
-            if tx_type == "買進":
-                p["shares"] += shares
-                p["total_cost"] += (shares * price + fee)
-            elif tx_type == "賣出":
-                p["shares"] -= shares
-                p["total_cost"] -= (shares * price - fee)
-                
-        for ticker, p in portfolio_map.items():
-            if p["shares"] > 0:
-                avg_price = round(p["total_cost"] / p["shares"], 2)
-                portfolio_summary.append(f"- 股票: {p['name']} ({ticker}), 持股股數: {p['shares']} 股, 持股均價: {avg_price} 元, 總投入成本: {round(p['total_cost'], 2)} 元")
-                
-        if not portfolio_summary:
-            return jsonify({
-                "status": "success",
-                "analysis": "💡 您的投資組合目前沒有任何有效持股（已出清），請先新增買進交易後再進行 AI 健檢診斷！",
-                "remaining_points": remaining_points
-            })
-            
-        portfolio_text = "\n".join(portfolio_summary)
-        
-        # 3. 呼叫 Gemini AI 進行診斷
-        prompt = f"""
-你是一位頂尖的資深證券分析師與智能財富管家。
-請為用戶當前的存股投資組合進行全方位的一鍵 AI 投資組合健檢診斷。
-
-用戶目前的持股清單如下：
-{portfolio_text}
-
-請從以下幾個維度給出極具專業度、實用度且高端優雅的健檢報告：
-1. 【📊 投資組合健康度診斷】：分析資產配置是否過度集中、產業覆蓋度與整體風險防禦能力。
-2. 【📈 個股潛力與行情解讀】：對持股清單中的主力股票（如台積電等台股熱門股）進行近期市場行情解析與技術面、基本面展望。
-3. 【💡 智慧理財與存股操作建議】：給出具體且溫良有度的資產配置建議（例如加碼、減碼、防守型策略、零成本存股心法）。
-4. 【🎯 未來30天行動指南】：列出三條具體、可執行的理財建議。
-
-注意：請使用繁體中文回答，口吻必須高端優雅、條理分明、溫柔而極具智慧與洞察力，字數約 600 - 800 字。
-"""
-        # 使用專案現有的 Gemini 呼叫方法
-        from google.generativeai import GenerativeModel
-        import google.generativeai as genai
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        analysis_report = response.text
-        
-        return jsonify({
-            "status": "success",
-            "analysis": analysis_report,
-            "remaining_points": remaining_points
-        })
-        
-    except Exception as e:
-        print(f"[Stock AI Analysis Error] {e}")
-        return jsonify({
-            "status": "error", 
-            "message": f"AI 健檢失敗: {str(e)}"
-        })
 
 @app.route('/api/health/record_start', methods=['POST'])
 def record_health_start():
@@ -9315,9 +9200,9 @@ def get_training_rules():
         rows = get_sheet_values('AI_指令集', spreadsheet_id=health_id)
         rules = []
         if rows and len(rows) > 1:
-            for r in rows[1:]:
+            for idx, r in enumerate(rows[1:], start=2):
                  if len(r) >= 2 and r[0].strip():
-                     rules.append({"trigger": r[0], "action": r[1]})
+                     rules.append({"id": idx, "trigger": r[0], "action": r[1]})
         return jsonify({"status": "success", "data": rules})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
@@ -9336,6 +9221,71 @@ def add_training_rule():
     try:
         append_to_sheet('AI_指令集', row, spreadsheet_id=health_id)
         return jsonify({"status": "success", "message": "訓練指令已寫入大腦！🧠"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/training/delete_rule', methods=['POST'])
+def delete_training_rule():
+    data = request.json
+    health_id = get_health_sheet_id()
+    if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
+    rule_id = data.get('id')
+    if not rule_id: return jsonify({"status": "error", "message": "缺少 rule id"})
+    
+    try:
+        service = get_sheets_service()
+        spreadsheet_metadata = service.spreadsheets().get(spreadsheetId=health_id).execute()
+        sheet_id = None
+        for sheet in spreadsheet_metadata['sheets']:
+            if sheet['properties']['title'] == 'AI_指令集':
+                sheet_id = sheet['properties']['sheetId']
+                break
+        if sheet_id is None:
+            return jsonify({"status": "error", "message": "找不到 AI_指令集 工作表"})
+            
+        target_row_idx = int(rule_id) - 1
+        body = {
+            'requests': [{
+                'deleteDimension': {
+                    'range': {
+                        'sheetId': sheet_id,
+                        'dimension': 'ROWS',
+                        'startIndex': target_row_idx,
+                        'endIndex': target_row_idx + 1
+                    }
+                }
+            }]
+        }
+        service.spreadsheets().batchUpdate(spreadsheetId=health_id, body=body).execute()
+        return jsonify({"status": "success", "message": "規則刪除成功！🧠"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/api/training/edit_rule', methods=['POST'])
+def edit_training_rule():
+    data = request.json
+    health_id = get_health_sheet_id()
+    if not health_id: return jsonify({"status": "error", "message": "未設定 HEALTH_SHEET_ID"})
+    rule_id = data.get('id')
+    trigger = data.get('trigger', '')
+    action = data.get('action', '')
+    if not rule_id or not trigger or not action:
+        return jsonify({"status": "error", "message": "參數不完整"})
+        
+    try:
+        service = get_sheets_service()
+        now = datetime.now(TW_TZ)
+        range_name = f"AI_指令集!A{rule_id}:C{rule_id}"
+        body = {
+            "values": [[trigger, action, now.strftime("%Y-%m-%d %H:%M:%S")]]
+        }
+        service.spreadsheets().values().update(
+            spreadsheetId=health_id,
+            range=range_name,
+            valueInputOption="USER_ENTERED",
+            body=body
+        ).execute()
+        return jsonify({"status": "success", "message": "規則修改成功！🧠"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 

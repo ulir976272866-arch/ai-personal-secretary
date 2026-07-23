@@ -5989,6 +5989,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- ⚙️ AI 訓練室邏輯 ---
+    window.editingTrainingRuleId = null;
+
     window.loadTrainingRules = async () => {
         try {
             const res = await fetch('/api/training/rules');
@@ -6000,14 +6002,100 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 list.innerHTML = data.data.map(rule => `
-                    <div style="background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-                        <div style="font-weight: 700; color: #1e293b; margin-bottom: 5px;">「${rule.trigger}」</div>
-                        <div style="font-size: 0.85rem; color: #64748b;">➔ ${rule.action}</div>
+                    <div style="background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                        <div style="flex: 1; text-align: left;">
+                            <div style="font-weight: 700; color: #1e293b; margin-bottom: 5px;">「${rule.trigger}」</div>
+                            <div style="font-size: 0.85rem; color: #64748b;">➔ ${rule.action}</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
+                            <button onclick="window.startEditTrainingRule(${rule.id}, '${rule.trigger.replace(/'/g, "\\'")}', '${rule.action.replace(/'/g, "\\'")}')" style="background: none; border: none; color: #64748b; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" title="修改">
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            </button>
+                            <button onclick="window.deleteTrainingRule(${rule.id})" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" title="刪除">
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                            </button>
+                        </div>
                     </div>
                 `).reverse().join(''); // 最新在上
             }
         } catch (e) {
             console.error('載入訓練規則失敗:', e);
+        }
+    };
+
+    window.startEditTrainingRule = (id, trigger, action) => {
+        window.editingTrainingRuleId = id;
+        
+        const triggerInput = document.getElementById('train_trigger');
+        const actionInput = document.getElementById('train_action');
+        const submitBtn = document.querySelector('#trainingModal .submit-btn');
+        
+        if (triggerInput && actionInput && submitBtn) {
+            triggerInput.value = trigger;
+            actionInput.value = action;
+            
+            submitBtn.innerHTML = '💾 儲存修改';
+            submitBtn.style.background = '#10b981';
+            
+            let cancelBtn = document.getElementById('cancel_train_edit_btn');
+            if (!cancelBtn) {
+                cancelBtn = document.createElement('button');
+                cancelBtn.id = 'cancel_train_edit_btn';
+                cancelBtn.innerHTML = '✕ 取消修改';
+                cancelBtn.style.cssText = 'background: #94a3b8; color: white; border: none; width: 100%; height: 42px; border-radius: 12px; font-weight: 700; font-size: 0.95rem; margin-top: 10px; cursor: pointer; transition: all 0.2s;';
+                cancelBtn.onclick = () => window.resetTrainingForm();
+                submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
+            }
+            
+            const modalBody = document.querySelector('#trainingModal .modal-body');
+            if (modalBody) {
+                modalBody.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+    };
+
+    window.resetTrainingForm = () => {
+        window.editingTrainingRuleId = null;
+        const triggerInput = document.getElementById('train_trigger');
+        const actionInput = document.getElementById('train_action');
+        const submitBtn = document.querySelector('#trainingModal .submit-btn');
+        
+        if (triggerInput) triggerInput.value = '';
+        if (actionInput) actionInput.value = '';
+        if (submitBtn) {
+            submitBtn.innerHTML = '＋ 建立新規則';
+            submitBtn.style.background = '#3b82f6';
+        }
+        
+        const cancelBtn = document.getElementById('cancel_train_edit_btn');
+        if (cancelBtn) {
+            cancelBtn.remove();
+        }
+    };
+
+    window.deleteTrainingRule = async (id) => {
+        const confirmed = await window.customConfirm('🗑️ 刪除自訂規則', '確定要刪除此條 AI 訓練規則嗎？', '🗑️', '確定刪除');
+        if (!confirmed) return;
+        
+        try {
+            const res = await fetch('/api/training/delete_rule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast('規則已成功刪除！🧠', 'success');
+                if (window.editingTrainingRuleId === id) {
+                    window.resetTrainingForm();
+                }
+                window.loadTrainingRules();
+            } else {
+                showToast(data.message || '刪除失敗', 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('連線失敗', 'error');
         }
     };
 
@@ -6023,23 +6111,27 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             const btn = trainSubmitBtn;
-            const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.style.pointerEvents = 'none';
-            btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; margin: 0; border-width: 2px;"></span> 建立中...';
+            btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; margin: 0; border-width: 2px;"></span> 儲存中...';
             btn.style.opacity = '0.7';
 
             try {
-                const res = await fetch('/api/training/add_rule', {
+                const isEdit = window.editingTrainingRuleId !== null;
+                const url = isEdit ? '/api/training/edit_rule' : '/api/training/add_rule';
+                const payload = isEdit 
+                    ? { id: window.editingTrainingRuleId, trigger, action }
+                    : { trigger, action };
+
+                const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ trigger, action })
+                    body: JSON.stringify(payload)
                 });
                 const data = await res.json();
                 if (data.status === 'success') {
                     showToast(data.message, 'success');
-                    document.getElementById('train_trigger').value = '';
-                    document.getElementById('train_action').value = '';
+                    window.resetTrainingForm();
                     window.loadTrainingRules();
                 } else {
                     showToast(data.message, 'error');
@@ -6049,7 +6141,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } finally {
                 btn.disabled = false;
                 btn.style.pointerEvents = '';
-                btn.innerHTML = originalText;
+                btn.innerHTML = window.editingTrainingRuleId ? '💾 儲存修改' : '＋ 建立新規則';
                 btn.style.opacity = '1';
             }
         };
@@ -6608,64 +6700,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!cached) {
                 listContainer.innerHTML = '<div style="text-align: center; color: #ef4444; font-size: 0.85rem; padding: 20px;">❌ 載入失敗，連線異常</div>';
             }
-        }
-    };
-
-    window.runStockAIFit = async () => {
-        const runBtn = document.getElementById('runStockAIBtn');
-        const container = document.getElementById('stock_ai_report_container');
-        if (!container || !runBtn) return;
-        
-        container.innerHTML = `
-            <div style="text-align: center; color: #94a3b8; padding-top: 50px;">
-                <span class="loading-spinner" style="width: 32px; height: 32px; border-color: #38bdf8; border-top-color: transparent; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;"></span>
-                🤖 AI 正在全方位解讀您的存股配置並進行診斷，大數據複雜計算預估需要 8-15 秒，請稍候...
-            </div>
-        `;
-        runBtn.disabled = true;
-        runBtn.style.opacity = '0.6';
-        runBtn.innerHTML = '⚡ AI 正在精算大數據中...';
-        
-        try {
-            const res = await fetch('/api/stock/ai_analysis', { method: 'POST' });
-            const data = await res.json();
-            
-            if (data.status === 'locked') {
-                closeModal('stockAnalysisModal');
-                openModal('upgradePaywallModal');
-                return;
-            }
-            
-            if (data.status === 'error') {
-                container.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px;">❌ 診斷失敗: ${data.message}</div>`;
-                return;
-            }
-            
-            // 格式化 markdown 並印出
-            container.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px; color:#38bdf8; font-weight: bold; font-size: 0.95rem; text-align: left;">
-                    <span>🤖</span> 旗艦版 AI 全能證券健檢報告 (已成功精算)
-                </div>
-                <div style="text-align: left;">
-                    ${formatStockMarkdown(data.analysis)}
-                </div>
-            `;
-            
-            // 同步更新首頁右上角的點數顯示（沒有固定 id，統一用 class 抓）
-            if (data.remaining_points !== undefined) {
-                document.querySelectorAll('.js-ai-points-count').forEach((el) => {
-                    el.innerText = data.remaining_points;
-                });
-                window.USER_AI_POINTS = data.remaining_points;
-            }
-            showToast('AI 全能持股健檢大數據計算完畢！', 'success');
-            
-        } catch (e) {
-            container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">❌ 連線失敗，無法取得 AI 報告</div>';
-        } finally {
-            runBtn.disabled = false;
-            runBtn.style.opacity = '1';
-            runBtn.innerHTML = '⚡ 立即啟動 AI 全能診斷 (扣除 30 點)';
         }
     };
 
